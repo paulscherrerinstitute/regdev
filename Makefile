@@ -7,6 +7,6 @@ endif
 BUILDCLASSES += Linux
 
 SOURCES += regDev.c
-SOURCES_Linux += mmapDev.c
+SOURCES_Linux += mmapDrv.c
 DBDS += regDev.dbd
-DBDS_Linux += mmapDev.dbd
+DBDS_Linux += mmapDrv.dbd

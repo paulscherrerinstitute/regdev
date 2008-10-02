@@ -26,7 +26,7 @@
 #define UNLOCK(m) semGive(m)
 #endif
 
-#define MAGIC 0xDA757E49
+#define MAGIC 2661166104U /* crc("mmap") */
 
 struct regDevice {
     unsigned long magic;
@@ -56,7 +56,7 @@ void mmapReport(
 {
     if (device && device->magic == MAGIC)
     {
-        printf("mmapDev baseaddress=0x%08lx size=0x%08lx mapped to %p\n",
+        printf("mmap driver baseaddress=0x%08lx size=0x%08lx mapped to %p\n",
             device->baseaddress, device->size, device->base);
     }
 }
