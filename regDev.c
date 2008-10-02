@@ -26,7 +26,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.1 2008/03/20 11:04:07 zimoch Exp $";
+    "$Id: regDev.c,v 1.2 2008/10/02 15:24:03 zimoch Exp $";
 
 typedef struct regDeviceNode {
     const char* name;              /* Device name */
@@ -914,7 +914,7 @@ STATIC long regDevReadArr(dbCommon* record, void* bptr, long nelm)
         for (i = 0; i < nelm/packing; i++)
         {
             status = regDevRead(priv->device, offset,
-               dlen, bptr+i*dlen);
+               dlen, (char*)bptr+i*dlen);
             if (status) break;
         }
     }
