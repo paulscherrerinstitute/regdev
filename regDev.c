@@ -26,7 +26,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.2 2008/10/02 15:24:03 zimoch Exp $";
+    "$Id: regDev.c,v 1.3 2008/10/24 07:46:42 zimoch Exp $";
 
 typedef struct regDeviceNode {
     const char* name;              /* Device name */
@@ -1031,13 +1031,14 @@ STATIC long regDevReadAnalog(dbCommon* record, epicsInt32* rval, double* fval)
                 4, &val32);
             regDevDebugLog(3, "ai %s: read 32bit %04lx = %g\n",
                 record->name, val32.u, val32.f);
-            val64.f = val32.f;
+            *fval = val32.f;
             break;
         case epicsFloat64T:
             status = regDevRead(priv->device, offset,
                 8, &val64);
             regDevDebugLog(3, "ai %s: read 64bit %08Lx = %g\n",
                 record->name, val64.u, val64.f);
+            *fval = val64.f;
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
