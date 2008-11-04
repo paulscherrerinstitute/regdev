@@ -10,3 +10,4 @@ SOURCES += regDev.c
 SOURCES_Linux += mmapDrv.c
 DBDS += regDev.dbd
 DBDS_Linux += mmapDrv.dbd
+HEADRES = regDev.h
