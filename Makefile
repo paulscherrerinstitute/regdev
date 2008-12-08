@@ -1,13 +1,9 @@
 include /ioc/tools/driver.makefile
 
-ifeq (${EPICS_BASETYPE},3.14)
-CROSS_COMPILER_TARGET_ARCHS += linux-crisv10
-endif
-
 BUILDCLASSES += Linux
 
 SOURCES += regDev.c
-SOURCES_Linux += mmapDrv.c
+SOURCES += mmapDrv.c
 DBDS += regDev.dbd
-DBDS_Linux += mmapDrv.dbd
+DBDS += mmapDrv.dbd
 HEADERS = regDev.h
