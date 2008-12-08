@@ -26,7 +26,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.3 2008/10/24 07:46:42 zimoch Exp $";
+    "$Id: regDev.c,v 1.4 2008/12/08 08:27:24 zimoch Exp $";
 
 typedef struct regDeviceNode {
     const char* name;              /* Device name */
@@ -1389,10 +1389,23 @@ STATIC long regDevReadMbbi(mbbiRecord* record)
 {
     int status;
     epicsInt32 rval;
+    int i;
     
     status = regDevReadInt((dbCommon*)record, &rval);
-    if (!status) record->rval = rval & record->mask;
-    return status;
+    if (status) return status;
+    if (record->mask) rval &= record->mask;
+    /* If any values defined write to RVAL field else to VAL field */
+    if (record->sdef) for (i=0; i<16; i++)
+    {
+        if ((&record->zrvl)[i])
+        {
+            record->rval = rval;
+            return 0;
+        }
+    }
+    if (record->shft > 0) rval >>= record->shft;
+    record->val = rval;
+    return 2;
 }
 
 /* mbbo *************************************************************/
@@ -1421,6 +1434,7 @@ STATIC long regDevInitRecordMbbo(mbboRecord* record)
     int status;
     epicsInt32 rval;
     regDevPrivate* priv;
+    int i;
 
     regDevDebugLog(1, "regDevInitRecordMbbo(%s) start\n", record->name);
     if ((priv = regDevAllocPriv((dbCommon*)record)) == NULL)
@@ -1430,22 +1444,45 @@ STATIC long regDevInitRecordMbbo(mbboRecord* record)
     if ((status = regDevAssertType((dbCommon*)record, TYPE_INT)))
         return status;
     if (record->shft > 0) record->mask <<= record->shft;
-    if (priv->initoffset == DONT_INIT)
-    {
-        status = 2;
-    } 
-    else 
+    if (priv->initoffset != DONT_INIT)
     {
         status = regDevReadInt((dbCommon*)record, &rval);
-        if (!status) record->rval = rval & record->mask;
+        if (status) return status;
+        if (record->mask) rval &= record->mask;
+        /* If any values defined write to RVAL field else to VAL field */
+        if (record->sdef) for (i=0; i<16; i++)
+        {
+            if ((&record->zrvl)[i])
+            {
+                record->rval = rval;
+                regDevDebugLog(1, "regDevInitRecordMbbo(%s) done RVAL=%ld\n", record->name, record->rval);
+                return 0;
+            }
+        }
+        if (record->shft > 0) rval >>= record->shft;
+        record->val = rval;
     }
-    regDevDebugLog(1, "regDevInitRecordMbbo(%s) done\n", record->name);
-    return status;
+    regDevDebugLog(1, "regDevInitRecordMbbo(%s) done VAL=%d\n", record->name, record->val);
+    return 2;
 }
 
 STATIC long regDevWriteMbbo(mbboRecord* record)
 {
-    return regDevWriteInt((dbCommon*)record, record->rval, record->mask);
+    epicsInt32 rval;
+    int i;
+    
+    if (record->sdef) for (i=0; i<16; i++)
+    {
+        if ((&record->zrvl)[i])
+        {
+            /* any values defined ? */
+            rval = record->rval;
+            return regDevWriteInt((dbCommon*)record, rval, record->mask);
+        }
+    }
+    rval = record->val;
+    if (record->shft > 0) rval <<= record->shft;
+    return regDevWriteInt((dbCommon*)record, rval, record->mask);
 }
 
 /* mbbiDirect *******************************************************/
