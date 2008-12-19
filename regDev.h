@@ -1,8 +1,8 @@
 /* $Author: zimoch $ */ 
-/* $Date: 2008/03/20 11:04:07 $ */ 
-/* $Id: regDev.h,v 1.1 2008/03/20 11:04:07 zimoch Exp $ */  
+/* $Date: 2008/12/19 15:21:37 $ */ 
+/* $Id: regDev.h,v 1.2 2008/12/19 15:21:37 zimoch Exp $ */  
 /* $Name:  $ */ 
-/* $Revision: 1.1 $ */ 
+/* $Revision: 1.2 $ */ 
 
 #ifndef regDev_h
 #define regDev_h
@@ -29,6 +29,8 @@ typedef struct regDevice regDevice;
 
 /* Every driver must provide this function table */
 /* It may be constant and is used for all device instances */
+/* Unimplemented functions may be NULL */
+
 typedef struct regDevSupport {
     void (*report)(
         regDevice *driver,
@@ -48,7 +50,7 @@ typedef struct regDevSupport {
         unsigned int dlen,
         unsigned int nelem,
         void* pdata,
-        int flags);
+        int prio);
     
     int (*writeMaskedArray)(
         regDevice *driver,
@@ -57,7 +59,8 @@ typedef struct regDevSupport {
         unsigned int nelem,
         void* pdata,
         void* pmask,
-        int flags);
+        int prio);
+        
 } regDevSupport;
 
 /* Every driver must create and register each device instance */
@@ -71,39 +74,29 @@ extern int regDevDebug;
 #define regDevDebugLog(level, fmt, args...) \
     if (level <= regDevDebug) __extension__ errlogSevPrintf(errlogInfo, fmt, ## args);
 
-#define regDevRead(device, offset, dlen, pdata) \
-    regDevReadArray((device), (offset), (dlen), 1, (pdata))
-    
-#define regDevReadArray(device, offset, dlen, nelem, pdata) \
+#define regDevReadArray(device, offset, dlen, nelem, pdata, prio) \
     (device)->support->readArray == NULL ? -1 : \
-    (device)->support->readArray((device)->driver, (offset), (dlen), (nelem), (pdata), 0)
+    (device)->support->readArray((device)->driver, (offset), (dlen), (nelem), (pdata), (prio))
 
-#define regDevReadFifo(device, offset, dlen, nelem, pdata) \
-    (device)->support->readArray == NULL ? -1 : \
-    (device)->support->readArray((device)->driver, (offset), (dlen), (nelem), (pdata), REGDEV_FLAGS_FIFO)
+#define regDevRead(device, offset, dlen, pdata, prio) \
+    regDevReadArray((device), (offset), (dlen), 1, (pdata), (prio))
 
-#define regDevWrite(device, offset, dlen, pdata) \
-    regDevWriteMaskedArray((device), (offset), (dlen), 1, (pdata), NULL)
+#define regDevPoll(device) \
+    regDevReadArray((device), 0, 0, 0, NULL, 0)
 
-#define regDevWriteArray(device, offset, dlen, nelem, pdata) \
-    regDevWriteMaskedArray((device), (offset), (dlen), (nelem), (pdata), NULL)
-
-#define regDevWriteMasked(device, offset, dlen, pdata, mask) \
-    regDevWriteMaskedArray((device), (offset), (dlen), 1, (pdata), (mask))
-
-#define regDevWriteFifo(device, offset, dlen, pdata) \
-    regDevWriteMaskedFifo((device), (offset), (dlen), 1, (pdata), NULL)
-
-#define regDevWriteMaskedArray(device, offset, dlen, nelem, pdata, mask) \
+#define regDevWriteMaskedArray(device, offset, dlen, nelem, pdata, mask, prio) \
     (device)->support->writeMaskedArray == NULL ? -1 : \
     (device)->support->writeMaskedArray((device)->driver, \
-        (offset), (dlen), (nelem), (pdata), (mask), 0)
+        (offset), (dlen), (nelem), (pdata), (mask), (prio))
 
-#define regDevWriteMaskedFifo(device, offset, dlen, nelem, pdata, mask) \
-    (device)->support->writeMaskedArray == NULL ? -1 : \
-    (device)->support->writeMaskedArray((device)->driver, \
-        (offset), (dlen), (nelem), (pdata), (mask), REGDEV_FLAGS_FIFO)
+#define regDevWrite(device, offset, dlen, pdata, prio) \
+    regDevWriteMaskedArray((device), (offset), (dlen), 1, (pdata), NULL, (prio))
 
+#define regDevWriteArray(device, offset, dlen, nelem, pdata, prio) \
+    regDevWriteMaskedArray((device), (offset), (dlen), (nelem), (pdata), NULL, (prio))
+
+#define regDevWriteMasked(device, offset, dlen, pdata, mask, prio) \
+    regDevWriteMaskedArray((device), (offset), (dlen), 1, (pdata), (mask), (prio))
 
 
 #include <epicsVersion.h>
