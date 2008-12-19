@@ -9,17 +9,17 @@
 #include <regDev.h>
 
 #ifdef __unix
-#warning Compiling for Unix/Linux
 #include <sys/mman.h>
 #define HAVE_MMAP
 #endif
 
 #ifdef __vxworks
-#warning Compiling for vxWorks
 #include <sysLib.h>
 #include <intLib.h>
+#include <wdLib.h>
 #include <vme.h>
 #include <iv.h>
+#include <dmaLib.h>
 #define HAVE_VME
 #endif
 
@@ -43,18 +43,29 @@
 
 struct regDevice {
     unsigned long magic;
+    const char* name;
     MUTEX accessLock;
     char* localbaseaddress;
     int addrspace;
-    unsigned long baseaddress;
-    unsigned long size;
+    unsigned int baseaddress;
+    unsigned int size;
     unsigned int intrvector;
     unsigned int intrlevel;
     int (*intrhandler)(regDevice *device);
     void* userdata;
     IOSCANPVT ioscanpvt;
     int intrcount;
+    int flags;
+#ifdef __vxworks
+    SEM_ID dmaComplete;
+    WDOG_ID dmaWatchdog;
+#endif
 };
+
+int mmapDebug = 0;
+
+/* Device flags */
+#define ALLOW_BLOCK_TRANSFER 0x0000001
 
 /******** Support functions *****************************/ 
 
@@ -64,8 +75,9 @@ void mmapReport(
 {
     if (device && device->magic == MAGIC)
     {
-        printf("mmap driver: regs @ %p - %p\n",
-            device->localbaseaddress, device->localbaseaddress+device->size-1);
+        printf("mmap driver: %d bytes @ %p - %p\n",
+            device->size, device->localbaseaddress,
+            device->localbaseaddress+device->size-1);
         if (level > 1)
         {
             printf("       Interrupt count: %d\n", device->intrcount);
@@ -88,15 +100,22 @@ IOSCANPVT mmapGetInScanPvt(
 
 #define mmapGetOutScanPvt mmapGetInScanPvt
 
+#ifdef __vxworks
+void mmapCancelDma(int handle)
+{
+    dmaRequestCancel(handle, FALSE);
+}
+#endif
+
 int mmapRead(
     regDevice *device,
     unsigned int offset,
     unsigned int dlen,
     unsigned int nelem,
     void* pdata,
-    int flags)
+    int prio)
 {
-    int log;
+    char* src;
 
     if (!device || device->magic != MAGIC)
     {
@@ -104,102 +123,175 @@ int mmapRead(
             "mmapRead: illegal device handle\n");
         return -1;
     }
-    if (offset > device->size ||
-        offset+dlen*(flags && REGDEV_FLAGS_FIFO ? 1 : nelem) > device->size)
+    if (offset > device->size)
     {
         errlogSevPrintf(errlogMajor,
-            "mmapRead address out of range\n");
+            "mmapRead %s: offset %d out of range (0-%d)\n",
+            device->name, offset, device->size);
         return -1;
     }
-    log = device->addrspace == -1 || regDevDebug >= 4;
+    if (offset+dlen*nelem > device->size)
+    {
+        errlogSevPrintf(errlogMajor,
+            "mmapRead %s: offset %d + %d bytes length exceeds mapped size %d by %d bytes\n",
+            device->name, offset, nelem, device->size,
+            offset+dlen*nelem - device->size);
+        return -1;
+    }
+    
     LOCK(device->accessLock);
-    if (log) printf ("mmapRead %08lx:", device->baseaddress+offset);
+    src = device->localbaseaddress+offset;
+#ifdef __vxworks
+    /* Try block transfer for long arrays */
+    if (nelem >= 1024 &&                          /* inefficient for short arrays */
+        (device->flags & ALLOW_BLOCK_TRANSFER) && /* card must be able to do block transfer */
+        ((long)pdata & 0x7) == 0 &&               /* dest address must be multiple of 8 */
+        ((long)src & 0x7) == 0)                   /* src address must be multiple of 8 */
+    {
+        UINT32 addrMode;
+        UINT32 dataWidth;
+        int dmaHandle;
+        unsigned int dmaStatus;
+        
+        switch (dlen)
+        {
+            case 1:
+                dataWidth = DT8;
+                break;
+            case 2:
+                dataWidth = DT16;
+                break;
+            case 4:
+                dataWidth = DT32;
+                break;
+            case 8:
+                dataWidth = DT64;
+                break;
+            default:
+                goto noDma;
+        }
+        if (mmapDebug >= 1) printf ("mmapRead %s: block transfer from %p to %p, %d * %d bit\n",
+            device->name, device->localbaseaddress+offset, pdata, nelem, dlen*8);
+        switch (device->addrspace)
+        {
+            case 16:
+                addrMode = AM16;
+                break;
+            case 24:
+                addrMode = AM24;
+                break;
+            case 32:
+                addrMode = AM32;
+                break;
+            default:
+                goto noDma;
+        }
+        if ((dmaHandle = dmaTransferRequest(pdata, (unsigned char*) src, nelem*dlen,
+                addrMode, dataWidth, V2C, 100,
+                (VOIDFUNCPTR)semGive, device->dmaComplete, &dmaStatus)) != ERROR)
+        {
+            wdStart(device->dmaWatchdog, sysClkRateGet(), (FUNCPTR)mmapCancelDma, dmaHandle);
+            if (semTake(device->dmaComplete, 10*sysClkRateGet()) == ERROR)
+            {
+                wdCancel(device->dmaWatchdog);
+                dmaRequestCancel(dmaHandle, TRUE);
+                errlogSevPrintf(errlogMajor,
+                    "mmapRead %s: DMA transfer timeout.\n",
+                        device->name);
+                return ERROR;
+            }
+            wdCancel(device->dmaWatchdog);
+            if (dmaStatus == DMA_DONE)
+            {
+                UNLOCK(device->accessLock);
+                return 0;
+            }
+            errlogSevPrintf(errlogMajor,
+                "mmapRead %s: DMA %s error (0x%x). Using normal transfer.\n",
+                    device->name,
+                    dmaStatus == DMA_PROERR ? "protocol" :
+                    dmaStatus == DMA_BUSERR ? "vme" :
+                    dmaStatus == DMA_CPUERR ? "pci" : 
+                    dmaStatus == DMA_STOP   ? "timeout" : "unknown",
+                    dmaStatus);
+            /*device->flags &= ~ALLOW_BLOCK_TRANSFER;*/
+        }
+    }
+noDma:    
+#endif    
+    if (mmapDebug >= 1) printf ("mmapRead %s: normal transfer from %p to %p, %d * %d bit\n",
+        device->name, device->localbaseaddress+offset, pdata, nelem, dlen*8);
     switch (dlen)
     {
         case 0:
             break;
         case 1:
         {
-            unsigned char  x;
-            unsigned char* s = (unsigned char*)(device->localbaseaddress+offset);
+            unsigned char* s = (unsigned char*)src;
             unsigned char* d = pdata;
                 
             while (nelem--)
-            {
-                x = *s;
-                if (!(flags && REGDEV_FLAGS_FIFO)) s++;
-                if (log) printf (" %02x", x);
-                *d++ = x;
-            }
+                *d++ = *s++;
             break;
         }
         case 2:
         {
-            unsigned short  x;
-            unsigned short* s = (unsigned short*)(device->localbaseaddress+offset);
+            unsigned short* s = (unsigned short*)src;
             unsigned short* d = pdata;
                 
             while (nelem--)
-            {
-                x = *s;
-                if (!(flags && REGDEV_FLAGS_FIFO)) s++;
-                if (log) printf (" %04x", x);
-                *d++ = x;
-            }
+                *d++ = *s++;
             break;
         }
         case 4:
         {
-            unsigned long  x;
-            unsigned long* s = (unsigned long*)(device->localbaseaddress+offset);
+            unsigned long* s = (unsigned long*)src;
             unsigned long* d = pdata;
                 
             while (nelem--)
-            {
-                x = *s;
-                if (!(flags && REGDEV_FLAGS_FIFO)) s++;
-                if (log) printf (" %08lx", x);
-                *d++ = x;
-            }
+                *d++ = *s++;
             break;
         }
         case 8:
         {
-            unsigned long long  x;
-            unsigned long long* s = (unsigned long long*)(device->localbaseaddress+offset);
+            unsigned long long* s = (unsigned long long*)src;
             unsigned long long* d = pdata;
                 
             while (nelem--)
-            {
-                x = *s;
-                if (!(flags && REGDEV_FLAGS_FIFO)) s++;
-                if (log) printf (" %016Lx", x);
-                *d++ = x;
-            }
+                *d++ = *s++;
             break;
         }
         default:
         {
-            unsigned char  x;
-            unsigned char* s = (unsigned char*)(device->localbaseaddress+offset);
+            unsigned char* s = (unsigned char*)src;
             unsigned char* d = pdata;
             int i;
             
             while (nelem--)
             {
-                if (log) printf (" ");
-                if (flags && REGDEV_FLAGS_FIFO)
-                    s = (unsigned char*)(device->localbaseaddress+offset);
-                for (i=0; i<dlen; i++)
+                i = dlen;
+                while (i)
                 {
-                    x = *s++;
-                    if (log) printf ("%02x", x);
-                    *d++ = x;
+                    if (i>=4 && (((long)s|(long)d)&2)==0)
+                    {
+                        *(unsigned long*)d = *(unsigned long*)s;
+                        d+=4;
+                        s+=4;
+                        i-=4;
+                    } else if (i>=2 && (((long)s|(long)d)&1)==0)
+                    {
+                        *(unsigned short*)d = *(unsigned short*)s;
+                        d+=2;
+                        s+=2;
+                        i-=2;
+                    } else {
+                        *d++ = *s++;
+                        i--;
+                    }
                 }
             }
         }
     }
-    if (log) printf ("\n");
     UNLOCK(device->accessLock);
     return 0;
 }
@@ -211,10 +303,8 @@ int mmapWrite(
     unsigned int nelem,
     void* pdata,
     void* pmask,
-    int flags)
-{
-    int log;
-    
+    int prio)
+{    
     if (!device || device->magic != MAGIC)
     {
         errlogSevPrintf(errlogMajor,
@@ -222,7 +312,7 @@ int mmapWrite(
         return -1;
     }
     if (offset > device->size ||
-        offset+dlen*(flags && REGDEV_FLAGS_FIFO ? 1 : nelem) > device->size)
+        offset+dlen*nelem > device->size)
     {
         errlogSevPrintf(errlogMajor,
             "mmapWrite: address out of range\n");
@@ -230,9 +320,8 @@ int mmapWrite(
     }
     if (!device || device->magic != MAGIC
         || offset+dlen*nelem > device->size) return -1;
-    log = device->addrspace == -1 || regDevDebug >= 4;
     LOCK(device->accessLock);
-    if (log) printf ("mmapWrite %08lx:", device->baseaddress+offset);
+    if (mmapDebug >= 1) printf ("mmapWrite %08x:", device->baseaddress+offset);
     switch (dlen)
     {
         case 0:
@@ -242,18 +331,19 @@ int mmapWrite(
             unsigned char  x;
             unsigned char* s = pdata;
             unsigned char* d = (unsigned char*)(device->localbaseaddress+offset);
-            unsigned char  m = pmask ? *(unsigned char*)pmask : 0;
-            while (nelem--)
+            if (pmask)
             {
-                x = *s++;
-                if (pmask)
+                unsigned char  m = *(unsigned char*)pmask;
+                while (nelem--)
                 {
-                    x &= m;
-                    x |= *d & ~m;
+                    x = (*s++ & m) | (*d & ~m);
+                    *d++ = x;
                 }
-                if (log) printf (" %02x", x);
-                *d = x;
-                if (!(flags && REGDEV_FLAGS_FIFO)) d++;
+            }
+            else
+            {
+                while (nelem--)
+                    *d++ = *s++;
             }
             break;
         }
@@ -262,18 +352,19 @@ int mmapWrite(
             unsigned short  x;
             unsigned short* s = pdata;
             unsigned short* d = (unsigned short*)(device->localbaseaddress+offset);
-            unsigned short  m = pmask ? *(unsigned short*)pmask : 0;
-            while (nelem--)
+            if (pmask)
             {
-                x = *s++;
-                if (pmask)
+                unsigned short  m = *(unsigned short*)pmask;
+                while (nelem--)
                 {
-                    x &= m;
-                    x |= *d & ~m;
+                    x = (*s++ & m) | (*d & ~m);
+                    *d++ = x;
                 }
-                if (log) printf (" %04x", x);
-                *d = x;
-                if (!(flags && REGDEV_FLAGS_FIFO)) d++;
+            }
+            else
+            {
+                while (nelem--)
+                    *d++ = *s++;
             }
             break;
         }
@@ -282,18 +373,19 @@ int mmapWrite(
             unsigned long  x;
             unsigned long* s = pdata;
             unsigned long* d = (unsigned long*)(device->localbaseaddress+offset);
-            unsigned long  m = pmask ? *(unsigned long*)pmask : 0;
-            while (nelem--)
+            if (pmask)
             {
-                x = *s++;
-                if (pmask)
+                unsigned long  m = *(unsigned long*)pmask;
+                while (nelem--)
                 {
-                    x &= m;
-                    x |= *d & ~m;
+                    x = (*s++ & m) | (*d & ~m);
+                    *d++ = x;
                 }
-                if (log) printf (" %08lx", x);
-                *d = x;
-                if (!(flags && REGDEV_FLAGS_FIFO)) d++;
+            }
+            else
+            {
+                while (nelem--)
+                    *d++ = *s++;
             }
             break;
         }
@@ -302,18 +394,19 @@ int mmapWrite(
             unsigned long long  x;
             unsigned long long* s = pdata;
             unsigned long long* d = (unsigned long long*)(device->localbaseaddress+offset);
-            unsigned long long  m = pmask ? *(unsigned long long*)pmask : 0;
-            while (nelem--)
+            if (pmask)
             {
-                x = *s++;
-                if (pmask)
+                unsigned long long  m = *(unsigned long long*)pmask;
+                while (nelem--)
                 {
-                    x &= m;
-                    x |= *d & ~m;
+                    x = (*s++ & m) | (*d & ~m);
+                    *d++ = x;
                 }
-                if (log) printf (" %016Lx", x);
-                *d = x;
-                if (!(flags && REGDEV_FLAGS_FIFO)) d++;
+            }
+            else
+            {
+                while (nelem--)
+                    *d++ = *s++;
             }
             break;
         }
@@ -325,28 +418,36 @@ int mmapWrite(
             unsigned char* m;
             int i;
             
-            while (nelem--)
+            if (pmask)
             {
-                m = pmask;
-                if (log) printf (" ");
-                if (flags && REGDEV_FLAGS_FIFO)
-                    d = (unsigned char*)(device->localbaseaddress+offset);
-                for (i=0; i<dlen; i++)
+                while (nelem--)
                 {
-                    x = *s++;
-                    if (pmask)
+                    m = pmask;
+                    if (mmapDebug >= 2) printf (" ");
+                    for (i=0; i<dlen; i++)
                     {
+                        x = *s++;
                         x &= *m;
-                        x |= *d & ~*m;
-                        m++;
+                        x |= *d & ~*m++;
+                        *d++ = x;
                     }
-                    if (log) printf ("%02x", x);
-                    *d++ = x;
+                }
+            }
+            else
+            {
+                while (nelem--)
+                {
+                    m = pmask;
+                    if (mmapDebug >= 2) printf (" ");
+                    for (i=0; i<dlen; i++)
+                    {
+                        *d++ = *s++;
+                    }
                 }
             }
         }
     }
-    if (log) printf ("\n");
+    if (mmapDebug >= 2) printf ("\n");
     UNLOCK(device->accessLock);
     return 0;
 }
@@ -395,8 +496,8 @@ void mmapInterrupt(regDevice *device)
 
 int mmapConfigure(
     const char* name,
-    unsigned long baseaddress,
-    unsigned long size,
+    unsigned int baseaddress,
+    unsigned int size,
     int addrspace,
     unsigned int intrvector,
     unsigned int intrlevel,
@@ -417,11 +518,11 @@ int mmapConfigure(
         printf("addrspace = 0 (default): physical address space using /dev/mem\n");
 #endif
 #ifdef HAVE_VME
-        printf("addrspace = 16, 24 or 32: VME address space\n");
+        printf("addrspace = 16, 24 or 32: VME address space (+100: allow block transfer)\n");
 #endif
         return 0;
     }
-    switch (addrspace)
+    switch (addrspace%100)
     {
         case -1:  /* Simulation runs on allocated memory */
         {
@@ -431,7 +532,7 @@ int mmapConfigure(
             if (localbaseaddress == NULL)
             {
                 errlogSevPrintf(errlogFatal,
-                    "mmapConfigure \"%s\": out of memory\n",
+                    "mmapConfigure %s: out of memory\n",
                     name);
                 return errno;
             }
@@ -445,7 +546,7 @@ int mmapConfigure(
             fd = open("/dev/mem", O_RDWR | O_SYNC);
             if (fd < 0) {
                 errlogSevPrintf(errlogFatal,
-                    "mmapConfigure \"%s\": can't open /dev/mem: %s\n",
+                    "mmapConfigure %s: can't open /dev/mem: %s\n",
                     name, strerror(errno));
                 return errno;
             }
@@ -456,7 +557,7 @@ int mmapConfigure(
             if (localbaseaddress == MAP_FAILED || localbaseaddress == NULL)
             {
                 errlogSevPrintf(errlogFatal,
-                    "mmapConfigure \"%s\": can't mmap /dev/mem: %s\n",
+                    "mmapConfigure %s: can't mmap /dev/mem: %s\n",
                     name, strerror(errno));
                 return errno;
             }
@@ -476,7 +577,7 @@ int mmapConfigure(
         default:
         {
             errlogSevPrintf(errlogFatal,
-                "mmapConfigure \"%s\": illegal VME address space %d must be 16, 24 or 32\n",
+                "mmapConfigure %s: illegal VME address space %d must be 16, 24 or 32\n",
                 name, addrspace);
             return -1;
         }
@@ -485,7 +586,7 @@ int mmapConfigure(
     if (sysBusToLocalAdrs(addressModifier, (char*)baseaddress, &localbaseaddress) != OK)
     {
         errlogSevPrintf(errlogFatal,
-            "mmapConfigure \"%s\": can't map address 0x%08lx on A%d address space\n",
+            "mmapConfigure %s: can't map address 0x%08x on A%d address space\n",
             name, baseaddress, addrspace);
         return -1;
     }
@@ -495,7 +596,7 @@ int mmapConfigure(
         if (addressModifier == 0)
         {
             errlogSevPrintf(errlogFatal,
-                "mmapConfigure \"%s\": interrupts not supported on addrspace %d\n",
+                "mmapConfigure %s: interrupts not supported on addrspace %d\n",
                 name, addrspace);
             return -1;
         }
@@ -503,7 +604,7 @@ int mmapConfigure(
         if (intrlevel < 1 || intrlevel > 7)
         {
             errlogSevPrintf(errlogFatal, 
-                "mmapConfigure \"%s\": illegal interrupt level %d must be 1...7\n",
+                "mmapConfigure %s: illegal interrupt level %d must be 1...7\n",
                 name, intrlevel);
             return -1;
         }
@@ -514,13 +615,14 @@ int mmapConfigure(
     if (device == NULL)
     {
         errlogSevPrintf(errlogFatal,
-            "mmapConfigure \"%s\": out of memory\n",
+            "mmapConfigure %s: out of memory\n",
             name);
         return errno;
     }
     device->magic = MAGIC;
+    device->name = name;
     device->size = size;
-    device->addrspace = addrspace;
+    device->addrspace = addrspace%100;
     device->baseaddress = baseaddress;
     device->localbaseaddress = localbaseaddress;
     device->accessLock = MUTEX_CREATE();
@@ -530,21 +632,25 @@ int mmapConfigure(
     device->userdata = userdata;
     device->ioscanpvt = NULL;
     device->intrcount = 0;
+    device->flags = addrspace/100 ? ALLOW_BLOCK_TRANSFER : 0;
     
 #ifdef __vxworks
+    device->dmaComplete = semBCreate(SEM_Q_FIFO, SEM_EMPTY);
+    device->dmaWatchdog = wdCreate();
+
     if (intrvector)
     {
         if (intConnect(INUM_TO_IVEC(intrvector), mmapInterrupt, (int)device) != OK)
         {
             errlogSevPrintf(errlogFatal,
-                "vmemapConfigure \"%s\": cannot connect to interrupt vector %d\n",
+                "vmemapConfigure %s: cannot connect to interrupt vector %d\n",
                 name, intrvector);
             return -1;
         }
         if (sysIntEnable(intrlevel) != OK)
         {
             errlogSevPrintf(errlogFatal,
-                "vmemapConfigure \"%s\": cannot enable interrupt level %d\n",
+                "vmemapConfigure %s: cannot enable interrupt level %d\n",
                 name, intrlevel);
             return -1;
         }
@@ -561,7 +667,7 @@ int mmapConfigure(
 static const iocshArg mmapConfigureArg0 = { "name", iocshArgString };
 static const iocshArg mmapConfigureArg1 = { "baseaddress", iocshArgInt };
 static const iocshArg mmapConfigureArg2 = { "size", iocshArgInt };
-static const iocshArg mmapConfigureArg3 = { "addrspace (-1=simulation;16,24,32=VME)", iocshArgInt };
+static const iocshArg mmapConfigureArg3 = { "addrspace (-1=simulation;16,24,32=VME,+100=block transfer)", iocshArgInt };
 static const iocshArg mmapConfigureArg4 = { "intrvector (default:0)", iocshArgInt };
 static const iocshArg mmapConfigureArg5 = { "intrlevel (default:0)", iocshArgInt };
 static const iocshArg mmapConfigureArg6 = { "intrhandler (default:NULL)", iocshArgString };
