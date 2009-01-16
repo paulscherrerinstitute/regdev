@@ -1,0 +1,1 @@
+device(calcout,    INST_IO, regDevCalcout,    "regDev")
