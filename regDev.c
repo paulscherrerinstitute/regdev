@@ -28,6 +28,7 @@
 
 #ifdef __vxworks
 #include <tickLib.h>
+#include <sysLib.h>
 #define clock_t int
 #define clock() tickGet()
 #define CLOCKS_PER_SEC sysClkRateGet()
@@ -36,7 +37,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.5 2008/12/19 15:22:15 zimoch Exp $";
+    "$Id: regDev.c,v 1.6 2009/01/16 15:20:54 zimoch Exp $";
 
 typedef struct regDeviceNode {
     struct regDeviceNode* next;    /* Next registered device */
