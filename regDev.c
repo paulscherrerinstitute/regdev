@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.10 2009/12/10 10:28:56 zimoch Exp $";
+    "$Id: regDev.c,v 1.11 2009/12/10 10:39:48 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -443,7 +443,7 @@ int regDevRegisterDevice(const char* name,
     
     regDeviceNode **pdevice; 
     for (pdevice=&registeredDevices; *pdevice; pdevice=&(*pdevice)->next);
-    *pdevice = (regDeviceNode*) calloc(1, sizeof(regDevPrivate));
+    *pdevice = (regDeviceNode*) calloc(1, sizeof(regDeviceNode));
     if (*pdevice == NULL)
     {
         fprintf(stderr,
