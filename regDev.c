@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.13 2009/12/10 10:56:57 zimoch Exp $";
+    "$Id: regDev.c,v 1.14 2009/12/10 11:01:09 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -29,14 +29,11 @@ epicsExportAddress(int, regDevDebug);
 int strncasecmp(const char *s1, const char *s2, size_t n)
 {
     int x;
-    printf ("strncasecmp(\"%s\",\"%s\",%d)\n", s1, s2, n);
     while (n--) {
-        printf ("compare %c with %c\n",
-            tolower((unsigned char)*s1),
-            tolower((unsigned char)*s2));
-            
-        x = tolower((unsigned char)*s1++) - tolower((unsigned char)*s2++);
+        x = tolower((unsigned char)*s1) - tolower((unsigned char)*s2);
         if (x != 0) return x;
+        s1++;
+        s2++;
     }
     return 0;
 }
