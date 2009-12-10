@@ -1,0 +1,2 @@
+device(aai,        INST_IO, regDevAai,        "regDev")
+device(aao,        INST_IO, regDevAao,        "regDev")

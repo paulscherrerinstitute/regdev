@@ -1,27 +1,24 @@
+/* header for low-level drivers */
+
 /* $Author: zimoch $ */ 
-/* $Date: 2008/12/19 15:21:37 $ */ 
-/* $Id: regDev.h,v 1.2 2008/12/19 15:21:37 zimoch Exp $ */  
+/* $Date: 2009/12/10 10:02:53 $ */ 
+/* $Id: regDev.h,v 1.3 2009/12/10 10:02:53 zimoch Exp $ */  
 /* $Name:  $ */ 
-/* $Revision: 1.2 $ */ 
+/* $Revision: 1.3 $ */ 
 
 #ifndef regDev_h
 #define regDev_h
 
-#ifndef __GNUC__
-#define __attribute__(a)
-#define __extension__
-#define __inline__ static
-#endif
-
-#ifndef DEBUG
-#define STATIC static
-#else
-#define STATIC
-#endif
-
 #include <dbScan.h>
+#include <epicsVersion.h>
 
-#define REGDEV_FLAGS_FIFO  (0x0000001)
+#ifdef BASE_VERSION
+#define EPICS_3_13
+#else
+#define EPICS_3_14
+#include <epicsExport.h>
+#include <iocsh.h>
+#endif
 
 /* Every device driver may define struct regDevice as needed */
 /* It's a handle to the device instance */
@@ -33,33 +30,33 @@ typedef struct regDevice regDevice;
 
 typedef struct regDevSupport {
     void (*report)(
-        regDevice *driver,
+        regDevice *device,
         int level);
     
     IOSCANPVT (*getInScanPvt)(
-        regDevice *driver,
+        regDevice *device,
         unsigned int offset);
     
     IOSCANPVT (*getOutScanPvt)(
-        regDevice *driver,
+        regDevice *device,
         unsigned int offset);
 
-    int (*readArray)(
-        regDevice *driver,
+    int (*read)(
+        regDevice *device,
         unsigned int offset,
-        unsigned int dlen,
+        unsigned int datalength,
         unsigned int nelem,
         void* pdata,
-        int prio);
+        int priority);
     
-    int (*writeMaskedArray)(
-        regDevice *driver,
+    int (*write)(
+        regDevice *device,
         unsigned int offset,
-        unsigned int dlen,
+        unsigned int datalength,
         unsigned int nelem,
         void* pdata,
         void* pmask,
-        int prio);
+        int priority);
         
 } regDevSupport;
 
@@ -68,42 +65,15 @@ typedef struct regDevSupport {
 int regDevRegisterDevice(
     const char* name,
     const regDevSupport* support,
-    regDevice* driver);
+    regDevice* device);
+
+regDevice* regDevFind(
+    const char* name);
 
 extern int regDevDebug;
 #define regDevDebugLog(level, fmt, args...) \
-    if (level <= regDevDebug) __extension__ errlogSevPrintf(errlogInfo, fmt, ## args);
+    if (level <= regDevDebug)  errlogSevPrintf(errlogInfo, fmt, ## args);
 
-#define regDevReadArray(device, offset, dlen, nelem, pdata, prio) \
-    (device)->support->readArray == NULL ? -1 : \
-    (device)->support->readArray((device)->driver, (offset), (dlen), (nelem), (pdata), (prio))
-
-#define regDevRead(device, offset, dlen, pdata, prio) \
-    regDevReadArray((device), (offset), (dlen), 1, (pdata), (prio))
-
-#define regDevPoll(device) \
-    regDevReadArray((device), 0, 0, 0, NULL, 0)
-
-#define regDevWriteMaskedArray(device, offset, dlen, nelem, pdata, mask, prio) \
-    (device)->support->writeMaskedArray == NULL ? -1 : \
-    (device)->support->writeMaskedArray((device)->driver, \
-        (offset), (dlen), (nelem), (pdata), (mask), (prio))
-
-#define regDevWrite(device, offset, dlen, pdata, prio) \
-    regDevWriteMaskedArray((device), (offset), (dlen), 1, (pdata), NULL, (prio))
-
-#define regDevWriteArray(device, offset, dlen, nelem, pdata, prio) \
-    regDevWriteMaskedArray((device), (offset), (dlen), (nelem), (pdata), NULL, (prio))
-
-#define regDevWriteMasked(device, offset, dlen, pdata, mask, prio) \
-    regDevWriteMaskedArray((device), (offset), (dlen), 1, (pdata), (mask), (prio))
-
-
-#include <epicsVersion.h>
-#ifdef BASE_VERSION
-#define EPICS_3_13
-#else
-#define EPICS_3_14
-#endif
-
+/* utility function for drivers to copy buffers */
+void regDevCopy(unsigned int dlen, unsigned int nelem, void* src, void* dest, void* pmask, int swap);
 #endif /* regDev_h */

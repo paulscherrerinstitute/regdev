@@ -1,0 +1,307 @@
+record (bi, "$(DEV):status")
+{
+    field (DTYP, "regDev stat")
+    field (INP,  "@test")
+    field (ZNAM, "Disconnected")
+    field (ONAM, "Connected")
+    field (ZSV,  "MAJOR")
+    field (SCAN, "I/O Intr")
+}
+
+record (waveform, "$(DEV):bytes")
+{
+    field (FTVL, "CHAR")
+    field (DTYP, "regDev")
+    field (INP,  "@test/0")
+    field (NELM, "100")
+    field (SCAN, "I/O Intr")
+}
+
+record (waveform, "$(DEV):short")
+{
+    field (FTVL, "SHORT")
+    field (DTYP, "regDev")
+    field (INP,  "@test/0")
+    field (NELM, "50")
+    field (SCAN, "I/O Intr")
+}
+
+record (waveform, "$(DEV):long")
+{
+    field (FTVL, "LONG")
+    field (DTYP, "regDev")
+    field (INP,  "@test/0")
+    field (NELM, "15")
+    field (SCAN, "I/O Intr")
+}
+
+record (ao, "$(DEV):ao1")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test/0 T=double")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+}
+
+record (ai, "$(DEV):ai1")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test/0 T=double")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "I/O Intr")
+}
+
+record (ao, "$(DEV):ao2")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test/8 T=float")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+}
+
+record (ai, "$(DEV):ai2")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test/8 T=float")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "I/O Intr")
+}
+
+record (ao, "$(DEV):ao3")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test/12 T=uint16")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+}
+
+record (ai, "$(DEV):ai3")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test/12 T=uint16")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "I/O Intr")
+}
+
+record (ao, "$(DEV):ao4")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test/14 T=int16")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+}
+
+record (ai, "$(DEV):ai4")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test/14 T=int16")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "I/O Intr")
+}
+
+record (ao, "$(DEV):ao5")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test/16 T=uint32")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+}
+
+record (ai, "$(DEV):ai5")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test/16 T=uint32")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "I/O Intr")
+}
+
+record (ao, "$(DEV):ao6")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test/20 T=int32")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+}
+
+record (ai, "$(DEV):ai6")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test/20 T=int32")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "I/O Intr")
+}
+
+record (ao, "$(DEV):ao7")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test/24 T=uint8")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+}
+
+record (ai, "$(DEV):ai7")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test/24 T=uint8")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "I/O Intr")
+}
+
+record (ao, "$(DEV):ao8")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test/25 T=int8")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+}
+
+record (ai, "$(DEV):ai8")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test/25 T=int8")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "I/O Intr")
+}
+
+record (ao, "$(DEV):ao9")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test/26 T=bcd8")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+}
+
+record (ai, "$(DEV):ai9")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test/26 T=bcd8")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "I/O Intr")
+}
+
+record (ao, "$(DEV):ao10")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test/27 T=bcd16")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+}
+
+record (ai, "$(DEV):ai10")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test/27 T=bcd16")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "I/O Intr")
+}
+
+record (ao, "$(DEV):ao11")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test/29 T=bcd32")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+}
+
+record (ai, "$(DEV):ai11")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test/29 T=bcd32")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "I/O Intr")
+}
+
+
+record (mbbo, "$(DEV):mbbo1")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test/16 T=word")
+}
+
