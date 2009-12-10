@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.11 2009/12/10 10:39:48 zimoch Exp $";
+    "$Id: regDev.c,v 1.12 2009/12/10 10:48:13 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -274,8 +274,11 @@ int regDevIoParse2(
                 p+=2; 
                 for (type = 0; type < maxtype; type++)
                 {
+                    int cmp;
                     nchar = strlen(datatypes[type].name);
-                    if (strncasecmp(p, datatypes[type].name, nchar) == 0)
+                    cmp = strncasecmp(p, datatypes[type].name, nchar);
+                    printf("check \"%s\" vs \"%s\": %d\n", p, datatypes[type].name, cmp);
+                    if (cmp == 0)
                     {
                         priv->dtype = datatypes[type].type;
                         priv->dlen = datatypes[type].dlen;
