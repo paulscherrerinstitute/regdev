@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.8 2009/12/10 10:26:02 zimoch Exp $";
+    "$Id: regDev.c,v 1.9 2009/12/10 10:28:30 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -619,7 +619,7 @@ regDevPrivate* regDevAllocPriv(dbCommon *record)
 
     regDevDebugLog(1, "regDevAllocPriv(%s)\n", record->name);
     priv = calloc(1, sizeof(regDevPrivate));
-    if (record->dpvt == NULL)
+    if (dpvt == NULL)
     {
         fprintf(stderr,
             "regDevAllocPriv %s: try to allocate %d bytes. %s\n",
