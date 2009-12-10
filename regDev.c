@@ -4,6 +4,11 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
+
+#ifdef vxWorks
+#include <memLib.h>
+#endif
 
 #define epicsTypesGLOBAL
 #include "regDevSup.h"
@@ -13,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.7 2009/12/10 10:02:53 zimoch Exp $";
+    "$Id: regDev.c,v 1.8 2009/12/10 10:26:02 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -617,8 +622,15 @@ regDevPrivate* regDevAllocPriv(dbCommon *record)
     if (record->dpvt == NULL)
     {
         fprintf(stderr,
-            "regDevAllocPriv %s: out of memory\n",
-            record->name);
+            "regDevAllocPriv %s: try to allocate %d bytes. %s\n",
+            record->name, sizeof(regDevPrivate), strerror(errno));
+#ifdef vxWorks
+        {
+            MEM_PART_STATS meminfo;
+            memPartInfoGet(memSysPartId, &meminfo);
+            printf ("Max free block: %ld bytes\n", meminfo.maxBlockSizeFree);
+        }
+#endif
         return NULL;
     }
     priv->dtype = epicsInt16T;
