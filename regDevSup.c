@@ -94,6 +94,7 @@ long regDevReadBi(biRecord* record)
     epicsInt32 rval;
     
     status = regDevReadBits((dbCommon*)record, &rval, record->mask);
+    if (!status) record->rval = rval;
     return status;
 }
 
@@ -140,6 +141,7 @@ long regDevInitRecordBo(boRecord* record)
     else 
     {
         status = regDevReadBits((dbCommon*)record, &rval, record->mask);
+        if (!status) record->rval = rval;
     }
     regDevDebugLog(1, "regDevInitRecordBo(%s) done\n", record->name);
     return status;
@@ -336,6 +338,7 @@ long regDevReadMbbiDirect(mbbiDirectRecord* record)
     epicsInt32 rval;
     
     status = regDevReadBits((dbCommon*)record, &rval, record->mask);
+    if (!status) record->rval = rval;
     return status;
 }
 
@@ -383,6 +386,7 @@ long regDevInitRecordMbboDirect(mbboDirectRecord* record)
     else 
     {
         status = regDevReadBits((dbCommon*)record, &rval, record->mask);
+        if (!status) record->rval = rval;
     }
     regDevDebugLog(1, "regDevInitRecordMbboDirect(%s) done\n", record->name);
     return status;
