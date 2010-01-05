@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.17 2010/01/05 14:43:57 zimoch Exp $";
+    "$Id: regDev.c,v 1.18 2010/01/05 14:45:09 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -396,12 +396,12 @@ int regDevIoParse2(
             if (!lset) priv->dlen = hwLow;
             hwLow = 0;
         default:
-            if (priv->hwHigh || priv->hwLow) {
+            if (lset || hset) {
                 fprintf(stderr,
                     "regDevIoParse %s: L or H makes"
                     " no sense with T=%s. Ignored.\n",
                     recordName, datatypes[type].name);
-            } 
+            }
             break;   
     }
     priv->hwLow = hwLow;
