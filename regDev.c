@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.15 2009/12/10 11:01:20 zimoch Exp $";
+    "$Id: regDev.c,v 1.16 2010/01/05 12:35:42 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -297,23 +297,23 @@ int regDevIoParse2(
                 break;
             case 'B': /* B=<bitnumber> */
                 p += 2;
-                priv->bit = strtoul(p,&p,0);
+                priv->bit = regDevParseExpr(&p);
                 break;
             case 'I': /* I=<invert> */
                 p += 2;
-                priv->invert = strtoul(p,&p,0);
+                priv->invert = regDevParseExpr(&p);
                 break;
             case 'L': /* L=<low raw value> (converts to EGUL)*/
                 p += 2;
-                priv->hwLow = strtol(p,&p,0);
+                priv->hwLow = regDevParseExpr(&p);
                 break;
             case 'H': /* L=<high raw value> (converts to EGUF)*/
                 p += 2;
-                priv->hwHigh = strtol(p,&p,0);
+                priv->hwHigh = regDevParseExpr(&p);
                 break;
             case 'P': /* P=<packing> (for fifo)*/
                 p += 2;
-                priv->fifopacking = strtol(p,&p,0);
+                priv->fifopacking = regDevParseExpr(&p);
                 break;
             case '\'':
                 if (separator == '\'')
