@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.16 2010/01/05 12:35:42 zimoch Exp $";
+    "$Id: regDev.c,v 1.17 2010/01/05 14:43:57 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -167,6 +167,10 @@ int regDevIoParse2(
     
     static const int maxtype = sizeof(datatypes)/sizeof(*datatypes);
     int type = 0;
+    int hset = 0;
+    int lset = 0;
+    long hwHigh = 0;
+    long hwLow = 0;
 
     /* Get rid of leading whitespace and non-alphanumeric chars */
     while (!isalnum((unsigned char)*p)) if (*p++ == '\0') 
@@ -305,11 +309,13 @@ int regDevIoParse2(
                 break;
             case 'L': /* L=<low raw value> (converts to EGUL)*/
                 p += 2;
-                priv->hwLow = regDevParseExpr(&p);
+                hwLow = regDevParseExpr(&p);
+                lset = 1;
                 break;
             case 'H': /* L=<high raw value> (converts to EGUF)*/
                 p += 2;
-                priv->hwHigh = regDevParseExpr(&p);
+                hwHigh = regDevParseExpr(&p);
+                hset = 1;
                 break;
             case 'P': /* P=<packing> (for fifo)*/
                 p += 2;
@@ -342,53 +348,53 @@ int regDevIoParse2(
     switch (priv->dtype)
     {
         case epicsUInt8T:
-            if (priv->hwHigh > 0xFF || priv->hwLow < 0)
+            if (hwHigh > 0xFF || hwLow < 0)
                 status = S_dev_badArgument;
-            if (!priv->hwHigh) priv->hwHigh = 0xFF;
+            if (!hset) hwHigh = 0xFF;
             break;
         case epicsUInt16T:
-            if (priv->hwHigh > 0xFFFF || priv->hwLow < 0)
+            if (hwHigh > 0xFFFF || hwLow < 0)
                 status = S_dev_badArgument;
-            if (!priv->hwHigh) priv->hwHigh = 0xFFFF;
+            if (!hset) hwHigh = 0xFFFF;
             break;
         case epicsUInt32T:
-            if (!priv->hwHigh) priv->hwHigh = 0xFFFFFFFF;
+            if (!hset) hwHigh = 0xFFFFFFFF;
             break;
         case epicsInt8T:
             if (priv->hwHigh > 0x7F || priv->hwLow < -0x80)
                 status = S_dev_badArgument;
-            if (!priv->hwLow) priv->hwLow = -0x7F;
-            if (!priv->hwHigh) priv->hwHigh = 0x7F;
+            if (!lset) hwLow = -0x7F;
+            if (!hset) hwHigh = 0x7F;
             break;
         case epicsInt16T:
             if (priv->hwHigh > 0x7FFF || priv->hwLow < -0x8000)
                 status = S_dev_badArgument;
-            if (!priv->hwLow) priv->hwLow = -0x7FFF;
-            if (!priv->hwHigh) priv->hwHigh = 0x7FFF;
+            if (!lset) hwLow = -0x7FFF;
+            if (!hset) hwHigh = 0x7FFF;
             break;
         case epicsInt32T:
-            if (!priv->hwLow) priv->hwLow = -0x7FFFFFFF;
-            if (!priv->hwHigh) priv->hwHigh = 0x7FFFFFFF;
+            if (!lset) hwLow = -0x7FFFFFFF;
+            if (!hset) hwHigh = 0x7FFFFFFF;
             break;
         case regDevBCD8T:
-            if (priv->hwHigh > 99 || priv->hwLow < 0)
+            if (hwHigh > 99 || hwLow < 0)
                 status = S_dev_badArgument;
-            if (!priv->hwHigh) priv->hwHigh = 99;
+            if (!hset) hwHigh = 99;
             break;
         case regDevBCD16T:
-            if (priv->hwHigh > 9999 || priv->hwLow < 0)
+            if (hwHigh > 9999 || hwLow < 0)
                 status = S_dev_badArgument;
-            if (!priv->hwHigh) priv->hwHigh = 9999;
+            if (!hset) hwHigh = 9999;
             break;
         case regDevBCD32T:
-            if (priv->hwHigh > 99999999 || priv->hwLow < 0)
+            if (hwHigh > 99999999 || hwLow < 0)
                 status = S_dev_badArgument;
-            if (!priv->hwHigh) priv->hwHigh = 99999999;
+            if (!hset) hwHigh = 99999999;
             break;
         case epicsStringT:
             /* for T=STRING L=... means length, not low */
-            if (priv->hwLow) priv->dlen = priv->hwLow;
-            priv->hwLow = 0;
+            if (!lset) priv->dlen = hwLow;
+            hwLow = 0;
         default:
             if (priv->hwHigh || priv->hwLow) {
                 fprintf(stderr,
@@ -398,6 +404,8 @@ int regDevIoParse2(
             } 
             break;   
     }
+    priv->hwLow = hwLow;
+    priv->hwHigh = hwHigh;
     regDevDebugLog(1, "regDevIoParse %s: dlen=%d\n",recordName, priv->dlen);
     regDevDebugLog(1, "regDevIoParse %s: L=%#x\n",  recordName, priv->hwLow);
     regDevDebugLog(1, "regDevIoParse %s: H=%#x\n",  recordName, priv->hwHigh);
