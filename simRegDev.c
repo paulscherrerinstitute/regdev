@@ -15,12 +15,13 @@
 #define MAGIC 322588966U /* crc("simRegDev") */
 
 static char cvsid_simRegDev[] __attribute__((unused)) =
-    "$Id: simRegDev.c,v 1.1 2009/12/10 10:02:53 zimoch Exp $";
+    "$Id: simRegDev.c,v 1.2 2010/01/29 15:51:52 zimoch Exp $";
 
 struct regDevice {
     unsigned long magic;
     const char* name;
     unsigned int size;
+    int swap;
     int status;
     IOSCANPVT ioscanpvt;
     unsigned char buffer[1];
@@ -107,7 +108,7 @@ int simRegDevRead(
     }
     if (simRegDevDebug >= 1) printf ("simRegDevRead %s/%d: %d bytes * %d elements, prio=%d\n",
         device->name, offset, dlen, nelem, prio);
-    regDevCopy(dlen, nelem, device->buffer+offset, pdata, NULL, 0);
+    regDevCopy(dlen, nelem, device->buffer+offset, pdata, NULL, device->swap);
     return 0;
 }
 
@@ -141,7 +142,7 @@ int simRegDevWrite(
         || offset+dlen*nelem > device->size) return -1;
     if (simRegDevDebug >= 1) printf ("simRegDevWrite %s/%d: %d bytes * %d elements, prio=%d\n",
         device->name, offset, dlen, nelem, prio);
-    regDevCopy(dlen, nelem, pdata, device->buffer+offset, pmask, 0);
+    regDevCopy(dlen, nelem, pdata, device->buffer+offset, pmask, device->swap);
     /* We got new data: trigger all interested input records */
     scanIoRequest(device->ioscanpvt);
     return 0;
@@ -161,13 +162,14 @@ static regDevSupport simRegDevSupport = {
 
 int simRegDevConfigure(
     const char* name,
-    unsigned int size)
+    unsigned int size,
+    int swapEndianFlag)
 {
     regDevice* device;
 
     if (name == NULL)
     {
-        printf("usage: simRegDevConfigure(\"name\", size)\n");
+        printf("usage: simRegDevConfigure(\"name\", size, swapEndianFlag)\n");
         printf("maps allocated memory block to device \"name\"");
         printf("\"name\" must be a unique string on this IOC\n");
         return 0;
@@ -184,6 +186,7 @@ int simRegDevConfigure(
     device->name = name;
     device->size = size;
     device->status = 1;
+    device->swap = swapEndianFlag;
     scanIoInit(&device->ioscanpvt);
     regDevRegisterDevice(name, &simRegDevSupport, device);
     return 0;
@@ -254,18 +257,20 @@ int simRegDevSetData(
 
 static const iocshArg simRegDevConfigureArg0 = { "name", iocshArgString };
 static const iocshArg simRegDevConfigureArg1 = { "size", iocshArgInt };
+static const iocshArg simRegDevConfigureArg2 = { "swapEndianFlag", iocshArgInt };
 static const iocshArg * const simRegDevConfigureArgs[] = {
     &simRegDevConfigureArg0,
-    &simRegDevConfigureArg1
+    &simRegDevConfigureArg1,
+    &simRegDevConfigureArg2
 };
 
 static const iocshFuncDef simRegDevConfigureDef =
-    { "simRegDevConfigure", 2, simRegDevConfigureArgs };
+    { "simRegDevConfigure", 3, simRegDevConfigureArgs };
     
 static void simRegDevConfigureFunc (const iocshArgBuf *args)
 {
     int status = simRegDevConfigure(
-        args[0].sval, args[1].ival);
+        args[0].sval, args[1].ival, args[2].ival);
     if (status != 0) epicsExit(1);
 }
 

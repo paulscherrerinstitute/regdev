@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.18 2010/01/05 14:45:09 zimoch Exp $";
+    "$Id: regDev.c,v 1.19 2010/01/29 15:51:52 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -61,12 +61,11 @@ int strncasecmp(const char *s1, const char *s2, size_t n)
 #define regDevBCD8T  (100)
 #define regDevBCD16T (101)
 #define regDevBCD32T (102)
+#define regDev64T    (103)
+#define regDevFirstType regDevBCD8T
+#define regDevLastType  regDev64T
 
-const static char* bcdTypeNames [] = { 
-    "regDevBCD8T",
-    "regDevBCD16T",
-    "regDevBCD32T"
-};
+typedef unsigned long long regDev64;
 
 const static struct {char* name; int dlen; epicsType type;} datatypes [] =
 {
@@ -109,6 +108,8 @@ const static struct {char* name; int dlen; epicsType type;} datatypes [] =
 
     { "string",     0, epicsStringT  },
 
+    { "qword",      1, regDev64T     },
+    
     { "bcd8",       1, regDevBCD8T   },
     { "bcd16",      2, regDevBCD16T  },
     { "bcd32",      4, regDevBCD32T  },
@@ -358,6 +359,7 @@ int regDevIoParse2(
             if (!hset) hwHigh = 0xFFFF;
             break;
         case epicsUInt32T:
+        case regDev64T:
             if (!hset) hwHigh = 0xFFFFFFFF;
             break;
         case epicsInt8T:
@@ -482,7 +484,7 @@ long regDevGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     if (priv == NULL)
     {
         fprintf(stderr,
-            "regDevGetInIntInfo %s: uninitialized record",
+            "regDevGetInIntInfo %s: uninitialized record\n",
             record->name);
         return -1;
     }
@@ -518,7 +520,7 @@ long regDevGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     if (priv == NULL)
     {
         fprintf(stderr,
-            "regDevGetOutIntInfo %s: uninitialized record",
+            "regDevGetOutIntInfo %s: uninitialized record\n",
             record->name);
         return -1;
     }
@@ -647,19 +649,27 @@ regDevPrivate* regDevAllocPriv(dbCommon *record)
     }
     priv->dtype = epicsInt16T;
     priv->dlen = 2;
+    priv->arraypacking = 1;
     record->dpvt = priv;
     return priv;
 }
 
 const char* regDevTypeName(int dtype)
 {
-    if (dtype > regDevBCD32T) return "invalid";
-    return dtype < regDevBCD8T ?
+    const char* regDevTypeNames [] = { 
+        "regDevBCD8T",
+        "regDevBCD16T",
+        "regDevBCD32T",
+        "regDev64T"
+    };
+
+    if (dtype > regDevLastType) return "invalid";
+    return dtype < regDevFirstType ?
         epicsTypeNames[dtype] :
-        bcdTypeNames[dtype-regDevBCD8T];
+        regDevTypeNames[dtype-regDevFirstType];
 }
 
-long regDevAssertType(dbCommon *record, int types)
+long regDevAssertType(dbCommon *record, int allowedTypes)
 {
     unsigned short dtype;
     regDevPrivate* priv = (regDevPrivate*) record->dpvt;
@@ -668,10 +678,10 @@ long regDevAssertType(dbCommon *record, int types)
     
     regDevDebugLog(1, "regDevAssertType(%s,%s%s%s%s) %s\n",
         record->name,
-        types && TYPE_INT ? " INT" : "",
-        types && TYPE_FLOAT ? " FLOAT" : "",
-        types && TYPE_STRING ? " STRING" : "",
-        types && TYPE_BCD ? " BCD" : "",
+        allowedTypes && TYPE_INT ? " INT" : "",
+        allowedTypes && TYPE_FLOAT ? " FLOAT" : "",
+        allowedTypes && TYPE_STRING ? " STRING" : "",
+        allowedTypes && TYPE_BCD ? " BCD" : "",
         regDevTypeName(dtype));
     switch (dtype)
     {
@@ -681,23 +691,26 @@ long regDevAssertType(dbCommon *record, int types)
         case epicsUInt16T:
         case epicsInt32T:
         case epicsUInt32T:
-            if (types & TYPE_INT) return S_dev_success;
+            if (allowedTypes & TYPE_INT) return S_dev_success;
             break;
         case epicsFloat32T:
         case epicsFloat64T:
-            if (types & TYPE_FLOAT) return S_dev_success;
+            if (allowedTypes & TYPE_FLOAT) return S_dev_success;
             break;
         case epicsStringT:
-            if (types & TYPE_STRING) return S_dev_success;
+            if (allowedTypes & TYPE_STRING) return S_dev_success;
             break;
         case regDevBCD8T:
         case regDevBCD16T:
         case regDevBCD32T:
-            if (types & TYPE_BCD) return S_dev_success;
+            if (allowedTypes & TYPE_BCD) return S_dev_success;
+            break;
+        case regDev64T:
+            if (allowedTypes & (TYPE_INT|TYPE_FLOAT)) return S_dev_success;
             break;
     }
     fprintf(stderr,
-        "regDevAssertType %s: illegal data type %s\n",
+        "regDevAssertType %s: illegal data type %s for this record type\n",
         record->name, regDevTypeName(dtype));
     free(record->dpvt);
     record->dpvt = NULL;
@@ -750,8 +763,8 @@ int regDevCheckFTVL(dbCommon* record, int ftvl)
     free(record->dpvt);
     record->dpvt = NULL;
     fprintf(stderr,
-        "regDevCheckFTVL %s: illegal FTVL value\n",
-        record->name);
+        "regDevCheckFTVL %s: illegal FTVL value %s\n",
+        record->name, pamapdbfType[ftvl].strvalue);
     return S_db_badField;
 }
 
@@ -793,19 +806,52 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
         case epicsUInt16T:
             if ((ftvl == DBF_SHORT) || (ftvl == DBF_USHORT))
                 return S_dev_success;
-             break;
+            if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
+            {
+                priv->arraypacking = 2;
+                return S_dev_success;
+            }
+            break;
         case regDevBCD32T:
         case epicsInt32T:
         case epicsUInt32T:
             if ((ftvl == DBF_LONG) || (ftvl == DBF_ULONG))
                 return S_dev_success;
+            if ((ftvl == DBF_SHORT) || (ftvl == DBF_USHORT))
+            {
+                priv->arraypacking = 2;
+                return S_dev_success;
+            }
+            if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
+            {
+                priv->arraypacking = 4;
+                return S_dev_success;
+            }
             break;
+        case regDev64T:
+            if (ftvl == DBF_DOUBLE)
+                return S_dev_success;
+            if ((ftvl == DBF_LONG) || (ftvl == DBF_ULONG) || (ftvl == DBF_FLOAT))
+            {
+                priv->arraypacking = 2;
+                return S_dev_success;
+            }
+            if ((ftvl == DBF_SHORT) || (ftvl == DBF_USHORT))
+            {
+                priv->arraypacking = 4;
+                return S_dev_success;
+            }
+            if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
+            {
+                priv->arraypacking = 8;
+                return S_dev_success;
+            }
     }
     free(record->dpvt);
     record->dpvt = NULL;
     fprintf(stderr,
-        "regDevCheckType %s: data type does not match FTVL\n",
-        record->name);
+        "regDevCheckType %s: data type %s does not match FTVL %s\n",
+        record->name, regDevTypeName(priv->dtype), pamapdbfType[ftvl].strvalue);
     return S_db_badField;
 }
 
@@ -841,6 +887,7 @@ int regDevReadBits(dbCommon* record, epicsInt32* val, epicsUInt32 mask)
     epicsUInt8 val8;
     epicsUInt16 val16;
     epicsInt32 val32;
+    regDev64 val64;
     unsigned short dtype;
     unsigned int offset;
     regDevPrivate* priv = (regDevPrivate*)record->dpvt;
@@ -886,8 +933,15 @@ int regDevReadBits(dbCommon* record, epicsInt32* val, epicsUInt32 mask)
         case regDevBCD32T:
             status = regDevRead(priv->device, offset,
                 4, 1, &val32, record->prio);
-            regDevDebugLog(3, "%s: read 32bit %04x from %s/0x%x (status=%x)\n",
+            regDevDebugLog(3, "%s: read 32bit %08x from %s/0x%x (status=%x)\n",
                 record->name, val32, priv->device->name, offset, status);
+            break;
+        case regDev64T:
+            status = regDevRead(priv->device, offset,
+                8, 1, &val64, record->prio);
+            regDevDebugLog(3, "%s: read 64bit %016llx from %s/0x%x (status=%x)\n",
+                record->name, val64, priv->device->name, offset, status);
+            val32 = val64; /* cut off high bits */
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
@@ -938,6 +992,7 @@ int regDevWriteBits(dbCommon* record, epicsUInt32 val, epicsUInt32 mask)
     epicsUInt8 rval8, mask8;
     epicsUInt16 rval16, mask16;
     epicsUInt32 rval32, mask32;
+    regDev64 rval64, mask64;
     unsigned short dtype;
     regDevPrivate* priv = (regDevPrivate*)record->dpvt;
 
@@ -985,6 +1040,14 @@ int regDevWriteBits(dbCommon* record, epicsUInt32 val, epicsUInt32 mask)
                 record->name, rval32, mask32, priv->device->name, priv->offset);
             status = regDevWrite(priv->device, priv->offset, 4, 1, &rval32,
                 mask32 == 0xFFFFFFFFUL ? NULL : &mask32, record->prio);
+            break;
+        case regDev64T:
+            rval64 = val;
+            mask64 = mask;
+            regDevDebugLog(2, "%s: write 64bit %016llx mask %016llx to %s/0x%x\n",
+                record->name, rval64, mask64, priv->device->name, priv->offset);
+            status = regDevWrite(priv->device, priv->offset, 8, 1, &rval64,
+                mask == 0xFFFFFFFFUL ? NULL : &mask64, record->prio);
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
@@ -1065,8 +1128,9 @@ long regDevReadArr(dbCommon* record, void* bptr, unsigned int nelm)
         }
         else
         {
+            packing = priv->arraypacking;
             status = regDevRead(priv->device, offset,
-                dlen, nelm, bptr, record->prio);
+                dlen*packing, nelm/packing, bptr, record->prio);
             if (status == 1)
             {
                 record->pact = 1;
@@ -1166,7 +1230,8 @@ long regDevWriteArr(dbCommon* record, void* bptr, unsigned int nelm)
         }
         else
         {
-            status = regDevWrite(priv->device, priv->offset, dlen, nelm, bptr, NULL, record->prio);
+            packing = priv->arraypacking;
+            status = regDevWrite(priv->device, priv->offset, dlen*packing, nelm/packing, bptr, NULL, record->prio);
             if (status == 1)
             {
                 record->pact = 1;

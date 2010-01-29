@@ -52,6 +52,7 @@ typedef struct regDevPrivate{
     unsigned short dtype;      /* Data type */
     unsigned short dlen;       /* Data length (in bytes) */
     short fifopacking;         /* Fifo: elelents in one register */
+    short arraypacking;        /* Array: elelents in one register */
     epicsInt32 hwLow;          /* Hardware Low limit */
     epicsInt32 hwHigh;         /* Hardware High limit */
     epicsUInt32 invert;        /* Invert bits for bi,bo,mbbi,... */

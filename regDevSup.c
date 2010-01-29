@@ -569,8 +569,8 @@ long regDevSpecialLinconvAi(aiRecord* record, int after)
     regDevPrivate* priv = (regDevPrivate*)record->dpvt;
 
     if (after) {
-        hwSpan = priv->hwHigh - priv->hwLow;
-        record->eslo = (record->eguf - record->egul) / hwSpan;
+        hwSpan = (double) priv->hwHigh - priv->hwLow;
+        record->eslo = ((double) record->eguf - record->egul) / hwSpan;
         record->eoff =
             (priv->hwHigh*record->egul - priv->hwLow*record->eguf)
             / hwSpan;
@@ -660,12 +660,12 @@ long regDevWriteAo(aoRecord* record)
 
 long regDevSpecialLinconvAo(aoRecord* record, int after)
 {
-    epicsUInt32 hwSpan;
+    double hwSpan;
     regDevPrivate* priv = (regDevPrivate*) record->dpvt;
 
     if (after) {
-        hwSpan = priv->hwHigh - priv->hwLow;
-        record->eslo = (record->eguf - record->egul) / hwSpan;
+        hwSpan = (double) priv->hwHigh - priv->hwLow;
+        record->eslo = ((double) record->eguf - record->egul) / hwSpan;
         record->eoff = 
             (priv->hwHigh*record->egul -priv->hwLow*record->eguf)
             / hwSpan;
