@@ -1,0 +1,21 @@
+record (ao, "$(DEV):AO")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@sim/0 T=INT32")
+    field (LINR, "LINEAR")
+    field (EGUL, "-2.0")
+    field (EGUF, "2.0")
+    field (PREC, "5")
+}
+
+record (ai, "$(DEV):AI")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@sim/0 T=INT32")
+    field (SCAN, "I/O Intr")
+    field (LINR, "LINEAR")
+    field (EGUL, "-2.0")
+    field (EGUF, "2.0")
+    field (PREC, "5")
+}
+
