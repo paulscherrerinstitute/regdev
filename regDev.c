@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.20 2010/03/10 15:30:19 zimoch Exp $";
+    "$Id: regDev.c,v 1.21 2010/05/18 11:03:50 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -395,9 +395,11 @@ int regDevIoParse2(
             break;
         case epicsStringT:
             /* for T=STRING L=... means length, not low */
-            if (!lset) priv->dlen = hwLow;
-            hwLow = 0;
-            lset = 0;
+            if (lset) {
+                priv->dlen = hwLow;
+                hwLow = 0;
+                lset = 0;
+            }
         default:
             if (lset || hset) {
                 fprintf(stderr,
