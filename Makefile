@@ -1,6 +1,6 @@
 include /ioc/tools/driver.makefile
 
-BUILDCLASSES += Linux
+BUILDCLASSES = Linux
 USR_CFLAGS+=-DWITH_AAIO
 
 SOURCES = regDev.c regDevSup.c regDevAaiAao.c regDevCopy.c simRegDev.c

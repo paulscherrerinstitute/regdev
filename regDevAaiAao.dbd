@@ -1,2 +1,4 @@
 device(aai,        INST_IO, regDevAai,        "regDev")
 device(aao,        INST_IO, regDevAao,        "regDev")
+device(aai,        INST_IO, regDevAsynAai,    "regDevAsyn")
+device(aao,        INST_IO, regDevAsynAao,    "regDevAsyn")
