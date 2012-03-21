@@ -3,6 +3,13 @@
 
 #include "regDevSup.h"
 
+static void regDevAsyncCallback(CALLBACK *pcallback)
+{
+    struct dbCommon* 	precord;
+    callbackGetUser(precord,  pcallback);
+    callbackRequestProcessCallback(pcallback, precord->prio, precord);
+}
+
 /* bi for status bit ************************************************/
 
 #include <biRecord.h>
@@ -69,11 +76,16 @@ epicsExportAddress(dset, regDevAsynStat);
 long regDevAsynInitRecordStat(biRecord* record)
 {
     int status;
-
-    if (regDevAsynAllocPriv((dbCommon*)record) == NULL)
+    regDevAsynPrivate* priv;
+    
+    if ((priv = regDevAsynAllocPriv((dbCommon*)record)) == NULL)
         return S_dev_noMemory;
     if ((status = regDevAsynIoParse((dbCommon*)record, &record->inp)))
         return status;
+    if((priv->callback = (CALLBACK *)(calloc(1,sizeof(CALLBACK))))==NULL)
+        return -1;
+    callbackSetCallback(regDevAsyncCallback, priv->callback);
+    callbackSetUser(record, priv->callback);
     return 0;
 }
 
@@ -175,6 +187,10 @@ long regDevAsynInitRecordBi(biRecord* record)
         record->mask = 1 << priv->bit;
     if (priv->invert)
         priv->invert = record->mask;
+    if((priv->callback = (CALLBACK *)(calloc(1,sizeof(CALLBACK))))==NULL)
+        return -1;
+    callbackSetCallback(regDevAsyncCallback, priv->callback);
+    callbackSetUser(record, priv->callback);
     regDevDebugLog(1, "regDevInitRecordBi(%s) done\n", record->name);
     return 0;
 }
@@ -284,6 +300,10 @@ long regDevAsynInitRecordBo(boRecord* record)
         status = regDevAsynReadBits((dbCommon*)record, &rval, record->mask);
         if (!status) record->rval = rval;
     }
+    if((priv->callback = (CALLBACK *)(calloc(1,sizeof(CALLBACK))))==NULL)
+        return -1;
+    callbackSetCallback(regDevAsyncCallback, priv->callback);
+    callbackSetUser(record, priv->callback);
     regDevDebugLog(1, "regDevInitRecordBo(%s) done\n", record->name);
     return status;
 }
@@ -387,6 +407,10 @@ long regDevAsynInitRecordMbbi(mbbiRecord* record)
         record->mask <<= record->shft;
         priv->invert <<= record->shft;
     }
+    if((priv->callback = (CALLBACK *)(calloc(1,sizeof(CALLBACK))))==NULL)
+        return -1;
+    callbackSetCallback(regDevAsyncCallback, priv->callback);
+    callbackSetUser(record, priv->callback);
     regDevDebugLog(1, "regDevInitRecordMbbi(%s) done\n", record->name);
     return 0;
 }
@@ -543,6 +567,10 @@ long regDevAsynInitRecordMbbo(mbboRecord* record)
         if (record->shft > 0) rval >>= record->shft;
         record->val = rval;
     }
+    if((priv->callback = (CALLBACK *)(calloc(1,sizeof(CALLBACK))))==NULL)
+        return -1;
+    callbackSetCallback(regDevAsyncCallback, priv->callback);
+    callbackSetUser(record, priv->callback);
     regDevDebugLog(1, "regDevInitRecordMbbo(%s) done VAL=%d\n", record->name, record->val);
     return 2;
 }
@@ -651,6 +679,10 @@ long regDevAsynInitRecordMbbiDirect(mbbiDirectRecord* record)
         record->mask <<= record->shft;
         priv->invert <<= record->shft;
     }
+    if((priv->callback = (CALLBACK *)(calloc(1,sizeof(CALLBACK))))==NULL)
+        return -1;
+    callbackSetCallback(regDevAsyncCallback, priv->callback);
+    callbackSetUser(record, priv->callback);
     regDevDebugLog(1, "regDevInitRecordMbbiDirect(%s) done\n", record->name);
     return 0;
 }
@@ -763,6 +795,10 @@ long regDevAsynInitRecordMbboDirect(mbboDirectRecord* record)
         status = regDevAsynReadBits((dbCommon*)record, &rval, record->mask);
         if (!status) record->rval = rval;
     }
+    if((priv->callback = (CALLBACK *)(calloc(1,sizeof(CALLBACK))))==NULL)
+        return -1;
+    callbackSetCallback(regDevAsyncCallback, priv->callback);
+    callbackSetUser(record, priv->callback);
     regDevDebugLog(1, "regDevInitRecordMbboDirect(%s) done\n", record->name);
     return status;
 }
@@ -835,14 +871,19 @@ epicsExportAddress(dset, regDevAsynLongin);
 long regDevAsynInitRecordLongin(longinRecord* record)
 {
     int status;
+    regDevAsynPrivate* priv;
 
     regDevDebugLog(1, "regDevInitRecordLongin(%s) start\n", record->name);
-    if (regDevAllocPriv((dbCommon*)record) == NULL)
+    if ((priv = regDevAsynAllocPriv((dbCommon*)record)) == NULL)
         return S_dev_noMemory;
     if ((status = regDevAsynIoParse((dbCommon*)record, &record->inp)))
         return status;
     if ((status = regDevAsynAssertType((dbCommon*)record, TYPE_INT|TYPE_BCD)))
         return status;
+    if((priv->callback = (CALLBACK *)(calloc(1,sizeof(CALLBACK))))==NULL)
+        return -1;
+    callbackSetCallback(regDevAsyncCallback, priv->callback);
+    callbackSetUser(record, priv->callback);
     regDevDebugLog(1, "regDevInitRecordLongin(%s) done\n", record->name);
     return 0;
 }
@@ -937,6 +978,10 @@ long regDevAsynInitRecordLongout(longoutRecord* record)
         status = regDevAsynReadBits((dbCommon*)record, &rval, -1);
         if (!status) record->val = rval;
     }
+    if((priv->callback = (CALLBACK *)(calloc(1,sizeof(CALLBACK))))==NULL)
+        return -1;
+    callbackSetCallback(regDevAsyncCallback, priv->callback);
+    callbackSetUser(record, priv->callback);
     regDevDebugLog(1, "regDevInitRecordLongout(%s) done\n", record->name);
     return status;
 }
@@ -1066,14 +1111,19 @@ epicsExportAddress(dset, regDevAsynAi);
 long regDevAsynInitRecordAi(aiRecord* record)
 {
     int status;
+    regDevAsynPrivate* priv;
 
     regDevDebugLog(1, "regDevInitRecordAi(%s) start\n", record->name);
-    if (regDevAllocPriv((dbCommon*)record) == NULL)
+    if ((priv = regDevAsynAllocPriv((dbCommon*)record)) == NULL)
         return S_dev_noMemory;
     if ((status = regDevAsynIoParse((dbCommon*)record, &record->inp)))
         return status;
     if ((status = regDevAsynAssertType((dbCommon*)record, TYPE_INT|TYPE_BCD|TYPE_FLOAT)))
         return status;
+    if((priv->callback = (CALLBACK *)(calloc(1,sizeof(CALLBACK))))==NULL)
+        return -1;
+    callbackSetCallback(regDevAsyncCallback, priv->callback);
+    callbackSetUser(record, priv->callback);
     regDevSpecialLinconvAi(record, TRUE);
     regDevDebugLog(1, "regDevInitRecordAi(%s) done\n", record->name);
     return 0;
@@ -1238,7 +1288,7 @@ struct {
     6,
     NULL,
     NULL,
-    regDevInitRecordAo,
+    regDevAsynInitRecordAo,
     regDevAsynGetOutIntInfo,
     regDevAsynWriteAo,
     regDevAsynSpecialLinconvAo
@@ -1260,6 +1310,10 @@ long regDevAsynInitRecordAo(aoRecord* record)
         return status;
     if ((status = regDevAsynAssertType((dbCommon*)record, TYPE_INT|TYPE_BCD|TYPE_FLOAT)))
         return status;
+    if((priv->callback = (CALLBACK *)(calloc(1,sizeof(CALLBACK))))==NULL)
+        return -1;
+    callbackSetCallback(regDevAsyncCallback, priv->callback);
+    callbackSetUser(record, priv->callback);
     regDevSpecialLinconvAo(record, TRUE);
     if (priv->initoffset == DONT_INIT)
     {
@@ -1554,13 +1608,6 @@ long regDevReadWaveform(waveformRecord* record)
 {
     record->nord = record->nelm;
     return regDevReadArr((dbCommon*) record, record->bptr, record->nelm);
-}
-
-static void regDevAsyncCallback(CALLBACK *pcallback)
-{
-    struct dbCommon* 	precord;
-    callbackGetUser(precord,  pcallback);
-    callbackRequestProcessCallback(pcallback, precord->prio, precord);
 }
 
 long regDevAsynInitRecordWaveform(waveformRecord *);
