@@ -68,6 +68,17 @@ typedef struct regDeviceAsynNode {
     epicsMutexId accesslock;       /* Access semaphore */
 } regDeviceAsynNode;
 
+typedef struct devDtypes {
+    signed char sval8;
+    epicsUInt8 uval8;
+    epicsInt16 sval16;
+    epicsUInt16 uval16;
+    epicsInt32 sval32;
+    epicsUInt32 uval32;
+    union {epicsFloat32 f; long u;} val32;
+    union {epicsFloat64 f; long long u;} val64;
+} devDtypes;
+
 typedef struct regDevAsynPrivate{
     regDeviceAsynNode* device;
     unsigned int offset;       /* Offset (in bytes) within device memory */
@@ -83,6 +94,7 @@ typedef struct regDevAsynPrivate{
     void*     busBufPtr;       /* here we can add the bus address got from buf alloc routine */
     CALLBACK* callback;        /* For asynchonous drivers */
     int status;                /* For asynchonous drivers */
+    devDtypes alldtype;
 } regDevAsynPrivate;
 
 struct devsup {

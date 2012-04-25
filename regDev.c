@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.22 2012/02/14 10:35:22 kalantari Exp $";
+    "$Id: regDev.c,v 1.23 2012/04/25 13:40:39 kalantari Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 static regDeviceAsynNode* registeredAsynDevices = NULL;
@@ -2253,14 +2253,7 @@ long regDevWriteArr(dbCommon* record, void* bptr, unsigned int nelm)
 long regDevAsynReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
 {
     int status;
-    signed char sval8;
-    epicsUInt8 uval8;
-    epicsInt16 sval16;
-    epicsUInt16 uval16;
-    epicsInt32 sval32;
-    epicsUInt32 uval32;
-    union {epicsFloat32 f; long u;} val32;
-    union {epicsFloat64 f; long long u;} val64;
+    epicsInt32 sval32=0;
     unsigned short dtype;
     unsigned long offset;
     regDevAsynPrivate* priv = (regDevAsynPrivate*)record->dpvt;
@@ -2277,66 +2270,65 @@ long regDevAsynReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
         offset = priv->initoffset;
     else
         offset = priv->offset;
-    switch (dtype)
+    
+    if(record->pact)
     {
+      status = priv->status;
+    }
+    else
+    {
+      switch (dtype)
+      {
         case epicsInt8T:
             status = regDevAsynRead(priv->device, offset,
-                1, 1, &sval8, priv->callback, record->prio);
+                1, 1, &priv->alldtype.sval8, priv->callback, record->prio);
             regDevDebugLog(3, "%s: read 8bit %02x\n",
-                record->name, sval8);
-            sval32 = sval8;
+                record->name, priv->alldtype.sval8);
             break;
         case epicsUInt8T:
         case regDevBCD8T:
             status = regDevAsynRead(priv->device, offset,
-                1, 1, &uval8, priv->callback, record->prio);
+                1, 1, &priv->alldtype.uval8, priv->callback, record->prio);
             regDevDebugLog(3, "%s: read 8bit %02x\n",
-                record->name, uval8);
-            sval32 = uval8;
+                record->name, priv->alldtype.uval8);
             break;
         case epicsInt16T:
             status = regDevAsynRead(priv->device, offset,
-                2, 1, &sval16, priv->callback, record->prio);
+                2, 1, &priv->alldtype.sval16, priv->callback, record->prio);
             regDevDebugLog(3, "%s: read 16bit %04x\n",
-                record->name, sval16);
-            sval32 = sval16;
+                record->name, priv->alldtype.sval16);
             break;
         case epicsUInt16T:
         case regDevBCD16T:
             status = regDevAsynRead(priv->device, offset,
-                2, 1, &uval16, priv->callback, record->prio);
+                2, 1, &priv->alldtype.uval16, priv->callback, record->prio);
             regDevDebugLog(3, "%s: read 16bit %04x\n",
-                record->name, uval16);
-            sval32 = uval16;
+                record->name, priv->alldtype.uval16);
             break;
         case epicsInt32T:
             status = regDevAsynRead(priv->device, offset,
-                4, 1, &sval32, priv->callback, record->prio);
+                4, 1, &priv->alldtype.sval32, priv->callback, record->prio);
             regDevDebugLog(3, "%s: read 32bit %04x\n",
-                record->name, sval32);
-            sval32 = sval32;
+                record->name, priv->alldtype.sval32);
             break;
         case epicsUInt32T:
         case regDevBCD32T:
             status = regDevAsynRead(priv->device, offset,
-                4, 1, &uval32, priv->callback, record->prio);
+                4, 1, &priv->alldtype.uval32, priv->callback, record->prio);
             regDevDebugLog(3, "%s: read 32bit %04x\n",
-                record->name, uval32);
-            sval32 = uval32;
+                record->name, priv->alldtype.uval32);
             break;
         case epicsFloat32T:
             status = regDevAsynRead(priv->device, offset,
-                4, 1, &val32, priv->callback, record->prio);
+                4, 1, &priv->alldtype.val32, priv->callback, record->prio);
             regDevDebugLog(3, "%s: read 32bit %04lx = %#g\n",
-                record->name, val32.u, val32.f);
-            *fval = val32.f;
+                record->name, priv->alldtype.val32.u, priv->alldtype.val32.f);
             break;
         case epicsFloat64T:
             status = regDevAsynRead(priv->device, offset,
-                8, 1, &val64, priv->callback, record->prio);
+                8, 1, &priv->alldtype.val64, priv->callback, record->prio);
             regDevDebugLog(3, "%s: read 64bit %08Lx = %#g\n",
-                record->name, val64.u, val64.f);
-            *fval = val64.f;
+                record->name, priv->alldtype.val64.u, priv->alldtype.val64.f);
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
@@ -2344,6 +2336,12 @@ long regDevAsynReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
                 "%s: unexpected data type requested\n",
                 record->name);
             return -1;
+      }
+      if (status == 1)
+      {
+          record->pact = 1;
+          return 0;
+      }
     }
     if (status != 0)
     {
@@ -2357,6 +2355,36 @@ long regDevAsynReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
         return status;
     }
+      switch (dtype)
+      {
+        case epicsInt8T:
+            sval32 = priv->alldtype.sval8;
+            break;
+        case epicsUInt8T:
+        case regDevBCD8T:
+            sval32 = priv->alldtype.uval8;
+            break;
+        case epicsInt16T:
+            sval32 = priv->alldtype.sval16;
+            break;
+        case epicsUInt16T:
+        case regDevBCD16T:
+            sval32 = priv->alldtype.uval16;
+            break;
+        case epicsInt32T:
+           sval32 = priv->alldtype.sval32;
+            break;
+        case epicsUInt32T:
+        case regDevBCD32T:
+           sval32 = priv->alldtype.uval32;
+            break;
+        case epicsFloat32T:
+            *fval = priv->alldtype.val32.f;
+            break;
+        case epicsFloat64T:
+            *fval = priv->alldtype.val64.f;
+            break;
+      }
     switch (dtype)
     {
         case regDevBCD8T:
@@ -2719,8 +2747,14 @@ long regDevAsynWriteNumber(dbCommon* record, double fval, epicsInt32 rval)
             if ((epicsUInt32)rval < (epicsUInt32)priv->hwLow) rval = priv->hwLow;
             break;
     }    
-    switch (priv->dtype)
+    if(record->pact)
     {
+      status = priv->status;
+    }
+    else
+    {
+      switch (priv->dtype)
+      {
         case regDevBCD8T:
             rval = i2bcd(rval);
         case epicsInt8T:
@@ -2767,6 +2801,12 @@ long regDevAsynWriteNumber(dbCommon* record, double fval, epicsInt32 rval)
                 "%s: unexpected data type requested\n",
                 record->name);
             return -1;
+      }
+      if (status == 1)
+      {
+          record->pact = 1;
+          return 0;
+      }
     }
     if (status)
     {
