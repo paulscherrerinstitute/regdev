@@ -1444,6 +1444,10 @@ long regDevAsynInitRecordStringin(stringinRecord* record)
         return status;
     if ((status = regDevAsynAssertType((dbCommon*)record, TYPE_STRING)))
         return status;
+    if((priv->callback = (CALLBACK *)(calloc(1,sizeof(CALLBACK))))==NULL)
+        return -1;
+    callbackSetCallback(regDevAsyncCallback, priv->callback);
+    callbackSetUser(record, priv->callback);
     if (priv->dlen >= sizeof(record->val))
     {
         fprintf(stderr,
@@ -1545,6 +1549,10 @@ long regDevAsynInitRecordStringout(stringoutRecord* record)
         return status;
     if ((status = regDevAsynAssertType((dbCommon*)record, TYPE_STRING)))
         return status;
+    if((priv->callback = (CALLBACK *)(calloc(1,sizeof(CALLBACK))))==NULL)
+        return -1;
+    callbackSetCallback(regDevAsyncCallback, priv->callback);
+    callbackSetUser(record, priv->callback);
     if (priv->dlen >= sizeof(record->val))
     {
         fprintf(stderr,
