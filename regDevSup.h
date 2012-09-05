@@ -133,7 +133,7 @@ int regDevAsynIoParse(dbCommon* record, struct link* link);
 int regDevAsynCheckType(dbCommon* record, int ftvl, int nelm);
 long regDevAsynAssertType(dbCommon *record, int types);
 int regDevAsynRead(regDeviceAsynNode* device, unsigned int offset,
-    unsigned int dlen, unsigned int nelem, void* pdata, CALLBACK* sbStruct, int prio);
+    unsigned int dlen, unsigned int nelem, void* pdata, CALLBACK* sbStruct, int prio, int* status);
 int regDevAsynWrite(regDeviceAsynNode* device, unsigned int offset,
     unsigned int dlen, unsigned int nelem, void* pdata, CALLBACK* sbStruct, void* mask, int prio);
 int regDevAsynReadBits(dbCommon* record, epicsInt32* val, epicsUInt32 mask);

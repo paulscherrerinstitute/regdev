@@ -103,7 +103,7 @@ long regDevAsynReadStat(biRecord* record)
     }
     assert(priv->device);
     /* psudo-read (0 bytes) just to get the connection status */
-    status = regDevAsynRead(priv->device, 0, 0, 0, NULL, NULL, 0); 
+    status = regDevAsynRead(priv->device, 0, 0, 0, NULL, NULL, 0, 0); 
     record->rval = (status == 0);
     return 0;
 }

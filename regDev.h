@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: kalantari $ */ 
-/* $Date: 2012/02/14 10:35:22 $ */ 
-/* $Id: regDev.h,v 1.4 2012/02/14 10:35:22 kalantari Exp $ */  
+/* $Date: 2012/09/05 08:13:47 $ */ 
+/* $Id: regDev.h,v 1.5 2012/09/05 08:13:47 kalantari Exp $ */  
 /* $Name:  $ */ 
-/* $Revision: 1.4 $ */ 
+/* $Revision: 1.5 $ */ 
 
 #ifndef regDev_h
 #define regDev_h
@@ -107,7 +107,8 @@ typedef struct regDevAsyncSupport {
         unsigned int nelem,
         void* pdata,
 	CALLBACK* cbStruct,
-        int priority);
+        int priority,
+	int* status);
     
     int (*write)(
         regDeviceAsyn *device,

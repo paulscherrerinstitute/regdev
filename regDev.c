@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.23 2012/04/25 13:40:39 kalantari Exp $";
+    "$Id: regDev.c,v 1.24 2012/09/05 08:13:47 kalantari Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 static regDeviceAsynNode* registeredAsynDevices = NULL;
@@ -1541,14 +1541,14 @@ int regDevAsynBuffAlloc(regDeviceAsynNode* device, void** pBuff, void** pBusBuff
 }
 
 int regDevAsynRead(regDeviceAsynNode* device, unsigned int offset,
-    unsigned int dlen, unsigned int nelem, void* pdata, CALLBACK* cbStruct, int prio)
+    unsigned int dlen, unsigned int nelem, void* pdata, CALLBACK* cbStruct, int prio, int* rdStat)
 {
     int status;
     
     if (device->support->read == NULL) return -1;
     epicsMutexLock(device->accesslock);
     status = device->support->read(device->driver,
-        offset, dlen, nelem, pdata, cbStruct, prio);
+        offset, dlen, nelem, pdata, cbStruct, prio, rdStat);
     epicsMutexUnlock(device->accesslock);
     return status;
 }
@@ -1718,7 +1718,7 @@ int regDevAsynReadBits(dbCommon* record, epicsInt32* val, epicsUInt32 mask)
         case epicsUInt8T:
         case regDevBCD8T:
             status = regDevAsynRead(priv->device, offset,
-                1, 1, &val8, NULL, record->prio);
+                1, 1, &val8, NULL, record->prio, &priv->status);
             regDevDebugLog(3, "%s: read 8bit %02x from %s/0x%x (status=%x)\n",
                 record->name, val8, priv->device->name, offset, status);
             val32 = val8;
@@ -1727,7 +1727,7 @@ int regDevAsynReadBits(dbCommon* record, epicsInt32* val, epicsUInt32 mask)
         case epicsUInt16T:
         case regDevBCD16T:
             status = regDevAsynRead(priv->device, offset,
-                2, 1, &val16, NULL, record->prio);
+                2, 1, &val16, NULL, record->prio, &priv->status);
             regDevDebugLog(3, "%s: read 16bit %04x from %s/0x%x (status=%x)\n",
                 record->name, val16, priv->device->name, offset, status);
             val32 = val16;
@@ -1736,13 +1736,13 @@ int regDevAsynReadBits(dbCommon* record, epicsInt32* val, epicsUInt32 mask)
         case epicsUInt32T:
         case regDevBCD32T:
             status = regDevAsynRead(priv->device, offset,
-                4, 1, &val32, NULL, record->prio);
+                4, 1, &val32, NULL, record->prio, &priv->status);
             regDevDebugLog(3, "%s: read 32bit %08x from %s/0x%x (status=%x)\n",
                 record->name, val32, priv->device->name, offset, status);
             break;
         case regDev64T:
             status = regDevAsynRead(priv->device, offset,
-                8, 1, &val64, NULL, record->prio);
+                8, 1, &val64, NULL, record->prio, &priv->status);
             regDevDebugLog(3, "%s: read 64bit %016llx from %s/0x%x (status=%x)\n",
                 record->name, val64, priv->device->name, offset, status);
             val32 = val64; /* cut off high bits */
@@ -2121,7 +2121,7 @@ long regDevAsynReadArr(dbCommon* record, void* bptr, unsigned int nelm)
             for (i = 0; i < nelm/packing; i++)
             {
                 status = regDevAsynRead(priv->device, offset,
-                   dlen, 1, (char*)bptr+i*dlen, priv->callback, record->prio);
+                   dlen, 1, (char*)bptr+i*dlen, priv->callback, record->prio, &priv->status);
                 if (status) break;
             }
         }
@@ -2129,7 +2129,7 @@ long regDevAsynReadArr(dbCommon* record, void* bptr, unsigned int nelm)
         {
             packing = priv->arraypacking;
             status = regDevAsynRead(priv->device, offset,
-                dlen*packing, nelm/packing, bptr, priv->callback, record->prio);
+                dlen*packing, nelm/packing, bptr, priv->callback, record->prio, &priv->status);
             if (status == 1)
             {
                 record->pact = 1;
@@ -2281,52 +2281,52 @@ long regDevAsynReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
       {
         case epicsInt8T:
             status = regDevAsynRead(priv->device, offset,
-                1, 1, &priv->alldtype.sval8, priv->callback, record->prio);
+                1, 1, &priv->alldtype.sval8, priv->callback, record->prio, &priv->status);
             regDevDebugLog(3, "%s: read 8bit %02x\n",
                 record->name, priv->alldtype.sval8);
             break;
         case epicsUInt8T:
         case regDevBCD8T:
             status = regDevAsynRead(priv->device, offset,
-                1, 1, &priv->alldtype.uval8, priv->callback, record->prio);
+                1, 1, &priv->alldtype.uval8, priv->callback, record->prio, &priv->status);
             regDevDebugLog(3, "%s: read 8bit %02x\n",
                 record->name, priv->alldtype.uval8);
             break;
         case epicsInt16T:
             status = regDevAsynRead(priv->device, offset,
-                2, 1, &priv->alldtype.sval16, priv->callback, record->prio);
+                2, 1, &priv->alldtype.sval16, priv->callback, record->prio, &priv->status);
             regDevDebugLog(3, "%s: read 16bit %04x\n",
                 record->name, priv->alldtype.sval16);
             break;
         case epicsUInt16T:
         case regDevBCD16T:
             status = regDevAsynRead(priv->device, offset,
-                2, 1, &priv->alldtype.uval16, priv->callback, record->prio);
+                2, 1, &priv->alldtype.uval16, priv->callback, record->prio, &priv->status);
             regDevDebugLog(3, "%s: read 16bit %04x\n",
                 record->name, priv->alldtype.uval16);
             break;
         case epicsInt32T:
             status = regDevAsynRead(priv->device, offset,
-                4, 1, &priv->alldtype.sval32, priv->callback, record->prio);
+                4, 1, &priv->alldtype.sval32, priv->callback, record->prio, &priv->status);
             regDevDebugLog(3, "%s: read 32bit %04x\n",
                 record->name, priv->alldtype.sval32);
             break;
         case epicsUInt32T:
         case regDevBCD32T:
             status = regDevAsynRead(priv->device, offset,
-                4, 1, &priv->alldtype.uval32, priv->callback, record->prio);
+                4, 1, &priv->alldtype.uval32, priv->callback, record->prio, &priv->status);
             regDevDebugLog(3, "%s: read 32bit %04x\n",
                 record->name, priv->alldtype.uval32);
             break;
         case epicsFloat32T:
             status = regDevAsynRead(priv->device, offset,
-                4, 1, &priv->alldtype.val32, priv->callback, record->prio);
+                4, 1, &priv->alldtype.val32, priv->callback, record->prio, &priv->status);
             regDevDebugLog(3, "%s: read 32bit %04lx = %#g\n",
                 record->name, priv->alldtype.val32.u, priv->alldtype.val32.f);
             break;
         case epicsFloat64T:
             status = regDevAsynRead(priv->device, offset,
-                8, 1, &priv->alldtype.val64, priv->callback, record->prio);
+                8, 1, &priv->alldtype.val64, priv->callback, record->prio, &priv->status);
             regDevDebugLog(3, "%s: read 64bit %08Lx = %#g\n",
                 record->name, priv->alldtype.val64.u, priv->alldtype.val64.f);
             break;
