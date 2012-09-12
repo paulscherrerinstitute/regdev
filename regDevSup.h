@@ -135,7 +135,7 @@ long regDevAsynAssertType(dbCommon *record, int types);
 int regDevAsynRead(regDeviceAsynNode* device, unsigned int offset,
     unsigned int dlen, unsigned int nelem, void* pdata, CALLBACK* sbStruct, int prio, int* status);
 int regDevAsynWrite(regDeviceAsynNode* device, unsigned int offset,
-    unsigned int dlen, unsigned int nelem, void* pdata, CALLBACK* sbStruct, void* mask, int prio);
+    unsigned int dlen, unsigned int nelem, void* pdata, CALLBACK* sbStruct, void* mask, int prio, int* status);
 int regDevAsynReadBits(dbCommon* record, epicsInt32* val, epicsUInt32 mask);
 int regDevAsynWriteBits(dbCommon* record, epicsUInt32 val, epicsUInt32 mask);
 long regDevAsynReadNumber(dbCommon* record, epicsInt32* rval, double* fval);

@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.24 2012/09/05 08:13:47 kalantari Exp $";
+    "$Id: regDev.c,v 1.25 2012/09/12 09:19:27 kalantari Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 static regDeviceAsynNode* registeredAsynDevices = NULL;
@@ -1567,14 +1567,14 @@ int regDevWrite(regDeviceNode* device, unsigned int offset,
 }
 
 int regDevAsynWrite(regDeviceAsynNode* device, unsigned int offset,
-    unsigned int dlen, unsigned int nelem, void* pdata, CALLBACK* cbStruct, void* mask, int prio)
+    unsigned int dlen, unsigned int nelem, void* pdata, CALLBACK* cbStruct, void* mask, int prio, int* wrStat)
 {
     int status;
     
     if (device->support->write == NULL) return -1;
     epicsMutexLock(device->accesslock);
     status = device->support->write(device->driver,
-        offset, dlen, nelem, pdata, cbStruct, mask, prio);
+        offset, dlen, nelem, pdata, cbStruct, mask, prio, wrStat);
     epicsMutexUnlock(device->accesslock);
     return status;
 }
@@ -1901,7 +1901,7 @@ int regDevAsynWriteBits(dbCommon* record, epicsUInt32 val, epicsUInt32 mask)
             regDevDebugLog(2, "%s: write 8bit %02x mask %02x to %s/0x%x\n",
                 record->name, rval8, mask8, priv->device->name, priv->offset);
             status = regDevAsynWrite(priv->device, priv->offset, 1, 1, &rval8, priv->callback,
-                mask8 == 0xFF ? NULL : &mask8, record->prio);
+                mask8 == 0xFF ? NULL : &mask8, record->prio, &priv->status);
             break;
         case regDevBCD16T:
             val = i2bcd(val);
@@ -1912,7 +1912,7 @@ int regDevAsynWriteBits(dbCommon* record, epicsUInt32 val, epicsUInt32 mask)
             regDevDebugLog(2, "%s: write 16bit %04x mask %04x to %s/0x%x\n",
                 record->name, rval16, mask16,priv->device->name,  priv->offset);
             status = regDevAsynWrite(priv->device, priv->offset, 2, 1, &rval16, priv->callback,
-                mask16 == 0xFFFF ? NULL : &mask16, record->prio);
+                mask16 == 0xFFFF ? NULL : &mask16, record->prio, &priv->status);
             break;
         case regDevBCD32T:
             val = i2bcd(val);
@@ -1923,7 +1923,7 @@ int regDevAsynWriteBits(dbCommon* record, epicsUInt32 val, epicsUInt32 mask)
             regDevDebugLog(2, "%s: write 32bit %08x mask %08x to %s/0x%x\n",
                 record->name, rval32, mask32, priv->device->name, priv->offset);
             status = regDevAsynWrite(priv->device, priv->offset, 4, 1, &rval32, priv->callback,
-                mask32 == 0xFFFFFFFFUL ? NULL : &mask32, record->prio);
+                mask32 == 0xFFFFFFFFUL ? NULL : &mask32, record->prio, &priv->status);
             break;
         case regDev64T:
             rval64 = val;
@@ -1931,7 +1931,7 @@ int regDevAsynWriteBits(dbCommon* record, epicsUInt32 val, epicsUInt32 mask)
             regDevDebugLog(2, "%s: write 64bit %016llx mask %016llx to %s/0x%x\n",
                 record->name, rval64, mask64, priv->device->name, priv->offset);
             status = regDevAsynWrite(priv->device, priv->offset, 8, 1, &rval64, priv->callback,
-                mask == 0xFFFFFFFFUL ? NULL : &mask64, record->prio);
+                mask == 0xFFFFFFFFUL ? NULL : &mask64, record->prio, &priv->status);
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
@@ -2586,14 +2586,14 @@ long regDevAsynWriteArr(dbCommon* record, void* bptr, unsigned int nelm)
             dlen *= packing;
             for (i = 0; i < nelm/packing; i++)
             {
-                status = regDevAsynWrite(priv->device, priv->offset, dlen, 1, (char*)bptr+i*dlen, priv->callback, NULL, record->prio);
+                status = regDevAsynWrite(priv->device, priv->offset, dlen, 1, (char*)bptr+i*dlen, priv->callback, NULL, record->prio, &priv->status);
                 if (status) break;
             }
         }
         else
         {
             packing = priv->arraypacking;
-            status = regDevAsynWrite(priv->device, priv->offset, dlen*packing, nelm/packing, bptr, priv->callback, NULL, record->prio);
+            status = regDevAsynWrite(priv->device, priv->offset, dlen*packing, nelm/packing, bptr, priv->callback, NULL, record->prio, &priv->status);
             if (status == 1)
             {
                 record->pact = 1;
@@ -2762,7 +2762,7 @@ long regDevAsynWriteNumber(dbCommon* record, double fval, epicsInt32 rval)
             rval8 = rval;
             regDevDebugLog(2, "%s: write 8bit %02x\n",
                 record->name, rval8 & 0xFF);
-            status = regDevAsynWrite(priv->device, priv->offset, 1, 1, &rval8, priv->callback, NULL, record->prio);
+            status = regDevAsynWrite(priv->device, priv->offset, 1, 1, &rval8, priv->callback, NULL, record->prio, &priv->status);
             break;
         case regDevBCD16T:
             rval = i2bcd(rval);
@@ -2771,7 +2771,7 @@ long regDevAsynWriteNumber(dbCommon* record, double fval, epicsInt32 rval)
             rval16 = rval;
             regDevDebugLog(2, "%s: write 16bit %04x\n",
                 record->name, rval16 & 0xFFFF);
-            status = regDevAsynWrite(priv->device, priv->offset, 2, 1, &rval16, priv->callback, NULL, record->prio);
+            status = regDevAsynWrite(priv->device, priv->offset, 2, 1, &rval16, priv->callback, NULL, record->prio, &priv->status);
             break;
         case regDevBCD32T:
             rval = i2bcd(rval);
@@ -2779,21 +2779,21 @@ long regDevAsynWriteNumber(dbCommon* record, double fval, epicsInt32 rval)
         case epicsUInt32T:
             regDevDebugLog(2, "%s: write 32bit %08x\n",
                 record->name, rval);
-            status = regDevAsynWrite(priv->device, priv->offset, 4, 1, &rval, priv->callback, NULL, record->prio);
+            status = regDevAsynWrite(priv->device, priv->offset, 4, 1, &rval, priv->callback, NULL, record->prio, &priv->status);
             break;
         case epicsFloat32T:
             /* emulate scaling */
             val32.f = fval;
             regDevDebugLog(2, "%s: write 32bit %08lx %#g\n",
                 record->name, val32.u, val32.f);
-            status = regDevAsynWrite(priv->device, priv->offset, 4, 1, &val32, priv->callback, NULL, record->prio);
+            status = regDevAsynWrite(priv->device, priv->offset, 4, 1, &val32, priv->callback, NULL, record->prio, &priv->status);
             break;
         case epicsFloat64T:
             /* emulate scaling */
             val64.f = fval;
             regDevDebugLog(2, "%s: write 64bit %016Lx %#g\n",
                 record->name, val64.u, val64.f);
-            status = regDevAsynWrite(priv->device, priv->offset, 8, 1, &val64, priv->callback, NULL, record->prio);
+            status = regDevAsynWrite(priv->device, priv->offset, 8, 1, &val64, priv->callback, NULL, record->prio, &priv->status);
             break;
         default:
             recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);

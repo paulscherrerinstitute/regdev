@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: kalantari $ */ 
-/* $Date: 2012/09/05 08:13:47 $ */ 
-/* $Id: regDev.h,v 1.5 2012/09/05 08:13:47 kalantari Exp $ */  
+/* $Date: 2012/09/12 09:19:27 $ */ 
+/* $Id: regDev.h,v 1.6 2012/09/12 09:19:27 kalantari Exp $ */  
 /* $Name:  $ */ 
-/* $Revision: 1.5 $ */ 
+/* $Revision: 1.6 $ */ 
 
 #ifndef regDev_h
 #define regDev_h
@@ -118,7 +118,8 @@ typedef struct regDevAsyncSupport {
         void* pdata,
 	CALLBACK* cbStruct,
         void* pmask,
-        int priority);
+        int priority,
+	int* status);
 	
     int (*buff_alloc)(
        	void** usrBufPtr, 
