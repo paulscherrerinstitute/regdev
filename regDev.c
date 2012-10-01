@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.25 2012/09/12 09:19:27 kalantari Exp $";
+    "$Id: regDev.c,v 1.26 2012/10/01 14:37:15 kalantari Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 static regDeviceAsynNode* registeredAsynDevices = NULL;
@@ -1651,7 +1651,7 @@ int regDevReadBits(dbCommon* record, epicsInt32* val, epicsUInt32 mask)
     }
     if (status)
     {
-        fprintf(stderr,
+        regDevDebugLog(3,
             "%s: read error\n", record->name);
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
     }
@@ -1756,7 +1756,7 @@ int regDevAsynReadBits(dbCommon* record, epicsInt32* val, epicsUInt32 mask)
     }
     if (status)
     {
-        fprintf(stderr,
+        regDevDebugLog(3,
             "%s: read error\n", record->name);
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
     }
@@ -1864,7 +1864,7 @@ int regDevWriteBits(dbCommon* record, epicsUInt32 val, epicsUInt32 mask)
     if (status)
     {
         recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM);
-        fprintf(stderr,
+        regDevDebugLog(3,
             "%s: write error\n", record->name);
     }
     return status;
@@ -1943,7 +1943,7 @@ int regDevAsynWriteBits(dbCommon* record, epicsUInt32 val, epicsUInt32 mask)
     if (status)
     {
         recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM);
-        fprintf(stderr,
+        regDevDebugLog(3,
             "%s: write error\n", record->name);
     }
     return status;
@@ -2028,7 +2028,7 @@ long regDevReadArr(dbCommon* record, void* bptr, unsigned int nelm)
 
     if (status)
     {
-        fprintf(stderr,
+        regDevDebugLog(3,
             "%s: read error\n", record->name);
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
         return status;
@@ -2143,7 +2143,7 @@ long regDevAsynReadArr(dbCommon* record, void* bptr, unsigned int nelm)
 
     if (status)
     {
-        fprintf(stderr,
+        regDevDebugLog(3,
             "%s: read error\n", record->name);
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
         return status;
@@ -2243,7 +2243,7 @@ long regDevWriteArr(dbCommon* record, void* bptr, unsigned int nelm)
         record->name, nelm, priv->dlen, bptr, status);
     if (status)
     {
-        fprintf(stderr,
+        regDevDebugLog(3,
             "%s: write error\n", record->name);
         recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM);
     }
@@ -2350,7 +2350,7 @@ long regDevAsynReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
     }
     if (status)
     {
-        fprintf(stderr,
+        regDevDebugLog(3,
             "%s: read error\n", record->name);
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
         return status;
@@ -2504,7 +2504,7 @@ long regDevReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
     }
     if (status)
     {
-        fprintf(stderr,
+        regDevDebugLog(3,
             "%s: read error\n", record->name);
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
         return status;
@@ -2606,7 +2606,7 @@ long regDevAsynWriteArr(dbCommon* record, void* bptr, unsigned int nelm)
         record->name, nelm, priv->dlen, bptr, status);
     if (status)
     {
-        fprintf(stderr,
+        regDevDebugLog(3,
             "%s: write error\n", record->name);
         recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM);
     }
