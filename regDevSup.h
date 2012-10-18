@@ -22,7 +22,7 @@
 #define S_dev_badArgument (M_devLib| 33)
 #include <semLib.h>
 #define epicsMutexId SEM_ID
-#define epicsExportAddress(a,b)
+#define epicsExportAddress(a,b) extern int dummy
 #define epicsMutexCreate() semMCreate(SEM_Q_FIFO)
 #define epicsMutexLock(m) semTake(m, WAIT_FOREVER)
 #define epicsMutexUnlock(m) semGive(m)
