@@ -486,7 +486,7 @@ long regDevInitRecordMbbo(mbboRecord* record)
             if ((&record->zrvl)[i])
             {
                 record->rval = rval;
-                regDevDebugLog(1, "regDevInitRecordMbbo(%s) done RVAL=%ld\n", record->name, record->rval);
+                regDevDebugLog(1, "regDevInitRecordMbbo(%s) done RVAL=%ld\n", record->name, (long)record->rval);
                 return 0;
             }
         }
@@ -560,7 +560,7 @@ long regDevAsynInitRecordMbbo(mbboRecord* record)
             if ((&record->zrvl)[i])
             {
                 record->rval = rval;
-                regDevDebugLog(1, "regDevInitRecordMbbo(%s) done RVAL=%ld\n", record->name, record->rval);
+                regDevDebugLog(1, "regDevInitRecordMbbo(%s) done RVAL=%ld\n", record->name, (long)record->rval);
                 return 0;
             }
         }
