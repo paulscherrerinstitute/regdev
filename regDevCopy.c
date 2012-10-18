@@ -1,7 +1,7 @@
 /* driver helper function ***************************************************/
 
 /* byte swapping facility */
-#if (__GNUC__ >= 3)
+#if (!defined (__vxworks) && __GNUC__ >= 3)
 #include <byteswap.h>
 #elif defined(_WIN32)
 #define bswap_16(x) _byteswap_ushort(x)
@@ -24,8 +24,11 @@
       | (((x) & 0x00000000000000ffull) << 56))
 #endif
 
+#include <epicsVersion.h>
 #include <epicsTypes.h>
+#if (EPICS_REVISION<15)
 typedef unsigned long long epicsUInt64;
+#endif
 
 #define def_regDevCopy(N) \
 static void regDevCopy##N(unsigned int nelem, epicsUInt##N* src, epicsUInt##N* dest) \
