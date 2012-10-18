@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.26 2012/10/01 14:37:15 kalantari Exp $";
+    "$Id: regDev.c,v 1.27 2012/10/18 14:07:40 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 static regDeviceAsynNode* registeredAsynDevices = NULL;
@@ -272,7 +272,7 @@ int regDevIoParse2(
     /* parse parameters */
     while (p && *p)
     {
-        switch (toupper(*p))
+        switch (toupper((unsigned char)*p))
         {
             case ' ':
             case '\t':
@@ -550,7 +550,7 @@ int regDevAsynIoParse2(
     /* parse parameters */
     while (p && *p)
     {
-        switch (toupper(*p))
+        switch (toupper((unsigned char)*p))
         {
             case ' ':
             case '\t':
