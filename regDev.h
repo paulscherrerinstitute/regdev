@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
-/* $Author: kalantari $ */ 
-/* $Date: 2012/09/12 09:19:27 $ */ 
-/* $Id: regDev.h,v 1.6 2012/09/12 09:19:27 kalantari Exp $ */  
+/* $Author: zimoch $ */ 
+/* $Date: 2012/10/29 09:38:28 $ */ 
+/* $Id: regDev.h,v 1.7 2012/10/29 09:38:28 zimoch Exp $ */  
 /* $Name:  $ */ 
-/* $Revision: 1.6 $ */ 
+/* $Revision: 1.7 $ */ 
 
 #ifndef regDev_h
 #define regDev_h
@@ -143,5 +143,5 @@ extern int regDevDebug;
     if (level <= regDevDebug)  errlogSevPrintf(errlogInfo, fmt, ## args);
 
 /* utility function for drivers to copy buffers */
-void regDevCopy(unsigned int dlen, unsigned int nelem, void* src, void* dest, void* pmask, int swap);
+void regDevCopy(unsigned int dlen, unsigned int nelem, volatile void* src, volatile void* dest, void* pmask, int swap);
 #endif /* regDev_h */

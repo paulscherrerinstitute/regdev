@@ -31,7 +31,7 @@ typedef unsigned long long epicsUInt64;
 #endif
 
 #define def_regDevCopy(N) \
-static void regDevCopy##N(unsigned int nelem, epicsUInt##N* src, epicsUInt##N* dest) \
+static void regDevCopy##N(unsigned int nelem, volatile epicsUInt##N* src, volatile epicsUInt##N* dest) \
 { \
     while (nelem--) \
     { \
@@ -40,7 +40,7 @@ static void regDevCopy##N(unsigned int nelem, epicsUInt##N* src, epicsUInt##N* d
 }
 
 #define def_regDevCopySwap(N) \
-static void regDevCopySwap##N(unsigned int nelem, epicsUInt##N* src, epicsUInt##N* dest) \
+static void regDevCopySwap##N(unsigned int nelem, volatile epicsUInt##N* src, volatile epicsUInt##N* dest) \
 { \
     epicsUInt##N x; \
     while (nelem--) \
@@ -51,7 +51,7 @@ static void regDevCopySwap##N(unsigned int nelem, epicsUInt##N* src, epicsUInt##
 }
 
 #define def_regDevCopyMasked(N) \
-static void regDevCopyMasked##N(unsigned int nelem, epicsUInt##N* src, epicsUInt##N* dest, epicsUInt##N mask) \
+static void regDevCopyMasked##N(unsigned int nelem, volatile epicsUInt##N* src, volatile epicsUInt##N* dest, epicsUInt##N mask) \
 { \
     epicsUInt##N x; \
     while (nelem--) \
@@ -62,7 +62,7 @@ static void regDevCopyMasked##N(unsigned int nelem, epicsUInt##N* src, epicsUInt
 }
 
 #define def_regDevCopyMaskedSwap(N) \
-static void regDevCopyMaskedSwap##N(unsigned int nelem, epicsUInt##N* src, epicsUInt##N* dest, epicsUInt##N mask) \
+static void regDevCopyMaskedSwap##N(unsigned int nelem, volatile epicsUInt##N* src, volatile epicsUInt##N* dest, epicsUInt##N mask) \
 { \
     epicsUInt##N x; \
     mask = bswap_##N(mask); \
@@ -75,7 +75,7 @@ static void regDevCopyMaskedSwap##N(unsigned int nelem, epicsUInt##N* src, epics
 }
 
 #define def_regDevCopyMaskedSwap(N) \
-static void regDevCopyMaskedSwap##N(unsigned int nelem, epicsUInt##N* src, epicsUInt##N* dest, epicsUInt##N mask) \
+static void regDevCopyMaskedSwap##N(unsigned int nelem, volatile epicsUInt##N* src, volatile epicsUInt##N* dest, epicsUInt##N mask) \
 { \
     epicsUInt##N x; \
     mask = bswap_##N(mask); \
@@ -102,7 +102,7 @@ def_regDevCopyMaskedSwap(16)
 def_regDevCopyMaskedSwap(32)
 def_regDevCopyMaskedSwap(64)
 
-void regDevCopy(unsigned int dlen, unsigned int nelem, void* src, void* dest, void* pmask, int swap)
+void regDevCopy(unsigned int dlen, unsigned int nelem, volatile void* src, volatile void* dest, void* pmask, int swap)
 {
     /* check alignment */
     unsigned int alignment = (1<<dlen)-1;
@@ -167,8 +167,8 @@ void regDevCopy(unsigned int dlen, unsigned int nelem, void* src, void* dest, vo
         case 0: /* multiple of 8: copy qword wise */
         {
             epicsUInt64 x;
-            epicsUInt64* s = src;
-            epicsUInt64* d = dest;
+            volatile epicsUInt64* s = src;
+            volatile epicsUInt64* d = dest;
             epicsUInt64* m;
             int i;
             
@@ -231,8 +231,8 @@ void regDevCopy(unsigned int dlen, unsigned int nelem, void* src, void* dest, vo
         case 4: /* multiple of 4: copy dword wise */
         {
             epicsUInt32  x;
-            epicsUInt32* s = src;
-            epicsUInt32* d = dest;
+            volatile epicsUInt32* s = src;
+            volatile epicsUInt32* d = dest;
             epicsUInt32* m;
             int i;
             
@@ -296,8 +296,8 @@ void regDevCopy(unsigned int dlen, unsigned int nelem, void* src, void* dest, vo
         case 6: /* multiple of 2: copy word wise */
         {
             epicsUInt16  x;
-            epicsUInt16* s = src;
-            epicsUInt16* d = dest;
+            volatile epicsUInt16* s = src;
+            volatile epicsUInt16* d = dest;
             epicsUInt16* m;
             int i;
             
@@ -363,8 +363,8 @@ void regDevCopy(unsigned int dlen, unsigned int nelem, void* src, void* dest, vo
         case 7: /* odd: copy byte wise */
         {
             epicsUInt8  x;
-            epicsUInt8* s = src;
-            epicsUInt8* d = dest;
+            volatile epicsUInt8* s = src;
+            volatile epicsUInt8* d = dest;
             epicsUInt8* m;
             int i;
             
