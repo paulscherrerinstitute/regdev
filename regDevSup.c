@@ -1403,8 +1403,8 @@ long regDevInitRecordStringin(stringinRecord* record)
     {
         fprintf(stderr,
             "%s: string size reduced from %d to %d\n",
-            record->name, priv->dlen, sizeof(record->val)-1);
-        priv->dlen = sizeof(record->val)-1;
+            record->name, priv->dlen, (int)sizeof(record->val)-1);
+        priv->dlen = (int)sizeof(record->val)-1;
     }
     regDevDebugLog(1, "regDevInitRecordStringin(%s) done\n", record->name);
     return 0;
@@ -1452,7 +1452,7 @@ long regDevAsynInitRecordStringin(stringinRecord* record)
     {
         fprintf(stderr,
             "%s: string size reduced from %d to %d\n",
-            record->name, priv->dlen, sizeof(record->val)-1);
+            record->name, priv->dlen, (int)sizeof(record->val)-1);
         priv->dlen = sizeof(record->val)-1;
     }
     regDevDebugLog(1, "regDevInitRecordStringin(%s) done\n", record->name);
@@ -1503,7 +1503,7 @@ long regDevInitRecordStringout(stringoutRecord* record)
     {
         fprintf(stderr,
             "%s: string size reduced from %d to %d\n",
-            record->name, priv->dlen, sizeof(record->val)-1);
+            record->name, priv->dlen, (int)sizeof(record->val)-1);
         priv->dlen = sizeof(record->val)-1;
     }
     if (priv->initoffset != DONT_INIT)
@@ -1557,7 +1557,7 @@ long regDevAsynInitRecordStringout(stringoutRecord* record)
     {
         fprintf(stderr,
             "%s: string size reduced from %d to %d\n",
-            record->name, priv->dlen, sizeof(record->val)-1);
+            record->name, priv->dlen, (int)sizeof(record->val)-1);
         priv->dlen = sizeof(record->val)-1;
     }
     if (priv->initoffset != DONT_INIT)

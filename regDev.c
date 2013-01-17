@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.27 2012/10/18 14:07:40 zimoch Exp $";
+    "$Id: regDev.c,v 1.28 2013/01/17 10:44:54 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 static regDeviceAsynNode* registeredAsynDevices = NULL;
@@ -1085,7 +1085,7 @@ regDevPrivate* regDevAllocPriv(dbCommon *record)
     {
         fprintf(stderr,
             "regDevAllocPriv %s: try to allocate %d bytes. %s\n",
-            record->name, sizeof(regDevPrivate), strerror(errno));
+            record->name, (int)sizeof(regDevPrivate), strerror(errno));
 #ifdef vxWorks
         {
             MEM_PART_STATS meminfo;
@@ -1112,7 +1112,7 @@ regDevAsynPrivate* regDevAsynAllocPriv(dbCommon *record)
     {
         fprintf(stderr,
             "regDevAllocPriv %s: try to allocate %d bytes. %s\n",
-            record->name, sizeof(regDevAsynPrivate), strerror(errno));
+            record->name, (int)sizeof(regDevAsynPrivate), strerror(errno));
 #ifdef vxWorks
         {
             MEM_PART_STATS meminfo;
