@@ -1063,6 +1063,7 @@ long regDevReadAi(aiRecord* record)
         {
             /* don't smooth with invalid value */
             record->val = val;
+            record->udf = 0;
         }
     }
     return status;
@@ -1155,6 +1156,7 @@ long regDevAsynReadAi(aiRecord* record)
         {
             /* don't smooth with invalid value */
             record->val = val;
+            record->udf = 0;
         }
     }
     return status;
@@ -1241,6 +1243,7 @@ long regDevInitRecordAo(aoRecord* record)
             record->val = val;
             record->sevr = 0;
             record->stat = 0;
+            record->udf = 0;
         }
     }
     regDevDebugLog(1, "regDevInitRecordAo(%s) done\n", record->name);
@@ -1336,6 +1339,7 @@ long regDevAsynInitRecordAo(aoRecord* record)
             record->val = val;
             record->sevr = 0;
             record->stat = 0;
+            record->udf = 0;
         }
     }
     regDevDebugLog(1, "regDevInitRecordAo(%s) done\n", record->name);
