@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.28 2013/01/17 10:44:54 zimoch Exp $";
+    "$Id: regDev.c,v 1.29 2013/03/13 12:38:11 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 static regDeviceAsynNode* registeredAsynDevices = NULL;
@@ -26,19 +26,13 @@ static regDeviceAsynNode* registeredAsynDevices = NULL;
 int regDevDebug = 0;
 epicsExportAddress(int, regDevDebug);
 
-#ifdef __vxworks
-int strncasecmp(const char *s1, const char *s2, size_t n)
+static int startswith(const char *s, const char *key)
 {
-    int x;
-    while (n--) {
-        x = tolower((unsigned char)*s1) - tolower((unsigned char)*s2);
-        if (x != 0) return x;
-        s1++;
-        s2++;
+    while (*key) {
+        if (*key++ != tolower((unsigned char)*s++)) return 0;
     }
-    return 0;
+    return 1;
 }
-#endif
 
 /***********************************************************************
  * Routine to parse IO arguments
@@ -282,10 +276,7 @@ int regDevIoParse2(
                 p+=2; 
                 for (type = 0; type < maxtype; type++)
                 {
-                    int cmp;
-                    nchar = strlen(datatypes[type].name);
-                    cmp = strncasecmp(p, datatypes[type].name, nchar);
-                    if (cmp == 0)
+                    if (startswith(p, datatypes[type].name))
                     {
                         priv->dtype = datatypes[type].type;
                         priv->dlen = datatypes[type].dlen;
@@ -560,10 +551,7 @@ int regDevAsynIoParse2(
                 p+=2; 
                 for (type = 0; type < maxtype; type++)
                 {
-                    int cmp;
-                    nchar = strlen(datatypes[type].name);
-                    cmp = strncasecmp(p, datatypes[type].name, nchar);
-                    if (cmp == 0)
+                    if (startswith(p, datatypes[type].name))
                     {
                         priv->dtype = datatypes[type].type;
                         priv->dlen = datatypes[type].dlen;
