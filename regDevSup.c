@@ -201,7 +201,7 @@ long regDevAsynReadBi(biRecord* record)
     epicsInt32 rval;
     
     status = regDevAsynReadBits((dbCommon*)record, &rval, record->mask);
-    if (!status) record->rval = rval;
+    if (!status && !record->pact) record->rval = rval;
     return status;
 }
 
@@ -423,6 +423,7 @@ long regDevAsynReadMbbi(mbbiRecord* record)
     
     status = regDevAsynReadBits((dbCommon*)record, &rval, record->mask);
     if (status) return status;
+    if (record->pact) return 0;
     /* If any values defined write to RVAL field else to VAL field */
     if (record->sdef) for (i=0; i<16; i++)
     {
@@ -693,7 +694,7 @@ long regDevAsynReadMbbiDirect(mbbiDirectRecord* record)
     epicsInt32 rval;
     
     status = regDevAsynReadBits((dbCommon*)record, &rval, record->mask);
-    if (!status) record->rval = rval;
+    if (!status && !record->pact) record->rval = rval;
     return status;
 }
 
@@ -894,7 +895,7 @@ long regDevAsynReadLongin(longinRecord* record)
     epicsInt32 rval;
     
     status = regDevAsynReadBits((dbCommon*)record, &rval, -1);
-    if (!status) record->val = rval;
+    if (!status && !record->pact) record->val = rval;
     return status;
 }
 
@@ -1139,6 +1140,7 @@ long regDevAsynReadAi(aiRecord* record)
     status = regDevAsynReadNumber((dbCommon*)record, &rval, &val);
     if (status == 0)
     {
+        if (record->pact) return 0;
         record->rval = rval;
     }
     if (status == 2)
