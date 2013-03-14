@@ -200,17 +200,21 @@ long regDevAsynInitRecordAai(aaiRecord* record)
 
 long regDevAsynReadAai(aaiRecord* record)
 {
+    int status;
+
     regDevAsynPrivate* priv = record->dpvt;
     if (record->bptr == NULL)
     {
         fprintf (stderr, "regDevAsynReadAai %s: private buffer is not allocated\n", record->name);
         return S_dev_noMemory;
     }
-    record->nord = record->nelm;
     if(!priv->busBufPtr)
-    	return regDevAsynReadArr((dbCommon*)record, record->bptr, record->nelm);
+    	status = regDevAsynReadArr((dbCommon*)record, record->bptr, record->nelm);
     else 
-    	return regDevAsynReadArr((dbCommon*)record, priv->busBufPtr, record->nelm);
+    	status = regDevAsynReadArr((dbCommon*)record, priv->busBufPtr, record->nelm);
+    if (status == ASYNC_COMPLETITION) return OK;
+    record->nord = record->nelm;
+    return status;
 }
 
 /* aao **************************************************************/

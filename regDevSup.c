@@ -37,7 +37,7 @@ long regDevInitRecordStat(biRecord* record)
         return S_dev_noMemory;
     if ((status = regDevIoParse((dbCommon*)record, &record->inp)))
         return status;
-    return 0;
+    return OK;
 }
 
 long regDevReadStat(biRecord* record)
@@ -55,8 +55,8 @@ long regDevReadStat(biRecord* record)
     assert(priv->device);
     /* psudo-read (0 bytes) just to get the connection status */
     status = regDevRead(priv->device, 0, 0, 0, NULL, 0); 
-    record->rval = (status == 0);
-    return 0;
+    record->rval = (status == OK);
+    return OK;
 }
 long regDevAsynInitRecordStat(biRecord *);
 long regDevAsynReadStat(biRecord *);
@@ -86,7 +86,7 @@ long regDevAsynInitRecordStat(biRecord* record)
         return -1;
     callbackSetCallback(regDevAsyncCallback, priv->callback);
     callbackSetUser(record, priv->callback);
-    return 0;
+    return OK;
 }
 
 long regDevAsynReadStat(biRecord* record)
@@ -104,8 +104,8 @@ long regDevAsynReadStat(biRecord* record)
     assert(priv->device);
     /* psudo-read (0 bytes) just to get the connection status */
     status = regDevAsynRead(priv->device, 0, 0, 0, NULL, NULL, 0, 0); 
-    record->rval = (status == 0);
-    return 0;
+    record->rval = (status == OK);
+    return OK;
 }
 
 
@@ -143,7 +143,7 @@ long regDevInitRecordBi(biRecord* record)
     if (priv->invert)
         priv->invert = record->mask;
     regDevDebugLog(1, "regDevInitRecordBi(%s) done\n", record->name);
-    return 0;
+    return OK;
 }
 
 long regDevReadBi(biRecord* record)
@@ -192,7 +192,7 @@ long regDevAsynInitRecordBi(biRecord* record)
     callbackSetCallback(regDevAsyncCallback, priv->callback);
     callbackSetUser(record, priv->callback);
     regDevDebugLog(1, "regDevInitRecordBi(%s) done\n", record->name);
-    return 0;
+    return OK;
 }
 
 long regDevAsynReadBi(biRecord* record)
@@ -201,7 +201,8 @@ long regDevAsynReadBi(biRecord* record)
     epicsInt32 rval;
     
     status = regDevAsynReadBits((dbCommon*)record, &rval, record->mask);
-    if (!status && !record->pact) record->rval = rval;
+    if (status == ASYNC_COMPLETITION) return OK;
+    if (status == OK) record->rval = rval;
     return status;
 }
 
@@ -350,7 +351,7 @@ long regDevInitRecordMbbi(mbbiRecord* record)
         priv->invert <<= record->shft;
     }
     regDevDebugLog(1, "regDevInitRecordMbbi(%s) done\n", record->name);
-    return 0;
+    return OK;
 }
 
 long regDevReadMbbi(mbbiRecord* record)
@@ -367,7 +368,7 @@ long regDevReadMbbi(mbbiRecord* record)
         if ((&record->zrvl)[i])
         {
             record->rval = rval;
-            return 0;
+            return OK;
         }
     }
     if (record->shft > 0) rval >>= record->shft;
@@ -412,7 +413,7 @@ long regDevAsynInitRecordMbbi(mbbiRecord* record)
     callbackSetCallback(regDevAsyncCallback, priv->callback);
     callbackSetUser(record, priv->callback);
     regDevDebugLog(1, "regDevInitRecordMbbi(%s) done\n", record->name);
-    return 0;
+    return OK;
 }
 
 long regDevAsynReadMbbi(mbbiRecord* record)
@@ -422,15 +423,15 @@ long regDevAsynReadMbbi(mbbiRecord* record)
     int i;
     
     status = regDevAsynReadBits((dbCommon*)record, &rval, record->mask);
+    if (status == ASYNC_COMPLETITION) return OK;
     if (status) return status;
-    if (record->pact) return 0;
     /* If any values defined write to RVAL field else to VAL field */
     if (record->sdef) for (i=0; i<16; i++)
     {
         if ((&record->zrvl)[i])
         {
             record->rval = rval;
-            return 0;
+            return OK;
         }
     }
     if (record->shft > 0) rval >>= record->shft;
@@ -488,7 +489,7 @@ long regDevInitRecordMbbo(mbboRecord* record)
             {
                 record->rval = rval;
                 regDevDebugLog(1, "regDevInitRecordMbbo(%s) done RVAL=%ld\n", record->name, (long)record->rval);
-                return 0;
+                return OK;
             }
         }
         if (record->shft > 0) rval >>= record->shft;
@@ -562,7 +563,7 @@ long regDevAsynInitRecordMbbo(mbboRecord* record)
             {
                 record->rval = rval;
                 regDevDebugLog(1, "regDevInitRecordMbbo(%s) done RVAL=%ld\n", record->name, (long)record->rval);
-                return 0;
+                return OK;
             }
         }
         if (record->shft > 0) rval >>= record->shft;
@@ -633,7 +634,7 @@ long regDevInitRecordMbbiDirect(mbbiDirectRecord* record)
         priv->invert <<= record->shft;
     }
     regDevDebugLog(1, "regDevInitRecordMbbiDirect(%s) done\n", record->name);
-    return 0;
+    return OK;
 }
 
 long regDevReadMbbiDirect(mbbiDirectRecord* record)
@@ -685,7 +686,7 @@ long regDevAsynInitRecordMbbiDirect(mbbiDirectRecord* record)
     callbackSetCallback(regDevAsyncCallback, priv->callback);
     callbackSetUser(record, priv->callback);
     regDevDebugLog(1, "regDevInitRecordMbbiDirect(%s) done\n", record->name);
-    return 0;
+    return OK;
 }
 
 long regDevAsynReadMbbiDirect(mbbiDirectRecord* record)
@@ -694,7 +695,8 @@ long regDevAsynReadMbbiDirect(mbbiDirectRecord* record)
     epicsInt32 rval;
     
     status = regDevAsynReadBits((dbCommon*)record, &rval, record->mask);
-    if (!status && !record->pact) record->rval = rval;
+    if (status == ASYNC_COMPLETITION) return OK;
+    if (status == OK) record->rval = rval;
     return status;
 }
 
@@ -841,7 +843,7 @@ long regDevInitRecordLongin(longinRecord* record)
     if ((status = regDevAssertType((dbCommon*)record, TYPE_INT|TYPE_BCD)))
         return status;
     regDevDebugLog(1, "regDevInitRecordLongin(%s) done\n", record->name);
-    return 0;
+    return OK;
 }
 
 long regDevReadLongin(longinRecord* record)
@@ -886,7 +888,7 @@ long regDevAsynInitRecordLongin(longinRecord* record)
     callbackSetCallback(regDevAsyncCallback, priv->callback);
     callbackSetUser(record, priv->callback);
     regDevDebugLog(1, "regDevInitRecordLongin(%s) done\n", record->name);
-    return 0;
+    return OK;
 }
 
 long regDevAsynReadLongin(longinRecord* record)
@@ -895,7 +897,8 @@ long regDevAsynReadLongin(longinRecord* record)
     epicsInt32 rval;
     
     status = regDevAsynReadBits((dbCommon*)record, &rval, -1);
-    if (!status && !record->pact) record->val = rval;
+    if (status == ASYNC_COMPLETITION) return OK;
+    if (status == OK) record->val = rval;
     return status;
 }
 
@@ -1035,7 +1038,7 @@ long regDevInitRecordAi(aiRecord* record)
         return status;
     regDevSpecialLinconvAi(record, TRUE);
     regDevDebugLog(1, "regDevInitRecordAi(%s) done\n", record->name);
-    return 0;
+    return OK;
 }
 
 long regDevReadAi(aiRecord* record)
@@ -1045,11 +1048,11 @@ long regDevReadAi(aiRecord* record)
     epicsInt32 rval;
     
     status = regDevReadNumber((dbCommon*)record, &rval, &val);
-    if (status == 0)
+    if (status == OK)
     {
         record->rval = rval;
     }
-    if (status == 2)
+    if (status == DONT_CONVERT)
     {
         /* emulate scaling */
         if (record->aslo != 0.0) val *= record->aslo;
@@ -1082,7 +1085,7 @@ long regDevSpecialLinconvAi(aiRecord* record, int after)
             (priv->hwHigh*record->egul - priv->hwLow*record->eguf)
             / hwSpan;
     }
-    return 0;
+    return OK;
 }
 
 long regDevAsynInitRecordAi(aiRecord *);
@@ -1128,7 +1131,7 @@ long regDevAsynInitRecordAi(aiRecord* record)
     callbackSetUser(record, priv->callback);
     regDevSpecialLinconvAi(record, TRUE);
     regDevDebugLog(1, "regDevInitRecordAi(%s) done\n", record->name);
-    return 0;
+    return OK;
 }
 
 long regDevAsynReadAi(aiRecord* record)
@@ -1138,12 +1141,13 @@ long regDevAsynReadAi(aiRecord* record)
     epicsInt32 rval;
     
     status = regDevAsynReadNumber((dbCommon*)record, &rval, &val);
-    if (status == 0)
+    if (status == ASYNC_COMPLETITION) return OK;
+    if (status == OK)
     {
-        if (record->pact) return 0;
         record->rval = rval;
+        return OK;
     }
-    if (status == 2)
+    if (status == DONT_CONVERT)
     {
         /* emulate scaling */
         if (record->aslo != 0.0) val *= record->aslo;
@@ -1176,7 +1180,7 @@ long regDevAsynSpecialLinconvAi(aiRecord* record, int after)
             (priv->hwHigh*record->egul - priv->hwLow*record->eguf)
             / hwSpan;
     }
-    return 0;
+    return OK;
 }
 
 
@@ -1231,13 +1235,13 @@ long regDevInitRecordAo(aoRecord* record)
     else 
     {
         status = regDevReadNumber((dbCommon*)record, &rval, &val);
-        if (status == 0)
+        if (status == OK)
         {
             record->rval = rval;
             record->sevr = 0;
             record->stat = 0;
         }
-        if (status == 2)
+        if (status == DONT_CONVERT)
         {
             /* emulate scaling */
             if (record->aslo != 0.0) val *= record->aslo;
@@ -1273,7 +1277,7 @@ long regDevSpecialLinconvAo(aoRecord* record, int after)
             (priv->hwHigh*record->egul -priv->hwLow*record->eguf)
             / hwSpan;
     }
-    return 0;
+    return OK;
 }
 
 long regDevAsynInitRecordAo(aoRecord *);
@@ -1327,13 +1331,13 @@ long regDevAsynInitRecordAo(aoRecord* record)
     else 
     {
         status = regDevAsynReadNumber((dbCommon*)record, &rval, &val);
-        if (status == 0)
+        if (status == OK)
         {
             record->rval = rval;
             record->sevr = 0;
             record->stat = 0;
         }
-        if (status == 2)
+        if (status == DONT_CONVERT)
         {
             /* emulate scaling */
             if (record->aslo != 0.0) val *= record->aslo;
@@ -1369,7 +1373,7 @@ long regDevAsynSpecialLinconvAo(aoRecord* record, int after)
             (priv->hwHigh*record->egul -priv->hwLow*record->eguf)
             / hwSpan;
     }
-    return 0;
+    return OK;
 }
 
 /* stringin *********************************************************/
@@ -1413,7 +1417,7 @@ long regDevInitRecordStringin(stringinRecord* record)
         priv->dlen = (int)sizeof(record->val)-1;
     }
     regDevDebugLog(1, "regDevInitRecordStringin(%s) done\n", record->name);
-    return 0;
+    return OK;
 }
 
 long regDevReadStringin(stringinRecord* record)
@@ -1462,12 +1466,14 @@ long regDevAsynInitRecordStringin(stringinRecord* record)
         priv->dlen = sizeof(record->val)-1;
     }
     regDevDebugLog(1, "regDevInitRecordStringin(%s) done\n", record->name);
-    return 0;
+    return OK;
 }
 
 long regDevAsynReadStringin(stringinRecord* record)
 {
-    return regDevAsynReadArr((dbCommon*) record, record->val, 0);
+    int status = regDevAsynReadArr((dbCommon*) record, record->val, 0);
+    if (status == ASYNC_COMPLETITION) return OK;
+    return status;
 }
 
 
@@ -1664,7 +1670,9 @@ long regDevAsynInitRecordWaveform(waveformRecord* record)
 
 long regDevAsynReadWaveform(waveformRecord* record)
 {
-    record->nord = record->nelm;
-    return regDevAsynReadArr((dbCommon*) record, record->bptr, record->nelm);
+    int status = regDevAsynReadArr((dbCommon*) record, record->bptr, record->nelm);
+    if (status == ASYNC_COMPLETITION) return OK;
+    if (status == OK) record->nord = record->nelm;
+    return status;
 }
 

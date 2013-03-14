@@ -35,6 +35,15 @@
 #define TYPE_STRING 4
 #define TYPE_BCD    8
 
+#define DONT_CONVERT 2
+#define ASYNC_COMPLETITION 1
+#ifndef OK
+#define OK 0
+#endif
+#ifndef ERROR
+#define ERROR -1
+#endif
+
 
 typedef struct regDeviceNode {
     struct regDeviceNode* next;    /* Next registered device */
