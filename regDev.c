@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.29 2013/03/13 12:38:11 zimoch Exp $";
+    "$Id: regDev.c,v 1.30 2013/03/14 10:43:30 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 static regDeviceAsynNode* registeredAsynDevices = NULL;
@@ -28,10 +28,14 @@ epicsExportAddress(int, regDevDebug);
 
 static int startswith(const char *s, const char *key)
 {
+    int n = 0;
     while (*key) {
-        if (*key++ != tolower((unsigned char)*s++)) return 0;
+        if (*key != tolower((unsigned char)*s)) return 0;
+        key++;
+        s++;
+        n++;
     }
-    return 1;
+    return n;
 }
 
 /***********************************************************************
@@ -260,7 +264,7 @@ int regDevIoParse2(
         separator = *p++;
 
     /* driver parameter for device support if present */
-    nchar = 0;
+
     if (separator != '\'') p--; /* optional quote for compatibility */
     
     /* parse parameters */
@@ -276,7 +280,8 @@ int regDevIoParse2(
                 p+=2; 
                 for (type = 0; type < maxtype; type++)
                 {
-                    if (startswith(p, datatypes[type].name))
+                    nchar = startswith(p, datatypes[type].name);
+                    if (nchar)
                     {
                         priv->dtype = datatypes[type].type;
                         priv->dlen = datatypes[type].dlen;
@@ -535,7 +540,7 @@ int regDevAsynIoParse2(
         separator = *p++;
 
     /* driver parameter for device support if present */
-    nchar = 0;
+
     if (separator != '\'') p--; /* optional quote for compatibility */
     
     /* parse parameters */
@@ -551,7 +556,8 @@ int regDevAsynIoParse2(
                 p+=2; 
                 for (type = 0; type < maxtype; type++)
                 {
-                    if (startswith(p, datatypes[type].name))
+                    nchar = startswith(p, datatypes[type].name);
+                    if (nchar)
                     {
                         priv->dtype = datatypes[type].type;
                         priv->dlen = datatypes[type].dlen;
