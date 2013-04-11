@@ -98,13 +98,13 @@ def_regDevCopyMaskedSwap(16)
 def_regDevCopyMaskedSwap(32)
 def_regDevCopyMaskedSwap(64)
 
-void regDevCopy(unsigned int dlen, unsigned int nelem, volatile void* src, volatile void* dest, void* pmask, int swap)
+void regDevCopy(unsigned int dlen, size_t nelem, volatile void* src, volatile void* dest, void* pmask, int swap)
 {
     /* check alignment */
-    unsigned int alignment = (1<<dlen)-1;
-    if (((unsigned long)src  & alignment) == 0 &&
-        ((unsigned long)dest & alignment) == 0 &&
-        (pmask == 0 || ((unsigned long)pmask & alignment) == 0))
+    size_t alignment = (1<<dlen)-1;
+    if (((size_t)src  & alignment) == 0 &&
+        ((size_t)dest & alignment) == 0 &&
+        (pmask == 0 || ((size_t)pmask & alignment) == 0))
     {
         /* handle standard element sizes: 1, 2 ,4, 8 bytes */
         switch (dlen<<2 | (pmask!=0)<<1 | (swap!=0))
