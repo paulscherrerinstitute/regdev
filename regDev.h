@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: zimoch $ */ 
-/* $Date: 2013/04/11 12:25:01 $ */ 
-/* $Id: regDev.h,v 1.8 2013/04/11 12:25:01 zimoch Exp $ */  
+/* $Date: 2013/04/11 12:54:07 $ */ 
+/* $Id: regDev.h,v 1.9 2013/04/11 12:54:07 zimoch Exp $ */  
 /* $Name:  $ */ 
-/* $Revision: 1.8 $ */ 
+/* $Revision: 1.9 $ */ 
 
 #ifndef regDev_h
 #define regDev_h
@@ -35,7 +35,7 @@
 /* It's a handle to the device instance */
 typedef struct regDevice regDevice;
 
-/* Every driver must provide this function table */
+/* Every sync driver must provide this function table */
 /* It may be constant and is used for all device instances */
 /* Unimplemented functions may be NULL */
 
@@ -71,7 +71,7 @@ typedef struct regDevSupport {
         
 } regDevSupport;
 
-/* Every driver must create and register each device instance */
+/* Every sync driver must create and register each device instance */
 /* together with name and function table */
 int regDevRegisterDevice(
     const char* name,
@@ -81,22 +81,15 @@ int regDevRegisterDevice(
 regDevice* regDevFind(
     const char* name);
 
-/* Every device driver may define struct regDeviceAsyn as needed */
-/* It's a handle to the device instance */
-
-/* Every driver must provide this function table */
+/* Every async driver must provide this function table */
 /* It may be constant and is used for all device instances */
 /* Unimplemented functions may be NULL */
 
 /** 
 Here we have to add an "init" routine to the regDevAsyncSupport,
 This will be then called at record initialization routine if it is provided.
-We can the use this to pass a pointer to the (kernel) allocated memory which is 
-suitable for DMA. In this routine we have to call pev_buf_dma().
+We can the use this to pass a pointer to memory which is suitable for DMA.
 **/
-
-/* for backward compatibility */
-#define regDeviceAsyn regDevice
 
 typedef struct regDevAsyncSupport {
     void (*report)(
@@ -108,7 +101,7 @@ typedef struct regDevAsyncSupport {
         unsigned int offset);
     
     IOSCANPVT (*getOutScanPvt)(
-        regDeviceAsyn *device,
+        regDevice *device,
         unsigned int offset);
 
     int (*read)(
@@ -139,14 +132,14 @@ typedef struct regDevAsyncSupport {
         
 } regDevAsyncSupport;
 
-/* Every driver must create and register each device instance */
+/* Every async driver must create and register each device instance */
 /* together with name and function table */
 int regDevAsyncRegisterDevice(
     const char* name,
     const regDevAsyncSupport* support,
-    regDeviceAsyn* device);
+    regDevice* device);
 
-regDeviceAsyn* regDevAsynFind(
+regDevice* regDevAsynFind(
     const char* name);
 
 extern int regDevDebug;

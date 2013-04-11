@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.32 2013/04/11 12:25:01 zimoch Exp $";
+    "$Id: regDev.c,v 1.33 2013/04/11 12:54:07 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -598,7 +598,7 @@ int regDevRegisterDevice(const char* name,
 }
 
 int regDevAsyncRegisterDevice(const char* name,
-    const regDevAsyncSupport* asupport, regDeviceAsyn* driver)
+    const regDevAsyncSupport* asupport, regDevice* driver)
 {
     return regDevRegisterDevice2(name, NULL, asupport, driver);
 }
@@ -772,7 +772,7 @@ regDevice* regDevFind(const char* name)
     return NULL;
 }
 
-regDeviceAsyn* regDevAsynFind(const char* name)
+regDevice* regDevAsynFind(const char* name)
 {
     return (void*)regDevFind(name);
 }
