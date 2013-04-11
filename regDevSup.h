@@ -35,6 +35,7 @@
 epicsShareExtern struct dbBase *pdbbase;
 #endif
 
+#include <sys/types.h>
 #include <epicsTypes.h>
 #if (EPICS_REVISION<15)
 typedef long long epicsInt64;
@@ -79,12 +80,12 @@ typedef struct regDevPrivate{
     epicsInt32 magic;
     regDeviceNode* device;
     size_t offset;               /* Offset (in bytes) within device memory */
-    struct dbAddr* offsetRecord; /* record to read offset from */
-    size_t offsetScale;          /* scaling of value from offsetRecord */
     size_t initoffset;           /* Offset to initialize output records */
+    struct dbAddr* offsetRecord; /* record to read offset from */
+    ssize_t offsetScale;         /* scaling of value from offsetRecord */
     unsigned short bit;          /* Bit number (0-15) for bi/bo */
     unsigned short dtype;        /* Data type */
-    size_t dlen;                 /* Data length (in bytes) */
+    unsigned short dlen;         /* Data length (in bytes) */
     short fifopacking;           /* Fifo: elelents in one register */
     short arraypacking;          /* Array: elelents in one register */
     epicsInt32 hwLow;            /* Hardware Low limit */
@@ -118,8 +119,8 @@ const char* regDevTypeName(int dtype);
 int regDevMemAlloc(dbCommon* record, void** bptr, size_t size);
 
 /* returns OK, ERROR, or ASYNC_COMPLETITION */
-int regDevRead(dbCommon* record, size_t dlen, size_t nelem, void* buffer);
-int regDevWrite(dbCommon* record, size_t dlen, size_t nelem, void* pdata, void* mask);
+int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer);
+int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* pdata, void* mask);
 
 int regDevReadScalar(dbCommon* record, epicsInt32* rval, double* fval, epicsUInt32 mask);
 int regDevWriteScalar(dbCommon* record, epicsInt32 rval, double fval, epicsUInt32 mask);
@@ -159,4 +160,10 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* rval, size_t nelm, double
         return priv->status; \
     } while(0)
 
+#endif
+
+#ifdef __vxworks
+#define Z ""
+#else
+#define Z "z"
 #endif
