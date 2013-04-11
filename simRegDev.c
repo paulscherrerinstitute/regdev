@@ -15,14 +15,8 @@
 
 #define MAGIC 322588966U /* crc("simRegDev") */
 
-#ifdef __vxworks
-#define Z ""
-#else
-#define Z "z"
-#endif
-
 static char cvsid_simRegDev[] __attribute__((unused)) =
-    "$Id: simRegDev.c,v 1.5 2013/04/11 15:42:40 zimoch Exp $";
+    "$Id: simRegDev.c,v 1.6 2013/04/11 15:50:55 zimoch Exp $";
 
 typedef struct simRegDevAsyncMessage {
     struct simRegDevAsyncMessage* next;

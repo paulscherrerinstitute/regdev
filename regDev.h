@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: zimoch $ */ 
-/* $Date: 2013/04/11 15:44:57 $ */ 
-/* $Id: regDev.h,v 1.12 2013/04/11 15:44:57 zimoch Exp $ */  
+/* $Date: 2013/04/11 15:50:55 $ */ 
+/* $Id: regDev.h,v 1.13 2013/04/11 15:50:55 zimoch Exp $ */  
 /* $Name:  $ */ 
-/* $Revision: 1.12 $ */ 
+/* $Revision: 1.13 $ */ 
 
 #ifndef regDev_h
 #define regDev_h
@@ -156,3 +156,13 @@ extern int regDevDebug;
 /* utility function for drivers to copy buffers */
 void regDevCopy(unsigned int dlen, size_t nelem, volatile void* src, volatile void* dest, void* pmask, int swap);
 #endif /* regDev_h */
+
+/* utility: size_t modifier for printf */
+
+#ifdef __vxworks
+#define Z ""
+#else
+#define Z "z"
+#endif
+
+

@@ -161,9 +161,3 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* rval, size_t nelm, double
     } while(0)
 
 #endif
-
-#ifdef __vxworks
-#define Z ""
-#else
-#define Z "z"
-#endif
