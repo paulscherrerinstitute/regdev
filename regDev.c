@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.34 2013/04/11 14:32:54 zimoch Exp $";
+    "$Id: regDev.c,v 1.35 2013/04/11 15:44:57 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -298,11 +298,11 @@ int regDevIoParse2(
         priv->offset = offset;
         if (priv->offsetRecord)
             regDevDebugLog(DBG_INIT,
-                "regDevIoParse %s: offset='%s'*%d+%d\n",
+                "regDevIoParse %s: offset='%s'*%"Z"u+%"Z"u\n",
                 recordName, priv->offsetRecord->precord->name, priv->offsetScale, priv->offset);
         else
             regDevDebugLog(DBG_INIT,
-                "regDevIoParse %s: offset=%d\n", recordName, priv->offset);
+                "regDevIoParse %s: offset=%"Z"u\n", recordName, priv->offset);
         separator = *p++;
     }
     else
@@ -324,14 +324,14 @@ int regDevIoParse2(
             if (initoffset < 0)
             {
                 fprintf(stderr,
-                    "regDevIoParse %s: init offset %ld<0\n",
+                    "regDevIoParse %s: init offset %ld < 0\n",
                     recordName, initoffset);
                 return S_dev_badArgument;
             }
             priv->initoffset = initoffset;
         }
         regDevDebugLog(DBG_INIT,
-            "regDevIoParse %s: init offset=%d\n", recordName, priv->initoffset);
+            "regDevIoParse %s: init offset=%"Z"u\n", recordName, priv->initoffset);
         separator = *p++;
     }
     else
@@ -644,7 +644,7 @@ long regDevGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     if (*ppvt == NULL)
     {
         fprintf(stderr,
-            "regDevGetInIntInfo %s: no I/O Intr for bus %s offset %#x\n",
+            "regDevGetInIntInfo %s: no I/O Intr for bus %s offset %#"Z"x\n",
             record->name, device->name, priv->offset);
         return ERROR;
     }
@@ -693,7 +693,7 @@ long regDevGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     if (*ppvt == NULL)
     {
         fprintf(stderr,
-            "regDevGetOutIntInfo %s: no I/O Intr for bus %s offset %#x\n",
+            "regDevGetOutIntInfo %s: no I/O Intr for bus %s offset %#"Z"x\n",
             record->name, device->name, priv->offset);
         return ERROR;
     }
@@ -1098,7 +1098,7 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
     return ERROR;
 }
 
-int regDevMemAlloc(dbCommon* record, void** bptr, unsigned int size)
+int regDevMemAlloc(dbCommon* record, void** bptr, size_t size)
 {
     int status = 0;
     void* ptr = NULL;
@@ -1141,7 +1141,7 @@ int regDevMemAlloc(dbCommon* record, void** bptr, unsigned int size)
     return OK;
 }
 
-int regDevRead(dbCommon* record, size_t dlen, size_t nelem, void* buffer)
+int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer)
 {
     int status = OK;
     regDevPrivate* priv = record->dpvt;
@@ -1171,7 +1171,7 @@ int regDevRead(dbCommon* record, size_t dlen, size_t nelem, void* buffer)
     }
     else
     {
-        long offset;
+        size_t offset;
         /* First call of (probably asynchronous) device */
 
         if (buffer == NULL || (nelem == 1 && device->asupport))
@@ -1195,7 +1195,7 @@ int regDevRead(dbCommon* record, size_t dlen, size_t nelem, void* buffer)
                     epicsInt32 i;
                 } buffer;
                 long options = DBR_STATUS;
-                long off = offset;
+                ssize_t off = offset;
 
                 status = dbGetField(priv->offsetRecord, DBR_LONG, &buffer, &options, NULL, NULL);
                 if (status == OK && buffer.severity == INVALID_ALARM) status = ERROR;
@@ -1209,7 +1209,7 @@ int regDevRead(dbCommon* record, size_t dlen, size_t nelem, void* buffer)
                 off += buffer.i * priv->offsetScale;
                 if (off < 0)
                 {
-                    regDevDebugLog(DBG_IN, "%s: effective offset '%s'=%d * %d + %ld = %ld < 0\n",
+                    regDevDebugLog(DBG_IN, "%s: effective offset '%s'=%d * %"Z"d + %"Z"d = %"Z"d < 0\n",
                         record->name, priv->offsetRecord->precord->name,
                         buffer.i, priv->offsetScale, offset, off);
                     return ERROR;
@@ -1253,7 +1253,7 @@ int regDevRead(dbCommon* record, size_t dlen, size_t nelem, void* buffer)
         if (status == ASYNC_COMPLETITION)
         {
             errlogSevPrintf(errlogInfo,
-                "%s: async read %d * %d bit from %s:%u\n",
+                "%s: async read %"Z"d * %d bit from %s:%"Z"u\n",
                 record->name, nelem, dlen*8,
                 device->name, priv->asyncOffset);
         }
@@ -1261,31 +1261,31 @@ int regDevRead(dbCommon* record, size_t dlen, size_t nelem, void* buffer)
         {
             case 1:
                 errlogSevPrintf(errlogInfo,
-                    "%s: read %d * 8 bit 0x%02x from %s:%u (status=%x)\n",
+                    "%s: read %"Z"u * 8 bit 0x%02x from %s:%"Z"u (status=%x)\n",
                     record->name, nelem, priv->result.uval8,
                     device->name, priv->asyncOffset, status);
                 break;
             case 2:
                 errlogSevPrintf(errlogInfo,
-                    "%s: read %d * 16 bit 0x%04x from %s:%u (status=%x)\n",
+                    "%s: read %"Z"u * 16 bit 0x%04x from %s:%"Z"u (status=%x)\n",
                     record->name, nelem, priv->result.uval16,
                     device->name, priv->asyncOffset, status);
                 break;
             case 4:
                 errlogSevPrintf(errlogInfo,
-                    "%s: read %d * 32 bit 0x%08x from %s:%u (status=%x)\n",
+                    "%s: read %"Z"u * 32 bit 0x%08x from %s:%"Z"u (status=%x)\n",
                     record->name, nelem, priv->result.uval32,
                     device->name, priv->asyncOffset, status);
                 break;
             case 8:
                 errlogSevPrintf(errlogInfo,
-                    "%s: read %d * 64 bit 0x%016llx from %s:%u (status=%x)\n",
+                    "%s: read %"Z"u * 64 bit 0x%016llx from %s:%"Z"u (status=%x)\n",
                     record->name, nelem, priv->result.uval64,
                     device->name, priv->asyncOffset, status);
                 break;
             default:
                 errlogSevPrintf(errlogInfo,
-                    "%s: read %d * %d bit from %s:%u (status=%x)\n",
+                    "%s: read %"Z"u * %d bit from %s:%"Z"u (status=%x)\n",
                     record->name, nelem, dlen*8,
                     device->name, priv->asyncOffset, status);
         }
@@ -1316,10 +1316,10 @@ int regDevRead(dbCommon* record, size_t dlen, size_t nelem, void* buffer)
     return status;
 }
 
-int regDevWrite(dbCommon* record, size_t dlen, size_t nelem, void* pdata, void* mask)
+int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* pdata, void* mask)
 {
     int status;
-    unsigned int offset;  
+    size_t offset;  
     void* buffer;
     regDevPrivate* priv = record->dpvt;
     regDeviceNode* device;
@@ -1371,7 +1371,7 @@ int regDevWrite(dbCommon* record, size_t dlen, size_t nelem, void* pdata, void* 
             epicsInt32 i;
         } buffer;
         long options = DBR_STATUS;
-        long off = offset;
+        ssize_t off = offset;
 
         status = dbGetField(priv->offsetRecord, DBR_LONG, &buffer, &options, NULL, NULL);
         if (status == OK && buffer.severity == INVALID_ALARM) status = ERROR;
@@ -1385,7 +1385,7 @@ int regDevWrite(dbCommon* record, size_t dlen, size_t nelem, void* pdata, void* 
         off += buffer.i * priv->offsetScale;
         if (off < 0)
         {
-            regDevDebugLog(DBG_OUT, "%s: effective offset '%s'=%d * %d + %d = %ld < 0\n",
+            regDevDebugLog(DBG_OUT, "%s: effective offset '%s'=%d * %"Z"d + %"Z"u = %"Z"d < 0\n",
                 record->name, priv->offsetRecord->precord->name,
                 buffer.i, priv->offsetScale, offset, off);
             return ERROR;
@@ -1400,54 +1400,54 @@ int regDevWrite(dbCommon* record, size_t dlen, size_t nelem, void* pdata, void* 
         {
             case 1:
                 errlogSevPrintf(errlogInfo,
-                    "%s: write %d * 8 bit 0x%02x to %s:%u\n",
+                    "%s: write %"Z"u * 8 bit 0x%02x to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt8*)buffer,
                     device->name, offset);
                 break;
             case 2:
                 errlogSevPrintf(errlogInfo,
-                    "%s: write %d * 16 bit 0x%04x to %s:%u\n",
+                    "%s: write %"Z"u * 16 bit 0x%04x to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt16*)buffer,
                     device->name, offset);
                 break;
             case 4:
                 errlogSevPrintf(errlogInfo,
-                    "%s: write %d * 32 bit 0x%08x to %s:%u\n",
+                    "%s: write %"Z"u * 32 bit 0x%08x to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt32*)buffer,
                     device->name, offset);
                 break;
             case 8:
                 errlogSevPrintf(errlogInfo,
-                    "%s: write %d * 64 bit 0x%016llx to %s:%u\n",
+                    "%s: write %"Z"u * 64 bit 0x%016llx to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt64*)buffer,
                     device->name, offset);
                 break;
             case 11:
                 errlogSevPrintf(errlogInfo,
-                    "%s: write %d * 8 bit 0x%02x mask 0x%02x to %s:%u\n",
+                    "%s: write %"Z"u * 8 bit 0x%02x mask 0x%02x to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt8*)buffer, *(epicsUInt8*)mask,
                     device->name, offset);
             case 12:
                 errlogSevPrintf(errlogInfo,
-                    "%s: write %d * 16 bit 0x%04x mask 0x%04x to %s:%u\n",
+                    "%s: write %"Z"u * 16 bit 0x%04x mask 0x%04x to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt16*)buffer, *(epicsUInt16*)mask,
                     device->name, offset);
                 break;
             case 14:
                 errlogSevPrintf(errlogInfo,
-                    "%s: write %d * 32 bit 0x%08x mask 0x%08x to %s:%u\n",
+                    "%s: write %"Z"u * 32 bit 0x%08x mask 0x%08x to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt32*)buffer, *(epicsUInt32*)mask,
                     device->name, offset);
                 break;
             case 18:
                 errlogSevPrintf(errlogInfo,
-                    "%s: write %d * 64 bit 0x%016llx mask 0x%016llx to %s:%u\n",
+                    "%s: write %"Z"u * 64 bit 0x%016llx mask 0x%016llx to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt64*)buffer, *(epicsUInt64*)mask,
                     device->name, offset);
                 break;
             default:
                 errlogSevPrintf(errlogInfo,
-                    "%s: write %d * %d bit to %s:%u\n",
+                    "%s: write %"Z"u * %d bit to %s:%"Z"u\n",
                     record->name, nelem, dlen*8,
                     device->name, offset);
         }
@@ -1694,11 +1694,11 @@ int regDevWriteScalar(dbCommon* record, epicsInt32 rval, double fval, epicsUInt3
     return status;
 }
 
-int regDevReadArray(dbCommon* record, unsigned int nelm)
+int regDevReadArray(dbCommon* record, size_t nelm)
 {
     int status = OK;
     int i;
-    unsigned int dlen;
+    unsigned short dlen;
     int packing;
     regDevPrivate* priv = record->dpvt;
     
@@ -1770,11 +1770,11 @@ int regDevReadArray(dbCommon* record, unsigned int nelm)
     return OK;
 }
 
-int regDevWriteArray(dbCommon* record, unsigned int nelm)
+int regDevWriteArray(dbCommon* record, size_t nelm)
 {
     int status = 0;
     int i;
-    unsigned int dlen;
+    unsigned short dlen;
     int packing;
     regDevPrivate* priv = record->dpvt;
 
@@ -1844,10 +1844,10 @@ int regDevWriteArray(dbCommon* record, unsigned int nelm)
     return status;
 }
 
-int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, unsigned int nelm, double low, double high)
+int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double low, double high)
 {
     double o, s;
-    unsigned int i;
+    size_t i;
     regDevPrivate* priv = record->dpvt;
     
     if (priv == NULL)
@@ -1972,10 +1972,10 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, unsigned int nelm,
     return ERROR;
 }
 
-int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, unsigned int nelm, double low, double high)
+int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double low, double high)
 {
     double o, s;
-    unsigned int i;
+    size_t i;
     regDevPrivate* priv = record->dpvt;
     
     if (priv == NULL)

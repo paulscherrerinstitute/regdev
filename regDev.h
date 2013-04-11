@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: zimoch $ */ 
-/* $Date: 2013/04/11 14:32:54 $ */ 
-/* $Id: regDev.h,v 1.11 2013/04/11 14:32:54 zimoch Exp $ */  
+/* $Date: 2013/04/11 15:44:57 $ */ 
+/* $Id: regDev.h,v 1.12 2013/04/11 15:44:57 zimoch Exp $ */  
 /* $Name:  $ */ 
-/* $Revision: 1.11 $ */ 
+/* $Revision: 1.12 $ */ 
 
 #ifndef regDev_h
 #define regDev_h
@@ -55,7 +55,7 @@ typedef struct regDevSupport {
     int (*read)(
         regDevice *device,
         size_t offset,
-        size_t datalength,
+        unsigned int dlen,
         size_t nelem,
         void* pdata,
         int priority);
@@ -63,7 +63,7 @@ typedef struct regDevSupport {
     int (*write)(
         regDevice *device,
         size_t offset,
-        size_t datalength,
+        unsigned int dlen,
         size_t nelem,
         void* pdata,
         void* pmask,
@@ -107,7 +107,7 @@ typedef struct regDevAsyncSupport {
     int (*read)(
         regDevice *device,
         size_t offset,
-        size_t datalength,
+        unsigned int dlen,
         size_t nelem,
         void* pdata,
 	CALLBACK* cbStruct,
@@ -117,7 +117,7 @@ typedef struct regDevAsyncSupport {
     int (*write)(
         regDevice *device,
         size_t offset,
-        size_t datalength,
+        unsigned int dlen,
         size_t nelem,
         void* pdata,
 	CALLBACK* cbStruct,
@@ -154,5 +154,5 @@ extern int regDevDebug;
 
 
 /* utility function for drivers to copy buffers */
-void regDevCopy(size_t dlen, size_t nelem, volatile void* src, volatile void* dest, void* pmask, int swap);
+void regDevCopy(unsigned int dlen, size_t nelem, volatile void* src, volatile void* dest, void* pmask, int swap);
 #endif /* regDev_h */
