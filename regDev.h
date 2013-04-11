@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: zimoch $ */ 
-/* $Date: 2013/04/11 12:54:07 $ */ 
-/* $Id: regDev.h,v 1.9 2013/04/11 12:54:07 zimoch Exp $ */  
+/* $Date: 2013/04/11 12:56:54 $ */ 
+/* $Id: regDev.h,v 1.10 2013/04/11 12:56:54 zimoch Exp $ */  
 /* $Name:  $ */ 
-/* $Revision: 1.9 $ */ 
+/* $Revision: 1.10 $ */ 
 
 #ifndef regDev_h
 #define regDev_h
@@ -34,6 +34,9 @@
 /* Every device driver may define struct regDevice as needed */
 /* It's a handle to the device instance */
 typedef struct regDevice regDevice;
+
+/* For backward compatibility. Don't use any more */
+typedef struct regDeviceAsyn regDeviceAsyn;
 
 /* Every sync driver must provide this function table */
 /* It may be constant and is used for all device instances */
