@@ -18,7 +18,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.33 2013/04/11 12:54:07 zimoch Exp $";
+    "$Id: regDev.c,v 1.34 2013/04/11 14:32:54 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -1141,7 +1141,7 @@ int regDevMemAlloc(dbCommon* record, void** bptr, unsigned int size)
     return OK;
 }
 
-int regDevRead(dbCommon* record, unsigned int dlen, unsigned int nelem, void* buffer)
+int regDevRead(dbCommon* record, size_t dlen, size_t nelem, void* buffer)
 {
     int status = OK;
     regDevPrivate* priv = record->dpvt;
@@ -1171,7 +1171,7 @@ int regDevRead(dbCommon* record, unsigned int dlen, unsigned int nelem, void* bu
     }
     else
     {
-        int offset;
+        long offset;
         /* First call of (probably asynchronous) device */
 
         if (buffer == NULL || (nelem == 1 && device->asupport))
@@ -1209,7 +1209,7 @@ int regDevRead(dbCommon* record, unsigned int dlen, unsigned int nelem, void* bu
                 off += buffer.i * priv->offsetScale;
                 if (off < 0)
                 {
-                    regDevDebugLog(DBG_IN, "%s: effective offset '%s'=%d * %d + %d = %ld < 0\n",
+                    regDevDebugLog(DBG_IN, "%s: effective offset '%s'=%d * %d + %ld = %ld < 0\n",
                         record->name, priv->offsetRecord->precord->name,
                         buffer.i, priv->offsetScale, offset, off);
                     return ERROR;
@@ -1316,7 +1316,7 @@ int regDevRead(dbCommon* record, unsigned int dlen, unsigned int nelem, void* bu
     return status;
 }
 
-int regDevWrite(dbCommon* record, unsigned int dlen, unsigned int nelem, void* pdata, void* mask)
+int regDevWrite(dbCommon* record, size_t dlen, size_t nelem, void* pdata, void* mask)
 {
     int status;
     unsigned int offset;  

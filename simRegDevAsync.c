@@ -16,14 +16,14 @@
 #define MAGIC 3259321301U /* crc("simRegDevAsyncAsync") */
 
 static char cvsid_simRegDevAsync[] __attribute__((unused)) =
-    "$Id: simRegDevAsync.c,v 1.1 2013/04/11 12:25:01 zimoch Exp $";
+    "$Id: simRegDevAsync.c,v 1.2 2013/04/11 14:32:54 zimoch Exp $";
 
 typedef struct simRegDevAsyncMessage {
     struct simRegDevAsyncMessage* next;
     regDevice* device;
     epicsTimerId timer;
-    unsigned int dlen;
-    unsigned int nelem;
+    size_t dlen;
+    size_t nelem;
     volatile void* src;
     volatile void* dest;
     void* pmask;
@@ -36,7 +36,7 @@ typedef struct simRegDevAsyncMessage {
 struct regDevice {
     unsigned long magic;
     const char* name;
-    unsigned int size;
+    size_t size;
     int swap;
     int status;
     IOSCANPVT ioscanpvt;
@@ -53,8 +53,8 @@ void simRegDevAsyncCallback(void* arg);
 
 int simRegDevAsynStartTransfer(
     regDevice *device,
-    unsigned int dlen,
-    unsigned int nelem,
+    size_t dlen,
+    size_t nelem,
     void* src,
     void* dest,
     void* pmask,
@@ -179,9 +179,9 @@ IOSCANPVT simRegDevAsyncGetInScanPvt(
 
 int simRegDevAsyncRead(
     regDevice *device,
-    unsigned int offset,
-    unsigned int dlen,
-    unsigned int nelem,
+    size_t offset,
+    size_t dlen,
+    size_t nelem,
     void* pdata,
     CALLBACK* cbStruct,
     int prio,
@@ -226,9 +226,9 @@ int simRegDevAsyncRead(
 
 int simRegDevAsyncWrite(
     regDevice *device,
-    unsigned int offset,
-    unsigned int dlen,
-    unsigned int nelem,
+    size_t offset,
+    size_t dlen,
+    size_t nelem,
     void* pdata,
     CALLBACK* cbStruct,
     void* pmask,
@@ -300,7 +300,7 @@ static char* strdup(const char* s)
 
 int simRegDevAsyncConfigure(
     const char* name,
-    unsigned int size,
+    size_t size,
     int swapEndianFlag)
 {
     regDevice* device;
@@ -371,7 +371,7 @@ int simRegDevAsyncSetStatus(
 
 int simRegDevAsyncSetData(
     const char* name,
-    int offset,
+    size_t offset,
     int value)
 {
     regDevice* device;

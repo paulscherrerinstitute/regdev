@@ -13,12 +13,12 @@
 #define MAGIC 322588966U /* crc("simRegDev") */
 
 static char cvsid_simRegDev[] __attribute__((unused)) =
-    "$Id: simRegDev.c,v 1.3 2013/04/11 12:24:53 zimoch Exp $";
+    "$Id: simRegDev.c,v 1.4 2013/04/11 14:32:54 zimoch Exp $";
 
 struct regDevice {
     unsigned long magic;
     const char* name;
-    unsigned int size;
+    size_t size;
     int swap;
     int status;
     IOSCANPVT ioscanpvt;
@@ -74,9 +74,9 @@ IOSCANPVT simRegDevGetInScanPvt(
 
 int simRegDevRead(
     regDevice *device,
-    unsigned int offset,
-    unsigned int dlen,
-    unsigned int nelem,
+    size_t offset,
+    size_t dlen,
+    size_t nelem,
     void* pdata,
     int prio)
 {
@@ -115,9 +115,9 @@ int simRegDevRead(
 
 int simRegDevWrite(
     regDevice *device,
-    unsigned int offset,
-    unsigned int dlen,
-    unsigned int nelem,
+    size_t offset,
+    size_t dlen,
+    size_t nelem,
     void* pdata,
     void* pmask,
     int prio)
@@ -171,7 +171,7 @@ static regDevSupport simRegDevSupport = {
 
 int simRegDevConfigure(
     const char* name,
-    unsigned int size,
+    size_t size,
     int swapEndianFlag)
 {
     regDevice* device;
@@ -234,7 +234,7 @@ int simRegDevSetStatus(
 
 int simRegDevSetData(
     const char* name,
-    int offset,
+    size_t offset,
     int value)
 {
     regDevice* device;

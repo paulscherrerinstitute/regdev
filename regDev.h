@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: zimoch $ */ 
-/* $Date: 2013/04/11 12:56:54 $ */ 
-/* $Id: regDev.h,v 1.10 2013/04/11 12:56:54 zimoch Exp $ */  
+/* $Date: 2013/04/11 14:32:54 $ */ 
+/* $Id: regDev.h,v 1.11 2013/04/11 14:32:54 zimoch Exp $ */  
 /* $Name:  $ */ 
-/* $Revision: 1.10 $ */ 
+/* $Revision: 1.11 $ */ 
 
 #ifndef regDev_h
 #define regDev_h
@@ -35,9 +35,6 @@
 /* It's a handle to the device instance */
 typedef struct regDevice regDevice;
 
-/* For backward compatibility. Don't use any more */
-typedef struct regDeviceAsyn regDeviceAsyn;
-
 /* Every sync driver must provide this function table */
 /* It may be constant and is used for all device instances */
 /* Unimplemented functions may be NULL */
@@ -49,25 +46,25 @@ typedef struct regDevSupport {
     
     IOSCANPVT (*getInScanPvt)(
         regDevice *device,
-        unsigned int offset);
+        size_t offset);
     
     IOSCANPVT (*getOutScanPvt)(
         regDevice *device,
-        unsigned int offset);
+        size_t offset);
 
     int (*read)(
         regDevice *device,
-        unsigned int offset,
-        unsigned int datalength,
-        unsigned int nelem,
+        size_t offset,
+        size_t datalength,
+        size_t nelem,
         void* pdata,
         int priority);
     
     int (*write)(
         regDevice *device,
-        unsigned int offset,
-        unsigned int datalength,
-        unsigned int nelem,
+        size_t offset,
+        size_t datalength,
+        size_t nelem,
         void* pdata,
         void* pmask,
         int priority);
@@ -101,17 +98,17 @@ typedef struct regDevAsyncSupport {
     
     IOSCANPVT (*getInScanPvt)(
         regDevice *device,
-        unsigned int offset);
+        size_t offset);
     
     IOSCANPVT (*getOutScanPvt)(
         regDevice *device,
-        unsigned int offset);
+        size_t offset);
 
     int (*read)(
         regDevice *device,
-        unsigned int offset,
-        unsigned int datalength,
-        unsigned int nelem,
+        size_t offset,
+        size_t datalength,
+        size_t nelem,
         void* pdata,
 	CALLBACK* cbStruct,
         int priority,
@@ -119,9 +116,9 @@ typedef struct regDevAsyncSupport {
     
     int (*write)(
         regDevice *device,
-        unsigned int offset,
-        unsigned int datalength,
-        unsigned int nelem,
+        size_t offset,
+        size_t datalength,
+        size_t nelem,
         void* pdata,
 	CALLBACK* cbStruct,
         void* pmask,
@@ -129,9 +126,9 @@ typedef struct regDevAsyncSupport {
 	int* status);
 	
     int (*buff_alloc)(
-       	void** usrBufPtr, 
-       	void** busBufPtr, 
-    	unsigned int size);  
+       	void** usrBufPtr,
+       	volatile void** busBufPtr, 
+    	size_t size);  
         
 } regDevAsyncSupport;
 
@@ -141,6 +138,9 @@ int regDevAsyncRegisterDevice(
     const char* name,
     const regDevAsyncSupport* support,
     regDevice* device);
+
+/* For backward compatibility. Don't use any more */
+typedef struct regDeviceAsyn regDeviceAsyn;
 
 regDevice* regDevAsynFind(
     const char* name);
@@ -154,5 +154,5 @@ extern int regDevDebug;
 
 
 /* utility function for drivers to copy buffers */
-void regDevCopy(unsigned int dlen, unsigned int nelem, volatile void* src, volatile void* dest, void* pmask, int swap);
+void regDevCopy(size_t dlen, size_t nelem, volatile void* src, volatile void* dest, void* pmask, int swap);
 #endif /* regDev_h */

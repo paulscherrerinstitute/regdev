@@ -78,23 +78,23 @@ typedef union {
 typedef struct regDevPrivate{
     epicsInt32 magic;
     regDeviceNode* device;
-    unsigned int offset;         /* Offset (in bytes) within device memory */
+    size_t offset;               /* Offset (in bytes) within device memory */
     struct dbAddr* offsetRecord; /* record to read offset from */
-    unsigned int offsetScale;    /* scaling of value from offsetRecord */
-    unsigned int initoffset;     /* Offset to initialize output records */
+    size_t offsetScale;          /* scaling of value from offsetRecord */
+    size_t initoffset;           /* Offset to initialize output records */
     unsigned short bit;          /* Bit number (0-15) for bi/bo */
     unsigned short dtype;        /* Data type */
-    unsigned short dlen;         /* Data length (in bytes) */
+    size_t dlen;                 /* Data length (in bytes) */
     short fifopacking;           /* Fifo: elelents in one register */
     short arraypacking;          /* Array: elelents in one register */
     epicsInt32 hwLow;            /* Hardware Low limit */
     epicsInt32 hwHigh;           /* Hardware High limit */
     epicsUInt32 invert;          /* Invert bits for bi,bo,mbbi,... */
-    void* hwPtr;                 /* here we can add the bus address got from buf alloc routine */
+    volatile void* hwPtr;        /* here we can add the bus address got from buf alloc routine */
     CALLBACK callback;           /* For asynchonous drivers */
     int status;                  /* For asynchonous drivers */
     epicsEventId initDone;       /* For asynchonous drivers */
-    unsigned int asyncOffset;    /* For asynchonous drivers */
+    size_t asyncOffset;          /* For asynchonous drivers */
     regDevAnytype result;        /* For asynchonous drivers */
 } regDevPrivate;
 
@@ -115,11 +115,11 @@ int regDevIoParse(dbCommon* record, struct link* link);
 int regDevCheckType(dbCommon* record, int ftvl, int nelm);
 int regDevAssertType(dbCommon *record, int types);
 const char* regDevTypeName(int dtype);
-int regDevMemAlloc(dbCommon* record, void** bptr, unsigned int size);
+int regDevMemAlloc(dbCommon* record, void** bptr, size_t size);
 
 /* returns OK, ERROR, or ASYNC_COMPLETITION */
-int regDevRead(dbCommon* record, unsigned int dlen, unsigned int nelem, void* buffer);
-int regDevWrite(dbCommon* record, unsigned int dlen, unsigned int nelem, void* pdata, void* mask);
+int regDevRead(dbCommon* record, size_t dlen, size_t nelem, void* buffer);
+int regDevWrite(dbCommon* record, size_t dlen, size_t nelem, void* pdata, void* mask);
 
 int regDevReadScalar(dbCommon* record, epicsInt32* rval, double* fval, epicsUInt32 mask);
 int regDevWriteScalar(dbCommon* record, epicsInt32 rval, double fval, epicsUInt32 mask);
@@ -136,11 +136,11 @@ int regDevWriteScalar(dbCommon* record, epicsInt32 rval, double fval, epicsUInt3
 #define regDevReadStatus(record)              regDevRead(record, 0, 0, NULL)
 
 /* returns OK or ERROR, or ASYNC_COMPLETITION */
-int regDevReadArray(dbCommon* record, unsigned int nelm);
-int regDevWriteArray(dbCommon* record, unsigned int nelm);
+int regDevReadArray(dbCommon* record, size_t nelm);
+int regDevWriteArray(dbCommon* record, size_t nelm);
 
-int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, unsigned int nelm, double low, double high);
-int regDevScaleToRaw(dbCommon* record, int ftvl, void* rval, unsigned int nelm, double low, double high);
+int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double low, double high);
+int regDevScaleToRaw(dbCommon* record, int ftvl, void* rval, size_t nelm, double low, double high);
 
 #define regDevCheckAsyncWriteResult(record) \
     do if (record->pact) \
