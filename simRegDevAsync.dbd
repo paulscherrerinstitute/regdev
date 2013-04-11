@@ -1,0 +1,2 @@
+registrar (simRegDevAsyncRegistrar)
+variable(simRegDevAsyncDebug, int)

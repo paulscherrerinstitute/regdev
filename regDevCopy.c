@@ -1,3 +1,5 @@
+#include "regDevSup.h"
+
 /* driver helper function ***************************************************/
 
 /* byte swapping facility */
@@ -22,12 +24,6 @@
       | (((x) & 0x0000000000ff0000ull) << 24)				      \
       | (((x) & 0x000000000000ff00ull) << 40)				      \
       | (((x) & 0x00000000000000ffull) << 56))
-#endif
-
-#include <epicsVersion.h>
-#include <epicsTypes.h>
-#if (EPICS_REVISION<15)
-typedef unsigned long long epicsUInt64;
 #endif
 
 #define def_regDevCopy(N) \

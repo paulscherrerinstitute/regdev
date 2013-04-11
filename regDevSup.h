@@ -17,15 +17,28 @@
 #ifdef EPICS_3_14
 #include <epicsExport.h>
 #include <epicsMutex.h>
+#include <epicsEvent.h>
 #else
 #define S_dev_success 0
 #define S_dev_badArgument (M_devLib| 33)
 #include <semLib.h>
 #define epicsMutexId SEM_ID
 #define epicsExportAddress(a,b) extern int dummy
-#define epicsMutexCreate() semMCreate(SEM_Q_FIFO)
+#define epicsMutexCreate() semMCreate(SEM_Q_PRIORITY)
 #define epicsMutexLock(m) semTake(m, WAIT_FOREVER)
 #define epicsMutexUnlock(m) semGive(m)
+#define epicsEventId SEM_ID
+#define epicsEventEmpty SEM_EMPTY
+#define epicsEventCreate(i) semBCreate(SEM_Q_FIFO, i)
+#define epicsEventWait(e) semTake(e, WAIT_FOREVER)
+#define epicsEventSignal(e) semGive(e)
+epicsShareExtern struct dbBase *pdbbase;
+#endif
+
+#include <epicsTypes.h>
+#if (EPICS_REVISION<15)
+typedef long long epicsInt64;
+typedef unsigned long long epicsUInt64;
 #endif
 
 #define DONT_INIT (0xFFFFFFFFUL)
@@ -36,75 +49,54 @@
 #define TYPE_BCD    8
 
 #define DONT_CONVERT 2
-#define ASYNC_COMPLETITION 1
-#ifndef OK
-#define OK 0
-#endif
-#ifndef ERROR
-#define ERROR -1
-#endif
 
+#define MAGIC 2181699655U /* crc("regDev") */
 
 typedef struct regDeviceNode {
     struct regDeviceNode* next;    /* Next registered device */
     const char* name;              /* Device name */
     const regDevSupport* support;  /* Device function table */
-    regDevice* driver;             /* Generic device driver */
+    const regDevAsyncSupport* asupport;  /* Device function table */
+    void* driver;                  /* Generic device driver */
     epicsMutexId accesslock;       /* Access semaphore */
 } regDeviceNode;
 
-typedef struct regDevPrivate{
-    regDeviceNode* device;
-    unsigned int offset;       /* Offset (in bytes) within device memory */
-    unsigned int initoffset;   /* Offset to initialize output records */
-    unsigned short bit;        /* Bit number (0-15) for bi/bo */
-    unsigned short dtype;      /* Data type */
-    unsigned short dlen;       /* Data length (in bytes) */
-    short fifopacking;         /* Fifo: elelents in one register */
-    short arraypacking;        /* Array: elelents in one register */
-    epicsInt32 hwLow;          /* Hardware Low limit */
-    epicsInt32 hwHigh;         /* Hardware High limit */
-    epicsUInt32 invert;        /* Invert bits for bi,bo,mbbi,... */
-    CALLBACK callback;         /* For asynchonous drivers */
-    int status;                /* For asynchonous drivers */
-} regDevPrivate;
-
-typedef struct regDeviceAsynNode {
-    struct regDeviceAsynNode* next;    /* Next registered device */
-    const char* name;              /* Device name */
-    const regDevAsyncSupport* support;  /* Device function table */
-    regDeviceAsyn* driver;             /* Generic device driver */
-    epicsMutexId accesslock;       /* Access semaphore */
-} regDeviceAsynNode;
-
-typedef struct devDtypes {
-    signed char sval8;
+typedef union {
+    epicsInt8 sval8;
     epicsUInt8 uval8;
     epicsInt16 sval16;
     epicsUInt16 uval16;
     epicsInt32 sval32;
     epicsUInt32 uval32;
-    union {epicsFloat32 f; long u;} val32;
-    union {epicsFloat64 f; long long u;} val64;
-} devDtypes;
+    epicsInt64 val64;
+    epicsUInt64 uval64;
+    epicsFloat32 fval32;
+    epicsFloat64 fval64;
+    void* buffer;
+} regDevAnytype;
 
-typedef struct regDevAsynPrivate{
-    regDeviceAsynNode* device;
-    unsigned int offset;       /* Offset (in bytes) within device memory */
-    unsigned int initoffset;   /* Offset to initialize output records */
-    unsigned short bit;        /* Bit number (0-15) for bi/bo */
-    unsigned short dtype;      /* Data type */
-    unsigned short dlen;       /* Data length (in bytes) */
-    short fifopacking;         /* Fifo: elelents in one register */
-    short arraypacking;        /* Array: elelents in one register */
-    epicsInt32 hwLow;          /* Hardware Low limit */
-    epicsInt32 hwHigh;         /* Hardware High limit */
-    epicsUInt32 invert;        /* Invert bits for bi,bo,mbbi,... */
-    void*     busBufPtr;       /* here we can add the bus address got from buf alloc routine */
-    CALLBACK* callback;        /* For asynchonous drivers */
-    int status;                /* For asynchonous drivers */
-    devDtypes alldtype;
-} regDevAsynPrivate;
+typedef struct regDevPrivate{
+    epicsInt32 magic;
+    regDeviceNode* device;
+    unsigned int offset;         /* Offset (in bytes) within device memory */
+    struct dbAddr* offsetRecord; /* record to read offset from */
+    unsigned int offsetScale;    /* scaling of value from offsetRecord */
+    unsigned int initoffset;     /* Offset to initialize output records */
+    unsigned short bit;          /* Bit number (0-15) for bi/bo */
+    unsigned short dtype;        /* Data type */
+    unsigned short dlen;         /* Data length (in bytes) */
+    short fifopacking;           /* Fifo: elelents in one register */
+    short arraypacking;          /* Array: elelents in one register */
+    epicsInt32 hwLow;            /* Hardware Low limit */
+    epicsInt32 hwHigh;           /* Hardware High limit */
+    epicsUInt32 invert;          /* Invert bits for bi,bo,mbbi,... */
+    void* hwPtr;                 /* here we can add the bus address got from buf alloc routine */
+    CALLBACK callback;           /* For asynchonous drivers */
+    int status;                  /* For asynchonous drivers */
+    epicsEventId initDone;       /* For asynchonous drivers */
+    unsigned int asyncOffset;    /* For asynchonous drivers */
+    regDevAnytype result;        /* For asynchonous drivers */
+} regDevPrivate;
 
 struct devsup {
     long      number;
@@ -121,35 +113,50 @@ regDevPrivate* regDevAllocPriv(dbCommon *record);
 int regDevCheckFTVL(dbCommon* record, int ftvl);
 int regDevIoParse(dbCommon* record, struct link* link);
 int regDevCheckType(dbCommon* record, int ftvl, int nelm);
-long regDevAssertType(dbCommon *record, int types);
-int regDevRead(regDeviceNode* device, unsigned int offset,
-    unsigned int dlen, unsigned int nelem, void* pdata, int prio);
-int regDevWrite(regDeviceNode* device, unsigned int offset,
-    unsigned int dlen, unsigned int nelem, void* pdata, void* mask, int prio);
-int regDevReadBits(dbCommon* record, epicsInt32* val, epicsUInt32 mask);
-int regDevWriteBits(dbCommon* record, epicsUInt32 val, epicsUInt32 mask);
-long regDevReadNumber(dbCommon* record, epicsInt32* rval, double* fval);
-long regDevWriteNumber(dbCommon* record, double fval, epicsInt32 rval);
-long regDevReadArr(dbCommon* record, void* bptr, unsigned int nelm);
-long regDevWriteArr(dbCommon* record, void* bptr, unsigned int nelm);
+int regDevAssertType(dbCommon *record, int types);
+const char* regDevTypeName(int dtype);
+int regDevMemAlloc(dbCommon* record, void** bptr, unsigned int size);
 
-long regDevAsynMemAlloc(dbCommon* record, void** bptr, unsigned int size);
-long regDevAsynGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt);
-long regDevAsynGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt);
-regDevAsynPrivate* regDevAsynAllocPriv(dbCommon *record);
-int regDevAsynCheckFTVL(dbCommon* record, int ftvl);
-int regDevAsynIoParse(dbCommon* record, struct link* link);
-int regDevAsynCheckType(dbCommon* record, int ftvl, int nelm);
-long regDevAsynAssertType(dbCommon *record, int types);
-int regDevAsynRead(regDeviceAsynNode* device, unsigned int offset,
-    unsigned int dlen, unsigned int nelem, void* pdata, CALLBACK* sbStruct, int prio, int* status);
-int regDevAsynWrite(regDeviceAsynNode* device, unsigned int offset,
-    unsigned int dlen, unsigned int nelem, void* pdata, CALLBACK* sbStruct, void* mask, int prio, int* status);
-int regDevAsynReadBits(dbCommon* record, epicsInt32* val, epicsUInt32 mask);
-int regDevAsynWriteBits(dbCommon* record, epicsUInt32 val, epicsUInt32 mask);
-long regDevAsynReadNumber(dbCommon* record, epicsInt32* rval, double* fval);
-long regDevAsynWriteNumber(dbCommon* record, double fval, epicsInt32 rval);
-long regDevAsynReadArr(dbCommon* record, void* bptr, unsigned int nelm);
-long regDevAsynWriteArr(dbCommon* record, void* bptr, unsigned int nelm);
+/* returns OK, ERROR, or ASYNC_COMPLETITION */
+int regDevRead(dbCommon* record, unsigned int dlen, unsigned int nelem, void* buffer);
+int regDevWrite(dbCommon* record, unsigned int dlen, unsigned int nelem, void* pdata, void* mask);
+
+int regDevReadScalar(dbCommon* record, epicsInt32* rval, double* fval, epicsUInt32 mask);
+int regDevWriteScalar(dbCommon* record, epicsInt32 rval, double fval, epicsUInt32 mask);
+
+#define regDevReadBits(record, val, mask)     regDevReadScalar(record, val, NULL, mask)
+#define regDevWriteBits(record, val, mask)    regDevWriteScalar(record, val, 0.0, mask)
+
+#define regDevReadInt(record, val)            regDevReadScalar(record, val, NULL, (epicsUInt32)-1)
+#define regDevWriteInt(record, val)           regDevWriteScalar(record, val, 0.0, (epicsUInt32)-1)
+
+#define regDevReadNumber(record, rval, fval)  regDevReadScalar(record, rval, fval, (epicsUInt32)-1)
+#define regDevWriteNumber(record, rval, fval) regDevWriteScalar(record, rval, fval, (epicsUInt32)-1)
+
+#define regDevReadStatus(record)              regDevRead(record, 0, 0, NULL)
+
+/* returns OK or ERROR, or ASYNC_COMPLETITION */
+int regDevReadArray(dbCommon* record, unsigned int nelm);
+int regDevWriteArray(dbCommon* record, unsigned int nelm);
+
+int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, unsigned int nelm, double low, double high);
+int regDevScaleToRaw(dbCommon* record, int ftvl, void* rval, unsigned int nelm, double low, double high);
+
+#define regDevCheckAsyncWriteResult(record) \
+    do if (record->pact) \
+    { \
+        regDevPrivate* priv = (regDevPrivate*)(record->dpvt); \
+        if (priv == NULL) \
+        { \
+            recGblSetSevr(record, UDF_ALARM, INVALID_ALARM); \
+            regDevDebugLog(3, "%s: record not initialized\n", record->name); \
+        } \
+        if (priv->status != OK) \
+        { \
+            recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM); \
+            regDevDebugLog(3, "%s: asynchronous write error\n", record->name); \
+        } \
+        return priv->status; \
+    } while(0)
 
 #endif

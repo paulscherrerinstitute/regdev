@@ -7,15 +7,13 @@
 #include <errno.h>
 #include <devLib.h>
 #include <regDev.h>
-
-#ifdef EPICS_3_14
 #include <epicsExit.h>
-#endif
+#include <epicsExport.h>
 
 #define MAGIC 322588966U /* crc("simRegDev") */
 
 static char cvsid_simRegDev[] __attribute__((unused)) =
-    "$Id: simRegDev.c,v 1.2 2010/01/29 15:51:52 zimoch Exp $";
+    "$Id: simRegDev.c,v 1.3 2013/04/11 12:24:53 zimoch Exp $";
 
 struct regDevice {
     unsigned long magic;
@@ -28,6 +26,7 @@ struct regDevice {
 };
 
 int simRegDevDebug = 0;
+epicsExportAddress(int, simRegDevDebug);
 
 /******** Support functions *****************************/ 
 
@@ -85,31 +84,33 @@ int simRegDevRead(
     {
         errlogSevPrintf(errlogMajor,
             "simRegDevRead: illegal device handle\n");
-        return -1;
+        return ERROR;
     }
     if (device->status == 0)
     {
-        return -1;
+        return ERROR;
     }
     if (offset > device->size)
     {
         errlogSevPrintf(errlogMajor,
             "simRegDevRead %s: offset %d out of range (0-%d)\n",
             device->name, offset, device->size);
-        return -1;
+        return ERROR;
     }
     if (offset+dlen*nelem > device->size)
     {
         errlogSevPrintf(errlogMajor,
             "simRegDevRead %s: offset %d + %d bytes length exceeds mapped size %d by %d bytes\n",
-            device->name, offset, nelem, device->size,
+            device->name, offset, dlen*nelem, device->size,
             offset+dlen*nelem - device->size);
-        return -1;
+        return ERROR;
     }
-    if (simRegDevDebug >= 1) printf ("simRegDevRead %s/%d: %d bytes * %d elements, prio=%d\n",
+    if (simRegDevDebug >= 1)
+        printf ("simRegDevRead %s:%d: %d bytes * %d elements, prio=%d\n",
         device->name, offset, dlen, nelem, prio);
+
     regDevCopy(dlen, nelem, device->buffer+offset, pdata, NULL, device->swap);
-    return 0;
+    return OK;
 }
 
 int simRegDevWrite(
@@ -125,27 +126,35 @@ int simRegDevWrite(
     {
         errlogSevPrintf(errlogMajor,
             "simRegDevWrite: illegal device handle\n");
-        return -1;
+        return ERROR;
     }
     if (device->status == 0)
     {
-        return -1;
+        return ERROR;
     }
-    if (offset > device->size ||
-        offset+dlen*nelem > device->size)
+    if (offset > device->size)
     {
         errlogSevPrintf(errlogMajor,
-            "simRegDevWrite: address out of range\n");
-        return -1;
+            "simRegDevWrite %s: offset %d out of range (0-%d)\n",
+            device->name, offset, device->size);
+        return ERROR;
     }
-    if (!device || device->magic != MAGIC
-        || offset+dlen*nelem > device->size) return -1;
-    if (simRegDevDebug >= 1) printf ("simRegDevWrite %s/%d: %d bytes * %d elements, prio=%d\n",
+    if (offset+dlen*nelem > device->size)
+    {
+        errlogSevPrintf(errlogMajor,
+            "simRegDevWrite %s: offset %d + %d bytes length exceeds mapped size %d by %d bytes\n",
+            device->name, offset, dlen*nelem, device->size,
+            offset+dlen*nelem - device->size);
+        return ERROR;
+    }
+    if (simRegDevDebug >= 1)
+        printf ("simRegDevWrite %s:%d: %d bytes * %d elements, prio=%d\n",
         device->name, offset, dlen, nelem, prio);
+
     regDevCopy(dlen, nelem, pdata, device->buffer+offset, pmask, device->swap);
     /* We got new data: trigger all interested input records */
     scanIoRequest(device->ioscanpvt);
-    return 0;
+    return OK;
 }
 
 #define simRegDevGetOutScanPvt NULL
@@ -172,7 +181,7 @@ int simRegDevConfigure(
         printf("usage: simRegDevConfigure(\"name\", size, swapEndianFlag)\n");
         printf("maps allocated memory block to device \"name\"");
         printf("\"name\" must be a unique string on this IOC\n");
-        return 0;
+        return OK;
     }
     device = (regDevice*)malloc(sizeof(regDevice)+size-1);
     if (device == NULL)
@@ -189,7 +198,7 @@ int simRegDevConfigure(
     device->swap = swapEndianFlag;
     scanIoInit(&device->ioscanpvt);
     regDevRegisterDevice(name, &simRegDevSupport, device);
-    return 0;
+    return OK;
 }
 
 int simRegDevSetStatus(
@@ -198,24 +207,29 @@ int simRegDevSetStatus(
 {
     regDevice* device;
     
+    if (!name)
+    {
+        printf ("usage: simRegDevSetStatus name, 0|1\n");
+        return ERROR;
+    }
     device = regDevFind(name);
     if (!device)
     {
         errlogSevPrintf(errlogFatal,
             "simRegDevSetStatus: %s not found\n",
             name);
-        return -1;
+        return ERROR;
     }
     if (device->magic != MAGIC)
     {
         errlogSevPrintf(errlogFatal,
             "simRegDevSetStatus: %s is not a simRegDev\n",
             name);
-        return -1;
+        return ERROR;
     }
     device->status = status;
     scanIoRequest(device->ioscanpvt);
-    return 0;
+    return OK;
 }
 
 int simRegDevSetData(
@@ -225,31 +239,36 @@ int simRegDevSetData(
 {
     regDevice* device;
     
+    if (!name)
+    {
+        printf ("usage: simRegDevSetData name, offset, value\n");
+        return ERROR;
+    }
     device = regDevFind(name);
     if (!device)
     {
         errlogSevPrintf(errlogFatal,
             "simRegDevSetData: %s not found\n",
             name);
-        return -1;
+        return ERROR;
     }
     if (device->magic != MAGIC)
     {
         errlogSevPrintf(errlogFatal,
             "simRegDevSetData: %s is not a simRegDev\n",
             name);
-        return -1;
+        return ERROR;
     }
     if (offset < 0 || offset >= device->size)
     {
         errlogSevPrintf(errlogFatal,
             "simRegDevSetData %s: offset %d out of range\n",
             name, offset);
-        return -1;
+        return ERROR;
     }
     device->buffer[offset] = value;
     scanIoRequest(device->ioscanpvt);
-    return 0;
+    return OK;
 }
 
 

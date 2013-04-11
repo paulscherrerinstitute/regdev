@@ -25,18 +25,23 @@ long regDevInitRecordCalcout(calcoutRecord* record)
     regDevPrivate* priv;
     int status;
 
-    regDevDebugLog(1, "regDevInitRecordCalcout(%s) start\n", record->name);
+    regDevDebugLog(DBG_INIT, "regDevInitRecordCalcout(%s) start\n", record->name);
     if ((priv = regDevAllocPriv((dbCommon*)record)) == NULL)
         return S_dev_noMemory;
     if ((status = regDevIoParse((dbCommon*)record, &record->out)))
         return status;
     if ((status = regDevAssertType((dbCommon*)record, TYPE_INT|TYPE_BCD|TYPE_FLOAT)))
         return status;
-    regDevDebugLog(1, "regDevInitRecordCalcout(%s) done\n", record->name);
+    regDevDebugLog(DBG_INIT, "regDevInitRecordCalcout(%s) done\n", record->name);
     return status;
 }
 
 long regDevWriteCalcout(calcoutRecord* record)
 {
-    return regDevWriteNumber((dbCommon*)record, record->oval, record->oval);
+    int status;
+    
+    regDevCheckAsyncWriteResult(record);
+    status = regDevWriteNumber((dbCommon*)record, record->oval, record->oval);
+    if (status == ASYNC_COMPLETITION) return OK;
+    return status;
 }

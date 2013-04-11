@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: zimoch $ */ 
-/* $Date: 2012/10/29 09:38:28 $ */ 
-/* $Id: regDev.h,v 1.7 2012/10/29 09:38:28 zimoch Exp $ */  
+/* $Date: 2013/04/11 12:25:01 $ */ 
+/* $Id: regDev.h,v 1.8 2013/04/11 12:25:01 zimoch Exp $ */  
 /* $Name:  $ */ 
-/* $Revision: 1.7 $ */ 
+/* $Revision: 1.8 $ */ 
 
 #ifndef regDev_h
 #define regDev_h
@@ -21,6 +21,15 @@
 #include <epicsExport.h>
 #include <iocsh.h>
 #endif
+
+/* return states for driver functions */
+#ifndef OK
+#define OK 0
+#endif
+#ifndef ERROR
+#define ERROR -1
+#endif
+#define ASYNC_COMPLETITION 1
 
 /* Every device driver may define struct regDevice as needed */
 /* It's a handle to the device instance */
@@ -74,7 +83,6 @@ regDevice* regDevFind(
 
 /* Every device driver may define struct regDeviceAsyn as needed */
 /* It's a handle to the device instance */
-typedef struct regDeviceAsyn regDeviceAsyn;
 
 /* Every driver must provide this function table */
 /* It may be constant and is used for all device instances */
@@ -87,13 +95,16 @@ We can the use this to pass a pointer to the (kernel) allocated memory which is
 suitable for DMA. In this routine we have to call pev_buf_dma().
 **/
 
+/* for backward compatibility */
+#define regDeviceAsyn regDevice
+
 typedef struct regDevAsyncSupport {
     void (*report)(
-        regDeviceAsyn *device,
+        regDevice *device,
         int level);
     
     IOSCANPVT (*getInScanPvt)(
-        regDeviceAsyn *device,
+        regDevice *device,
         unsigned int offset);
     
     IOSCANPVT (*getOutScanPvt)(
@@ -101,7 +112,7 @@ typedef struct regDevAsyncSupport {
         unsigned int offset);
 
     int (*read)(
-        regDeviceAsyn *device,
+        regDevice *device,
         unsigned int offset,
         unsigned int datalength,
         unsigned int nelem,
@@ -111,7 +122,7 @@ typedef struct regDevAsyncSupport {
 	int* status);
     
     int (*write)(
-        regDeviceAsyn *device,
+        regDevice *device,
         unsigned int offset,
         unsigned int datalength,
         unsigned int nelem,
@@ -140,7 +151,11 @@ regDeviceAsyn* regDevAsynFind(
 
 extern int regDevDebug;
 #define regDevDebugLog(level, fmt, args...) \
-    if (level <= regDevDebug)  errlogSevPrintf(errlogInfo, fmt, ## args);
+    do {if (level & regDevDebug) errlogSevPrintf(errlogInfo, fmt, ## args);} while(0)
+#define DBG_INIT 1
+#define DBG_IN   2
+#define DBG_OUT  4
+
 
 /* utility function for drivers to copy buffers */
 void regDevCopy(unsigned int dlen, unsigned int nelem, volatile void* src, volatile void* dest, void* pmask, int swap);

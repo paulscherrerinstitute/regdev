@@ -7,7 +7,7 @@ test_regDev: *.c ../*.c ../*.h
         -I .. -I/usr/local/epics/base/include -I/usr/local/epics/base/include/os/Linux \
         -L/usr/local/epics/base/lib/$(EPICS_HOST_ARCH) \
         -Wl,-rpath,/usr/local/epics/base/lib/$(EPICS_HOST_ARCH) \
-        -ldbStaticIoc -liocsh -lca -lCom 
+        -ldbStaticIoc -lca -lCom 
 
 clean:
 	rm -f test_regDev

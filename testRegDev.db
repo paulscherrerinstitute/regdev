@@ -1,4 +1,4 @@
-record (bi, "$(DEV):status")
+record (bi, "$(DEV):STATUS")
 {
     field (DTYP, "regDev stat")
     field (INP,  "@test")
@@ -6,139 +6,129 @@ record (bi, "$(DEV):status")
     field (ONAM, "Connected")
     field (ZSV,  "MAJOR")
     field (SCAN, "I/O Intr")
+    field (PINI, "YES")
 }
 
-record (waveform, "$(DEV):bytes")
+record (waveform, "$(DEV):WFBYTES")
 {
     field (FTVL, "CHAR")
     field (DTYP, "regDev")
-    field (INP,  "@test/0")
+    field (INP,  "@test:0")
     field (NELM, "100")
     field (SCAN, "I/O Intr")
 }
 
-record (waveform, "$(DEV):short")
+record (waveform, "$(DEV):WFSHORT")
 {
     field (FTVL, "SHORT")
     field (DTYP, "regDev")
-    field (INP,  "@test/0")
+    field (INP,  "@test:0")
     field (NELM, "50")
     field (SCAN, "I/O Intr")
 }
 
-record (waveform, "$(DEV):long")
+record (waveform, "$(DEV):WFLONG")
 {
     field (FTVL, "LONG")
     field (DTYP, "regDev")
-    field (INP,  "@test/0")
+    field (INP,  "@test:0")
     field (NELM, "15")
     field (SCAN, "I/O Intr")
 }
 
-record (ao, "$(DEV):ao1")
+record (aai, "$(DEV):AAIBYTES")
+{
+    field (FTVL, "CHAR")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0")
+    field (NELM, "100")
+    field (SCAN, "I/O Intr")
+}
+
+record (aai, "$(DEV):AAISHORT")
+{
+    field (FTVL, "SHORT")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0")
+    field (NELM, "50")
+    field (SCAN, "I/O Intr")
+}
+
+record (aai, "$(DEV):AAILONG")
+{
+    field (FTVL, "LONG")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0")
+    field (NELM, "15")
+    field (SCAN, "I/O Intr")
+}
+
+record (aai, "$(DEV):AAIFLOAT")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=LONG")
+    field (NELM, "15")
+    field (SCAN, "I/O Intr")
+}
+
+record (ao, "$(DEV):AO1")
 {
     field (DTYP, "regDev")
-    field (OUT,  "@test/0 T=double")
+    field (OUT,  "@test:0 T=double")
     field (PREC, "6")
     field (LOPR, "-20")
     field (HOPR, "20")
+    field (PINI, "YES")
 }
 
-record (ai, "$(DEV):ai1")
+record (ai, "$(DEV):AI1")
 {
     field (DTYP, "regDev")
-    field (INP,  "@test/0 T=double")
+    field (INP,  "@test:0 T=double")
     field (PREC, "6")
     field (LOPR, "-20")
     field (HOPR, "20")
     field (SCAN, "I/O Intr")
 }
 
-record (ao, "$(DEV):ao2")
+record (ao, "$(DEV):AO2")
 {
     field (DTYP, "regDev")
-    field (OUT,  "@test/8 T=float")
+    field (OUT,  "@test:8 T=float")
     field (PREC, "6")
     field (LOPR, "-20")
     field (HOPR, "20")
+    field (PINI, "YES")
 }
 
-record (ai, "$(DEV):ai2")
+record (ai, "$(DEV):AI2")
 {
     field (DTYP, "regDev")
-    field (INP,  "@test/8 T=float")
-    field (PREC, "6")
-    field (LOPR, "-20")
-    field (HOPR, "20")
-    field (SCAN, "I/O Intr")
-}
-
-record (ao, "$(DEV):ao3")
-{
-    field (DTYP, "regDev")
-    field (OUT,  "@test/12 T=uint16")
-    field (LINR, "LINEAR")
-    field (EGUL, "-10")
-    field (EGUF, "10")
-    field (PREC, "6")
-    field (LOPR, "-20")
-    field (HOPR, "20")
-}
-
-record (ai, "$(DEV):ai3")
-{
-    field (DTYP, "regDev")
-    field (INP,  "@test/12 T=uint16")
-    field (LINR, "LINEAR")
-    field (EGUL, "-10")
-    field (EGUF, "10")
+    field (INP,  "@test:8 T=float")
     field (PREC, "6")
     field (LOPR, "-20")
     field (HOPR, "20")
     field (SCAN, "I/O Intr")
 }
 
-record (ao, "$(DEV):ao4")
+record (ao, "$(DEV):AO3")
 {
     field (DTYP, "regDev")
-    field (OUT,  "@test/14 T=int16")
+    field (OUT,  "@test:12 T=uint16")
     field (LINR, "LINEAR")
     field (EGUL, "-10")
     field (EGUF, "10")
     field (PREC, "6")
     field (LOPR, "-20")
     field (HOPR, "20")
+    field (PINI, "YES")
 }
 
-record (ai, "$(DEV):ai4")
+record (ai, "$(DEV):AI3")
 {
     field (DTYP, "regDev")
-    field (INP,  "@test/14 T=int16")
-    field (LINR, "LINEAR")
-    field (EGUL, "-10")
-    field (EGUF, "10")
-    field (PREC, "6")
-    field (LOPR, "-20")
-    field (HOPR, "20")
-    field (SCAN, "I/O Intr")
-}
-
-record (ao, "$(DEV):ao5")
-{
-    field (DTYP, "regDev")
-    field (OUT,  "@test/16 T=uint32")
-    field (LINR, "LINEAR")
-    field (EGUL, "-10")
-    field (EGUF, "10")
-    field (PREC, "6")
-    field (LOPR, "-20")
-    field (HOPR, "20")
-}
-
-record (ai, "$(DEV):ai5")
-{
-    field (DTYP, "regDev")
-    field (INP,  "@test/16 T=uint32")
+    field (INP,  "@test:12 T=uint16")
     field (LINR, "LINEAR")
     field (EGUL, "-10")
     field (EGUF, "10")
@@ -148,47 +138,23 @@ record (ai, "$(DEV):ai5")
     field (SCAN, "I/O Intr")
 }
 
-record (ao, "$(DEV):ao6")
+record (ao, "$(DEV):AO4")
 {
     field (DTYP, "regDev")
-    field (OUT,  "@test/20 T=int32")
+    field (OUT,  "@test:14 T=int16")
     field (LINR, "LINEAR")
     field (EGUL, "-10")
     field (EGUF, "10")
     field (PREC, "6")
     field (LOPR, "-20")
     field (HOPR, "20")
+    field (PINI, "YES")
 }
 
-record (ai, "$(DEV):ai6")
+record (ai, "$(DEV):AI4")
 {
     field (DTYP, "regDev")
-    field (INP,  "@test/20 T=int32")
-    field (LINR, "LINEAR")
-    field (EGUL, "-10")
-    field (EGUF, "10")
-    field (PREC, "6")
-    field (LOPR, "-20")
-    field (HOPR, "20")
-    field (SCAN, "I/O Intr")
-}
-
-record (ao, "$(DEV):ao7")
-{
-    field (DTYP, "regDev")
-    field (OUT,  "@test/24 T=uint8")
-    field (LINR, "LINEAR")
-    field (EGUL, "-10")
-    field (EGUF, "10")
-    field (PREC, "6")
-    field (LOPR, "-20")
-    field (HOPR, "20")
-}
-
-record (ai, "$(DEV):ai7")
-{
-    field (DTYP, "regDev")
-    field (INP,  "@test/24 T=uint8")
+    field (INP,  "@test:14 T=int16")
     field (LINR, "LINEAR")
     field (EGUL, "-10")
     field (EGUF, "10")
@@ -198,47 +164,23 @@ record (ai, "$(DEV):ai7")
     field (SCAN, "I/O Intr")
 }
 
-record (ao, "$(DEV):ao8")
+record (ao, "$(DEV):AO5")
 {
     field (DTYP, "regDev")
-    field (OUT,  "@test/25 T=int8")
+    field (OUT,  "@test:16 T=uint32 H=0x7fffffff")
     field (LINR, "LINEAR")
     field (EGUL, "-10")
     field (EGUF, "10")
     field (PREC, "6")
     field (LOPR, "-20")
     field (HOPR, "20")
+    field (PINI, "YES")
 }
 
-record (ai, "$(DEV):ai8")
+record (ai, "$(DEV):AI5")
 {
     field (DTYP, "regDev")
-    field (INP,  "@test/25 T=int8")
-    field (LINR, "LINEAR")
-    field (EGUL, "-10")
-    field (EGUF, "10")
-    field (PREC, "6")
-    field (LOPR, "-20")
-    field (HOPR, "20")
-    field (SCAN, "I/O Intr")
-}
-
-record (ao, "$(DEV):ao9")
-{
-    field (DTYP, "regDev")
-    field (OUT,  "@test/26 T=bcd8")
-    field (LINR, "LINEAR")
-    field (EGUL, "-10")
-    field (EGUF, "10")
-    field (PREC, "6")
-    field (LOPR, "-20")
-    field (HOPR, "20")
-}
-
-record (ai, "$(DEV):ai9")
-{
-    field (DTYP, "regDev")
-    field (INP,  "@test/26 T=bcd8")
+    field (INP,  "@test:16 T=uint32 H=0x7fffffff")
     field (LINR, "LINEAR")
     field (EGUL, "-10")
     field (EGUF, "10")
@@ -248,47 +190,23 @@ record (ai, "$(DEV):ai9")
     field (SCAN, "I/O Intr")
 }
 
-record (ao, "$(DEV):ao10")
+record (ao, "$(DEV):AO6")
 {
     field (DTYP, "regDev")
-    field (OUT,  "@test/27 T=bcd16")
+    field (OUT,  "@test:20 T=int32")
     field (LINR, "LINEAR")
     field (EGUL, "-10")
     field (EGUF, "10")
     field (PREC, "6")
     field (LOPR, "-20")
     field (HOPR, "20")
+    field (PINI, "YES")
 }
 
-record (ai, "$(DEV):ai10")
+record (ai, "$(DEV):AI6")
 {
     field (DTYP, "regDev")
-    field (INP,  "@test/27 T=bcd16")
-    field (LINR, "LINEAR")
-    field (EGUL, "-10")
-    field (EGUF, "10")
-    field (PREC, "6")
-    field (LOPR, "-20")
-    field (HOPR, "20")
-    field (SCAN, "I/O Intr")
-}
-
-record (ao, "$(DEV):ao11")
-{
-    field (DTYP, "regDev")
-    field (OUT,  "@test/29 T=bcd32")
-    field (LINR, "LINEAR")
-    field (EGUL, "-10")
-    field (EGUF, "10")
-    field (PREC, "6")
-    field (LOPR, "-20")
-    field (HOPR, "20")
-}
-
-record (ai, "$(DEV):ai11")
-{
-    field (DTYP, "regDev")
-    field (INP,  "@test/29 T=bcd32")
+    field (INP,  "@test:20 T=int32")
     field (LINR, "LINEAR")
     field (EGUL, "-10")
     field (EGUF, "10")
@@ -298,10 +216,168 @@ record (ai, "$(DEV):ai11")
     field (SCAN, "I/O Intr")
 }
 
-
-record (mbbo, "$(DEV):mbbo1")
+record (ao, "$(DEV):AO7")
 {
     field (DTYP, "regDev")
-    field (OUT,  "@test/16 T=word")
+    field (OUT,  "@test:24 T=uint8")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (PINI, "YES")
 }
 
+record (ai, "$(DEV):AI7")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:24 T=uint8")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "I/O Intr")
+}
+
+record (ao, "$(DEV):AO8")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test:2*10+5 T=int8")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (PINI, "YES")
+}
+
+record (ai, "$(DEV):AI8")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:25 T=int8")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "I/O Intr")
+}
+
+record (ao, "$(DEV):AO9")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test:26 T=bcd8")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (PINI, "YES")
+}
+
+record (ai, "$(DEV):AI9")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:26 T=bcd8")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "I/O Intr")
+}
+
+record (ao, "$(DEV):AO10")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test:27 T=bcd16")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (PINI, "YES")
+}
+
+record (ai, "$(DEV):AI10")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:27 T=bcd16")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "I/O Intr")
+}
+
+record (ao, "$(DEV):AO11")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test:29 T=bcd32")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (PINI, "YES")
+}
+
+record (ai, "$(DEV):AI11")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:29 T=bcd32")
+    field (LINR, "LINEAR")
+    field (EGUL, "-10")
+    field (EGUF, "10")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "I/O Intr")
+    field (FLNK, "$(DEV):INDEXED-LI")
+}
+
+record (mbbo, "$(DEV):MBBO1")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test:16 T=word")
+}
+
+record (longout, "$(DEV):INDEX")
+{
+    field (VAL, "0")
+    field (PINI, "YES")
+    field (FLNK, "$(DEV):INDEXED-LI")
+}
+
+record (longin, "$(DEV):INDEXED-LI")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:'$(DEV):INDEX'*2 T=uint16")
+    field (FLNK, "$(DEV):INDEXED-WF0")
+}
+record (waveform, "$(DEV):INDEXED-WF0")
+{
+    field (FTVL, "SHORT")
+    field (DTYP, "regDev")
+    field (INP,  "@test:'$(DEV):INDEX'*2")
+    field (NELM, "10")
+    field (FLNK, "$(DEV):INDEXED-WF1")
+}
+record (waveform, "$(DEV):INDEXED-WF1")
+{
+    field (FTVL, "SHORT")
+    field (DTYP, "regDev")
+    field (INP,  "@test:('$(DEV):INDEX'*2+3)*5+7")
+    field (NELM, "10")
+}

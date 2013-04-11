@@ -6,7 +6,7 @@ int test_regDevWriteNumber()
     int parsestatus;
     int i;
 
-    simRegDevConfigure ("test",100);
+    simRegDevConfigure ("test",100,0);
     device = regDevFind("test");
     priv = regDevAllocPriv(&record);
     assert(priv);
