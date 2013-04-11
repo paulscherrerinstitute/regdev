@@ -1,2 +1,2 @@
 registrar (simRegDevRegistrar)
-variable(simRegDevDebug, int)
+variable (simRegDevDebug, int)
