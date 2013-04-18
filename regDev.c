@@ -10,6 +10,7 @@
 #include <memLib.h>
 #endif
 
+#include "recSup.h"
 #define epicsTypesGLOBAL
 #include "regDevSup.h"
 
@@ -18,7 +19,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.35 2013/04/11 15:44:57 zimoch Exp $";
+    "$Id: regDev.c,v 1.36 2013/04/18 15:52:19 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -40,17 +41,24 @@ static int startswith(const char *s, const char *key)
 static void regDevCallback(CALLBACK *callback)
 {
     struct dbCommon* record;
+    regDevPrivate* priv;
+    
     callbackGetUser(record, callback);
+    priv = record->dpvt;
+    assert (priv != NULL);
+    assert (priv->magic == MAGIC);
+    
     if (!interruptAccept)
     {
-        regDevPrivate* priv = record->dpvt;
-        assert (priv != NULL);
-        assert (priv->magic == MAGIC);
         epicsEventSignal(priv->initDone);
     }
     else
     {
-        callbackRequestProcessCallback(callback, record->prio, record);
+        if (priv->status != OK)
+            recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
+        dbScanLock(record);
+        (*record->rset->process)(record);
+        dbScanUnlock(record);
     }
 }
 
@@ -1040,7 +1048,7 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
             if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
                 return OK;
             if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
-                return 1;
+                return ARRAY_CONVERT;
             break;
         case regDevBCD16T:
         case epicsInt16T:
@@ -1053,7 +1061,7 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
                 return OK;
             }
             if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
-                return 1;
+                return ARRAY_CONVERT;
             break;
         case regDevBCD32T:
         case epicsInt32T:
@@ -1071,7 +1079,7 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
                 return OK;
             }
             if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
-                return 1;
+                return ARRAY_CONVERT;
             break;
         case regDev64T:
             if ((ftvl == DBF_LONG) || (ftvl == DBF_ULONG))
@@ -1090,7 +1098,7 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
                 return OK;
             }
             if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
-                return 1;
+                return ARRAY_CONVERT;
     }
     fprintf (stderr,
         "regDevCheckType %s: data type %s does not match FTVL %s\n",
@@ -1126,8 +1134,8 @@ int regDevMemAlloc(dbCommon* record, void** bptr, size_t size)
             fprintf (stderr,
                 "regDevMemAlloc %s: allocating device memory failed.",
                 record->name);
-            return status;    
         }
+        return status;    
     }
     ptr = (char *)calloc(1, size);
     if (ptr == NULL)
@@ -1462,14 +1470,28 @@ int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* pdata
         callbackSetCallback(regDevCallback, &priv->callback);
         callbackSetUser(record, &priv->callback);
         callbackSetPriority(record->prio, &priv->callback);
+        regDevDebugLog(DBG_OUT, "%s: device->asupport->write(device=%s, "
+            "offset=%"Z"d, dlen=%d, nelem=%"Z"d, buffer=@%p, "
+            "callback=@%p, mask=@%p prio=%d, status=@%p\n",
+            record->name,
+            device->name, offset, dlen, nelem, buffer,
+            &priv->callback, mask, record->prio, &priv->status);
         status = device->asupport->write(device->driver,
             offset, dlen, nelem, buffer,
             &priv->callback, mask, record->prio, &priv->status);
     }
     else if (device->support && device->support->write)
+    {
+        regDevDebugLog(DBG_OUT, "%s: device->support->write(device=%s, "
+            "offset=%"Z"d, dlen=%d, nelem=%"Z"d, buffer=@%p, "
+            "mask=@%p prio=%d\n",
+            record->name,
+            device->name, offset, dlen, nelem, buffer,
+            mask, record->prio);
         status = device->support->write(device->driver,
             offset, dlen, nelem, buffer,
             mask, record->prio);
+    }
     else status = ERROR;
     epicsMutexUnlock(device->accesslock);
 
@@ -1859,8 +1881,8 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
     }
     assert (priv->magic == MAGIC);
 
-    s = (priv->hwHigh - priv->hwLow);
-    o = (priv->hwHigh * high - priv->hwLow * low) / s;
+    s = (double)priv->hwHigh - priv->hwLow;
+    o = (priv->hwHigh * low - priv->hwLow * high) / s;
     s = (high - low) / s;
 
     switch (priv->dtype)
@@ -1871,12 +1893,12 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
-                for (i = 0; i < nelm; i++) v[i] = (r[i]+o)*s;
+                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
             }
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) v[i] = (r[i]+o)*s;
+                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
             }
             else break;
             return OK;
@@ -1888,12 +1910,12 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
-                for (i = 0; i < nelm; i++) v[i] = (r[i]+o)*s;
+                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
             }
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) v[i] = (r[i]+o)*s;
+                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
             }
             else break;
             return OK;
@@ -1904,12 +1926,12 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
-                for (i = 0; i < nelm; i++) v[i] = (r[i]+o)*s;
+                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
             }
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) v[i] = (r[i]+o)*s;
+                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
             }
             else break;
             return OK;
@@ -1921,12 +1943,12 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
-                for (i = 0; i < nelm; i++) v[i] = (r[i]+o)*s;
+                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
             }
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) v[i] = (r[i]+o)*s;
+                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
             }
             else break;
             return OK;
@@ -1937,12 +1959,12 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
-                for (i = 0; i < nelm; i++) v[i] = (r[i]+o)*s;
+                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
             }
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) v[i] = (r[i]+o)*s;
+                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
             }
             else break;
             return OK;
@@ -1950,16 +1972,22 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
         case epicsUInt32T:
         case regDevBCD32T:
         {
+            /* we need to care more about the type of hwHigh and hwLow here */
             epicsUInt32* r = priv->result.buffer;
+            
+            s = (double)(epicsUInt32)priv->hwHigh - (epicsUInt32)priv->hwLow;
+            o = ((epicsUInt32)priv->hwHigh * low - (epicsUInt32)priv->hwLow * high) / s;
+            s = (high - low) / s;
+            
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
-                for (i = 0; i < nelm; i++) v[i] = (r[i]+o)*s;
+                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
             }
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) v[i] = (r[i]+o)*s;
+                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
             }
             else break;
             return OK;
@@ -1974,7 +2002,7 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
 
 int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double low, double high)
 {
-    double o, s;
+    double o, s, x;
     size_t i;
     regDevPrivate* priv = record->dpvt;
     
@@ -1987,8 +2015,8 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
     }
     assert (priv->magic == MAGIC);
 
-    s = (priv->hwHigh - priv->hwLow);
-    o = (priv->hwLow * low - priv->hwHigh * high) / s;
+    s = (double)priv->hwHigh - priv->hwLow;
+    o = (priv->hwLow * high - priv->hwHigh * low) / s;
     s = s / (high - low);
 
     switch (priv->dtype)
@@ -1999,12 +2027,22 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
-                for (i = 0; i < nelm; i++) r[i] = v[i]*s+o;
+                for (i = 0; i < nelm; i++) {
+                    x = (v[i]+o)*s;
+                    if (x < priv->hwLow) x = priv->hwLow;
+                    if (x > priv->hwHigh) x = priv->hwHigh;
+                    r[i] = x;
+                }
             }
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) r[i] = v[i]*s+o;
+                for (i = 0; i < nelm; i++) {
+                    x = (v[i]+o)*s;
+                    if (x < priv->hwLow) x = priv->hwLow;
+                    if (x > priv->hwHigh) x = priv->hwHigh;
+                    r[i] = x;
+                }
             }
             else break;
             return OK;
@@ -2016,12 +2054,22 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
-                for (i = 0; i < nelm; i++) r[i] = v[i]*s+o;
+                for (i = 0; i < nelm; i++) {
+                    x = (v[i]+o)*s;
+                    if (x < priv->hwLow) x = priv->hwLow;
+                    if (x > priv->hwHigh) x = priv->hwHigh;
+                    r[i] = x;
+                }
             }
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) r[i] = v[i]*s+o;
+                for (i = 0; i < nelm; i++) {
+                    x = (v[i]+o)*s;
+                    if (x < priv->hwLow) x = priv->hwLow;
+                    if (x > priv->hwHigh) x = priv->hwHigh;
+                    r[i] = x;
+                }
             }
             else break;
             return OK;
@@ -2032,12 +2080,22 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
-                for (i = 0; i < nelm; i++) r[i] = v[i]*s+o;
+                for (i = 0; i < nelm; i++) {
+                    x = (v[i]+o)*s;
+                    if (x < priv->hwLow) x = priv->hwLow;
+                    if (x > priv->hwHigh) x = priv->hwHigh;
+                    r[i] = x;
+                }
             }
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) r[i] = v[i]*s+o;
+                for (i = 0; i < nelm; i++) {
+                    x = (v[i]+o)*s;
+                    if (x < priv->hwLow) x = priv->hwLow;
+                    if (x > priv->hwHigh) x = priv->hwHigh;
+                    r[i] = x;
+                }
             }
             else break;
             return OK;
@@ -2049,12 +2107,22 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
-                for (i = 0; i < nelm; i++) r[i] = v[i]*s+o;
+                for (i = 0; i < nelm; i++) {
+                    x = (v[i]+o)*s;
+                    if (x < priv->hwLow) x = priv->hwLow;
+                    if (x > priv->hwHigh) x = priv->hwHigh;
+                    r[i] = x;
+                }
             }
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) r[i] = v[i]*s+o;
+                for (i = 0; i < nelm; i++) {
+                    x = (v[i]+o)*s;
+                    if (x < priv->hwLow) x = priv->hwLow;
+                    if (x > priv->hwHigh) x = priv->hwHigh;
+                    r[i] = x;
+                }
             }
             else break;
             return OK;
@@ -2065,12 +2133,22 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
-                for (i = 0; i < nelm; i++) r[i] = v[i]*s+o;
+                for (i = 0; i < nelm; i++) {
+                    x = (v[i]+o)*s;
+                    if (x < priv->hwLow) x = priv->hwLow;
+                    if (x > priv->hwHigh) x = priv->hwHigh;
+                    r[i] = x;
+                }
             }
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) r[i] = v[i]*s+o;
+                for (i = 0; i < nelm; i++) {
+                    x = (v[i]+o)*s;
+                    if (x < priv->hwLow) x = priv->hwLow;
+                    if (x > priv->hwHigh) x = priv->hwHigh;
+                    r[i] = x;
+                }
             }
             else break;
             return OK;
@@ -2078,16 +2156,32 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
         case epicsUInt32T:
         case regDevBCD32T:
         {
+            /* we need to care more about the type of hwHigh and hwLow here */
             epicsUInt32* r = priv->result.buffer;
+            
+            s = (double)(epicsUInt32)priv->hwHigh - (epicsUInt32)priv->hwLow;
+            o = ((epicsUInt32)priv->hwLow * high - (epicsUInt32)priv->hwHigh * low) / s;
+            s = s / (high - low);
+
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
-                for (i = 0; i < nelm; i++) r[i] = v[i]*s+o;
+                for (i = 0; i < nelm; i++) {
+                    x = (v[i]+o)*s;
+                    if (x < (epicsUInt32)priv->hwLow) x = (epicsUInt32)priv->hwLow;
+                    if (x > (epicsUInt32)priv->hwHigh) x = (epicsUInt32)priv->hwHigh;
+                    r[i] = x;
+                }
             }
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) r[i] = v[i]*s+o;
+                for (i = 0; i < nelm; i++) {
+                    x = (v[i]+o)*s;
+                    if (x < (epicsUInt32)priv->hwLow) x = (epicsUInt32)priv->hwLow;
+                    if (x > (epicsUInt32)priv->hwHigh) x = (epicsUInt32)priv->hwHigh;
+                    r[i] = x;
+                }
             }
             else break;
             return OK;
