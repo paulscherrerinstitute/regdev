@@ -32,7 +32,151 @@ record (waveform, "$(DEV):WFLONG")
     field (FTVL, "LONG")
     field (DTYP, "regDev")
     field (INP,  "@test:0")
-    field (NELM, "15")
+    field (NELM, "25")
+    field (SCAN, "I/O Intr")
+}
+
+record (waveform, "$(DEV):WFB2D")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=int8")
+    field (NELM, "100")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (waveform, "$(DEV):WFS2D")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=int16")
+    field (NELM, "50")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (waveform, "$(DEV):WFL2D")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=int32")
+    field (NELM, "25")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (waveform, "$(DEV):WFUB2D")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=uint8")
+    field (NELM, "100")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (waveform, "$(DEV):WFUS2D")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=uint16")
+    field (NELM, "50")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (waveform, "$(DEV):WFUL2D")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=uint32")
+    field (NELM, "25")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (waveform, "$(DEV):WFB2F")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=int8")
+    field (NELM, "100")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (waveform, "$(DEV):WFS2F")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=int16 L=-0x8000 H=0x8000")
+    field (NELM, "50")
+    field (LOPR, "-180")
+    field (HOPR, "180")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (waveform, "$(DEV):WFL2F")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=int32")
+    field (NELM, "25")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (waveform, "$(DEV):WFUB2F")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=uint8")
+    field (NELM, "100")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (waveform, "$(DEV):WFUS2F")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=uint16")
+    field (NELM, "50")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (waveform, "$(DEV):WFUL2F")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=uint32")
+    field (NELM, "25")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
     field (SCAN, "I/O Intr")
 }
 
@@ -45,6 +189,14 @@ record (aai, "$(DEV):AAIBYTES")
     field (SCAN, "I/O Intr")
 }
 
+record (aao, "$(DEV):AAOBYTES")
+{
+    field (FTVL, "CHAR")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0")
+    field (NELM, "100")
+}
+
 record (aai, "$(DEV):AAISHORT")
 {
     field (FTVL, "SHORT")
@@ -52,6 +204,14 @@ record (aai, "$(DEV):AAISHORT")
     field (INP,  "@test:0")
     field (NELM, "50")
     field (SCAN, "I/O Intr")
+}
+
+record (aao, "$(DEV):AAOSHORT")
+{
+    field (FTVL, "SHORT")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0")
+    field (NELM, "50")
 }
 
 record (aai, "$(DEV):AAILONG")
@@ -63,6 +223,22 @@ record (aai, "$(DEV):AAILONG")
     field (SCAN, "I/O Intr")
 }
 
+record (aao, "$(DEV):AAOLONG")
+{
+    field (FTVL, "LONG")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0")
+    field (NELM, "15")
+}
+
+record (aao, "$(DEV):AAOULONG")
+{
+    field (FTVL, "ULONG")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0")
+    field (NELM, "15")
+}
+
 record (aai, "$(DEV):AAIFLOAT")
 {
     field (FTVL, "FLOAT")
@@ -70,6 +246,284 @@ record (aai, "$(DEV):AAIFLOAT")
     field (INP,  "@test:0 T=LONG")
     field (NELM, "15")
     field (SCAN, "I/O Intr")
+}
+
+record (aai, "$(DEV):AAIB2D")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=int8")
+    field (NELM, "100")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (aai, "$(DEV):AAIS2D")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=int16")
+    field (NELM, "50")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (aai, "$(DEV):AAIL2D")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=int32")
+    field (NELM, "25")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (aai, "$(DEV):AAIUB2D")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=uint8")
+    field (NELM, "100")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (aai, "$(DEV):AAIUS2D")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=uint16")
+    field (NELM, "50")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (aai, "$(DEV):AAIUL2D")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=uint32")
+    field (NELM, "25")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (aai, "$(DEV):AAIB2F")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=int8")
+    field (NELM, "100")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (aai, "$(DEV):AAIS2F")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=int16")
+    field (NELM, "50")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (aai, "$(DEV):AAIL2F")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=int32")
+    field (NELM, "25")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (aai, "$(DEV):AAIUB2F")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=uint8")
+    field (NELM, "100")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (aai, "$(DEV):AAIUS2F")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=uint16")
+    field (NELM, "50")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+record (aai, "$(DEV):AAIUL2F")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=uint32")
+    field (NELM, "25")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+    field (SCAN, "I/O Intr")
+}
+
+##########
+
+record (aao, "$(DEV):AAOD2B")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0 T=int8")
+    field (NELM, "100")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+}
+
+record (aao, "$(DEV):AAOD2S")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0 T=int16")
+    field (NELM, "50")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+}
+
+record (aao, "$(DEV):AAOD2L")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0 T=int32")
+    field (NELM, "25")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+}
+
+record (aao, "$(DEV):AAOD2UB")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0 T=uint8")
+    field (NELM, "100")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+}
+
+record (aao, "$(DEV):AAOD2US")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0 T=uint16")
+    field (NELM, "50")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+}
+
+record (aao, "$(DEV):AAOD2UL")
+{
+    field (FTVL, "DOUBLE")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0 T=uint32")
+    field (NELM, "25")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+}
+
+record (aao, "$(DEV):AAOF2B")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0 T=int8")
+    field (NELM, "100")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+}
+
+record (aao, "$(DEV):AAOF2S")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0 T=int16")
+    field (NELM, "50")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+}
+
+record (aao, "$(DEV):AAOF2L")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0 T=int32")
+    field (NELM, "25")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+}
+
+record (aao, "$(DEV):AAOF2UB")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0 T=uint8")
+    field (NELM, "100")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+}
+
+record (aao, "$(DEV):AAOF2US")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0 T=uint16")
+    field (NELM, "50")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
+}
+
+record (aao, "$(DEV):AAOF2UL")
+{
+    field (FTVL, "FLOAT")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0 T=uint32")
+    field (NELM, "25")
+    field (LOPR, "-10")
+    field (HOPR, "10")
+    field (PREC, "3")
 }
 
 record (ao, "$(DEV):AO1")
