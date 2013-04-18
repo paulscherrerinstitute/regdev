@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: zimoch $ */ 
-/* $Date: 2013/04/11 15:50:55 $ */ 
-/* $Id: regDev.h,v 1.13 2013/04/11 15:50:55 zimoch Exp $ */  
+/* $Date: 2013/04/18 15:54:56 $ */ 
+/* $Id: regDev.h,v 1.14 2013/04/18 15:54:56 zimoch Exp $ */  
 /* $Name:  $ */ 
-/* $Revision: 1.13 $ */ 
+/* $Revision: 1.14 $ */ 
 
 #ifndef regDev_h
 #define regDev_h
@@ -147,7 +147,7 @@ regDevice* regDevAsynFind(
 
 extern int regDevDebug;
 #define regDevDebugLog(level, fmt, args...) \
-    do {if (level & regDevDebug) errlogSevPrintf(errlogInfo, fmt, ## args);} while(0)
+    do {if ((level) & regDevDebug) errlogSevPrintf(errlogInfo, fmt, ## args);} while(0)
 #define DBG_INIT 1
 #define DBG_IN   2
 #define DBG_OUT  4
@@ -158,11 +158,29 @@ void regDevCopy(unsigned int dlen, size_t nelem, volatile void* src, volatile vo
 #endif /* regDev_h */
 
 /* utility: size_t modifier for printf */
-
 #ifdef __vxworks
 #define Z ""
 #else
 #define Z "z"
 #endif
+
+/* utility macro to check offset */
+#define regDevCheckOffset(function, name, offset, dlen, nelm, size) \
+    do { \
+        if (offset > size) \
+        { \
+            errlogSevPrintf(errlogMajor, \
+                "%s %s: offset %"Z"u out of range (0-%"Z"u)\n", \
+                function, name, offset, size); \
+            return ERROR; \
+        } \
+        if (offset+dlen*nelem > size) \
+        { \
+            errlogSevPrintf(errlogMajor, \
+                "%s %s: offset %"Z"u + %"Z"u bytes length exceeds mapped size %"Z"u by %"Z"u bytes\n", \
+                function, name, offset, nelem, size, offset+dlen*nelem - size); \
+            return ERROR; \
+        }\
+    } while(0)
 
 
