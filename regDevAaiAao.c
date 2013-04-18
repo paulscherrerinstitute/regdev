@@ -28,8 +28,8 @@ long regDevInitRecordAai(aaiRecord* record)
     regDevPrivate* priv;
     int status;
     
-    regDevDebugLog(1, "regDevInitRecordAai(%s) start\n", record->name);
-    regDevDebugLog(1, "regDevInitRecordAai(%s) link type %d\n", record->name, record->inp.type);
+    regDevDebugLog(DBG_INIT, "regDevInitRecordAai(%s) start\n", record->name);
+    regDevDebugLog(DBG_INIT, "regDevInitRecordAai(%s) link type %d\n", record->name, record->inp.type);
     if ((priv = regDevAllocPriv((dbCommon*)record)) == NULL)
         return S_dev_noMemory;
     if ((status = regDevCheckFTVL((dbCommon*)record, record->ftvl)) != OK)
@@ -43,12 +43,12 @@ long regDevInitRecordAai(aaiRecord* record)
     priv->result.buffer = record->bptr;
     if ((status = regDevCheckType((dbCommon*)record, record->ftvl, record->nelm)) != OK)
     {
-        if (status != 1) return status;
+        if (status != ARRAY_CONVERT) return status;
         /* convert to float/double */
         record->bptr = calloc(record->nelm, sizeofTypes[record->ftvl]);
          
     }
-    regDevDebugLog(1, "regDevInitRecordAai(%s) done\n", record->name);
+    regDevDebugLog(DBG_INIT, "regDevInitRecordAai(%s) done\n", record->name);
     return status;
 }
 
@@ -97,8 +97,8 @@ long regDevInitRecordAao(aaoRecord* record)
     int status;
     regDevPrivate* priv;
     
-    regDevDebugLog(1, "regDevInitRecordAao(%s) start\n", record->name);
-    regDevDebugLog(1, "regDevInitRecordAao(%s) link type %d\n", record->name, record->out.type);
+    regDevDebugLog(DBG_INIT, "regDevInitRecordAao(%s) start\n", record->name);
+    regDevDebugLog(DBG_INIT, "regDevInitRecordAao(%s) link type %d\n", record->name, record->out.type);
     if ((priv = regDevAllocPriv((dbCommon*)record)) == NULL)
         return S_dev_noMemory;
     if ((status = regDevCheckFTVL((dbCommon*)record, record->ftvl)) != OK)
@@ -113,7 +113,7 @@ long regDevInitRecordAao(aaoRecord* record)
     priv->result.buffer = record->bptr;
     if ((status = regDevCheckType((dbCommon*)record, record->ftvl, record->nelm)) != OK)
     {
-        if (status != 1) return status;
+        if (status != ARRAY_CONVERT) return status;
          /* convert from float/double */
         record->bptr = calloc(record->nelm, sizeofTypes[record->ftvl]);
     }
@@ -126,7 +126,7 @@ long regDevInitRecordAao(aaoRecord* record)
                 record->bptr, record->nelm, record->lopr, record->hopr);
         }
     }
-    regDevDebugLog(1, "regDevInitRecordAao(%s) done\n", record->name);
+    regDevDebugLog(DBG_INIT, "regDevInitRecordAao(%s) done\n", record->name);
     return status;
 }
 
@@ -135,6 +135,7 @@ long regDevWriteAao(aaoRecord* record)
     int status;
     regDevPrivate* priv = (regDevPrivate*)record->dpvt;
 
+    /* Note: due to the current implementation of aao, we never get here with PACT=1 */
     regDevCheckAsyncWriteResult(record);
     if (record->bptr == NULL)
     {
