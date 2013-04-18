@@ -16,7 +16,7 @@
 #define MAGIC 322588966U /* crc("simRegDev") */
 
 static char cvsid_simRegDev[] __attribute__((unused)) =
-    "$Id: simRegDev.c,v 1.7 2013/04/18 08:43:07 zimoch Exp $";
+    "$Id: simRegDev.c,v 1.8 2013/04/18 15:52:45 zimoch Exp $";
 
 typedef struct simRegDevAsyncMessage {
     struct simRegDevAsyncMessage* next;
@@ -203,21 +203,7 @@ int simRegDevAsyncRead(
     {
         return ERROR;
     }
-    if (offset > device->size)
-    {
-        errlogSevPrintf(errlogMajor,
-            "simRegDevRead %s: offset %"Z"u out of range (0-%"Z"u)\n",
-            device->name, offset, device->size);
-        return ERROR;
-    }
-    if (offset+dlen*nelem > device->size)
-    {
-        errlogSevPrintf(errlogMajor,
-            "simRegDevRead %s: offset %"Z"u + %"Z"u bytes length exceeds mapped size %"Z"u by %"Z"u bytes\n",
-            device->name, offset, dlen*nelem, device->size,
-            offset+dlen*nelem - device->size);
-        return ERROR;
-    }
+    regDevCheckOffset("simRegDevRead", device->name, offset, dlen, nelm, device->size);
     if (simRegDevDebug >= 1)
         printf ("simRegDevRead %s:%"Z"u: %u bytes * %"Z"u elements, prio=%d\n",
         device->name, offset, dlen, nelem, prio);
@@ -262,21 +248,7 @@ int simRegDevAsyncWrite(
     {
         return ERROR;
     }
-    if (offset > device->size)
-    {
-        errlogSevPrintf(errlogMajor,
-            "simRegDevWrite %s: offset %"Z"u out of range (0-%"Z"u)\n",
-            device->name, offset, device->size);
-        return ERROR;
-    }
-    if (offset+dlen*nelem > device->size)
-    {
-        errlogSevPrintf(errlogMajor,
-            "simRegDevWrite %s: offset %"Z"u + %"Z"u bytes length exceeds mapped size %"Z"u by %"Z"u bytes\n",
-            device->name, offset, dlen*nelem, device->size,
-            offset+dlen*nelem - device->size);
-        return ERROR;
-    }
+    regDevCheckOffset("simRegDevWrite", device->name, offset, dlen, nelm, device->size);
     if (simRegDevDebug >= 1)
         printf ("simRegDevWrite %s:%"Z"u: %u bytes * %"Z"u elements, prio=%d\n",
         device->name, offset, dlen, nelem, prio);
