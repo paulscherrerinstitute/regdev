@@ -49,6 +49,7 @@ typedef unsigned long long epicsUInt64;
 #define TYPE_STRING 4
 #define TYPE_BCD    8
 
+#define ARRAY_CONVERT 1
 #define DONT_CONVERT 2
 
 #define MAGIC 2181699655U /* crc("regDev") */
@@ -144,19 +145,21 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
 int regDevScaleToRaw(dbCommon* record, int ftvl, void* rval, size_t nelm, double low, double high);
 
 #define regDevCheckAsyncWriteResult(record) \
+    regDevDebugLog(DBG_OUT, "regDevCheckAsyncWriteResult %s: PACT=%d\n", record->name, record->pact); \
     do if (record->pact) \
     { \
         regDevPrivate* priv = (regDevPrivate*)(record->dpvt); \
         if (priv == NULL) \
         { \
             recGblSetSevr(record, UDF_ALARM, INVALID_ALARM); \
-            regDevDebugLog(3, "%s: record not initialized\n", record->name); \
+            regDevDebugLog(DBG_OUT, "%s: record not initialized\n", record->name); \
         } \
         if (priv->status != OK) \
         { \
             recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM); \
-            regDevDebugLog(3, "%s: asynchronous write error\n", record->name); \
+            regDevDebugLog(DBG_OUT, "%s: asynchronous write error\n", record->name); \
         } \
+        regDevDebugLog(DBG_OUT, "regDevCheckAsyncWriteResult %s: status=%x\n", record->name, priv->status); \
         return priv->status; \
     } while(0)
 
