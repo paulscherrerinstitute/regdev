@@ -92,7 +92,7 @@ typedef struct regDevPrivate{
     epicsInt32 hwLow;            /* Hardware Low limit */
     epicsInt32 hwHigh;           /* Hardware High limit */
     epicsUInt32 invert;          /* Invert bits for bi,bo,mbbi,... */
-    volatile void* hwPtr;        /* here we can add the bus address got from buf alloc routine */
+    void* hwPtr;                 /* here we can add the bus address got from buf alloc routine */
     CALLBACK callback;           /* For asynchonous drivers */
     int status;                  /* For asynchonous drivers */
     epicsEventId initDone;       /* For asynchonous drivers */

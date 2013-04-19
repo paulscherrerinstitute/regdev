@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: zimoch $ */ 
-/* $Date: 2013/04/18 15:54:56 $ */ 
-/* $Id: regDev.h,v 1.14 2013/04/18 15:54:56 zimoch Exp $ */  
+/* $Date: 2013/04/19 12:44:49 $ */ 
+/* $Id: regDev.h,v 1.15 2013/04/19 12:44:49 zimoch Exp $ */  
 /* $Name:  $ */ 
-/* $Revision: 1.14 $ */ 
+/* $Revision: 1.15 $ */ 
 
 #ifndef regDev_h
 #define regDev_h
@@ -127,7 +127,7 @@ typedef struct regDevAsyncSupport {
 	
     int (*buff_alloc)(
        	void** usrBufPtr,
-       	volatile void** busBufPtr, 
+       	void** busBufPtr, 
     	size_t size);  
         
 } regDevAsyncSupport;

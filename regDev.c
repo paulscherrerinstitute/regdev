@@ -19,7 +19,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.36 2013/04/18 15:52:19 zimoch Exp $";
+    "$Id: regDev.c,v 1.37 2013/04/19 12:44:49 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -1237,7 +1237,7 @@ int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer
             callbackSetUser(record, &priv->callback);
             callbackSetPriority(record->prio, &priv->callback);
             status = device->asupport->read(device->driver,
-                offset, dlen, nelem, buffer,
+                offset, dlen, nelem, priv->hwPtr ? priv->hwPtr : buffer,
                 &priv->callback, record->prio, &priv->status);
         }
         else if (device->support && device->support->read)
@@ -1470,24 +1470,12 @@ int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* pdata
         callbackSetCallback(regDevCallback, &priv->callback);
         callbackSetUser(record, &priv->callback);
         callbackSetPriority(record->prio, &priv->callback);
-        regDevDebugLog(DBG_OUT, "%s: device->asupport->write(device=%s, "
-            "offset=%"Z"d, dlen=%d, nelem=%"Z"d, buffer=@%p, "
-            "callback=@%p, mask=@%p prio=%d, status=@%p\n",
-            record->name,
-            device->name, offset, dlen, nelem, buffer,
-            &priv->callback, mask, record->prio, &priv->status);
         status = device->asupport->write(device->driver,
-            offset, dlen, nelem, buffer,
+            offset, dlen, nelem, priv->hwPtr ? priv->hwPtr : buffer,
             &priv->callback, mask, record->prio, &priv->status);
     }
     else if (device->support && device->support->write)
     {
-        regDevDebugLog(DBG_OUT, "%s: device->support->write(device=%s, "
-            "offset=%"Z"d, dlen=%d, nelem=%"Z"d, buffer=@%p, "
-            "mask=@%p prio=%d\n",
-            record->name,
-            device->name, offset, dlen, nelem, buffer,
-            mask, record->prio);
         status = device->support->write(device->driver,
             offset, dlen, nelem, buffer,
             mask, record->prio);
