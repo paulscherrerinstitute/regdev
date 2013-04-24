@@ -19,7 +19,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.37 2013/04/19 12:44:49 zimoch Exp $";
+    "$Id: regDev.c,v 1.38 2013/04/24 14:00:17 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -1611,44 +1611,18 @@ int regDevWriteScalar(dbCommon* record, epicsInt32 rval, double fval, epicsUInt3
         record->name, rval, fval, mask);
     
     /* enforce bounds */
-    switch (priv->dtype)
+    if (rval > priv->hwHigh)
     {
-        case epicsInt8T:
-        case epicsInt16T:
-        case epicsInt32T:
-            if ((epicsInt32)rval > (epicsInt32)priv->hwHigh)
-            {
-                regDevDebugLog(DBG_OUT, "%s: limit output from 0x%08x to upper bound 0x%08x\n",
-                    record->name, rval, priv->hwHigh);
-                rval = priv->hwHigh;
-            }
-            if ((epicsInt32)rval < (epicsInt32)priv->hwLow)
-            {
-                regDevDebugLog(DBG_OUT, "%s: limit output from 0x%08x to lower bound 0x%08x\n",
-                    record->name, rval, priv->hwLow);
-                rval = priv->hwLow;
-            }
-            break;
-        case epicsUInt8T:
-        case epicsUInt16T:
-        case epicsUInt32T:
-        case regDevBCD8T:
-        case regDevBCD16T:
-        case regDevBCD32T:
-            if ((epicsUInt32)rval > (epicsUInt32)priv->hwHigh)
-            {
-                regDevDebugLog(DBG_OUT, "%s: limit output from 0x%08x to upper bound 0x%08x\n",
-                    record->name, (epicsUInt32)rval, (epicsUInt32)priv->hwHigh);
-                rval = priv->hwHigh;
-            }
-            if ((epicsUInt32)rval < (epicsUInt32)priv->hwLow)
-            {
-                regDevDebugLog(DBG_OUT, "%s: limit output from 0x%08x to lower bound 0x%08x\n",
-                    record->name, (epicsUInt32)rval, (epicsUInt32)priv->hwLow);
-                rval = priv->hwLow;
-            }
-            break;
-    }    
+        regDevDebugLog(DBG_OUT, "%s: limit output from 0x%08x to upper bound 0x%08x\n",
+            record->name, rval, priv->hwHigh);
+        rval = priv->hwHigh;
+    }
+    if (rval < priv->hwLow)
+    {
+        regDevDebugLog(DBG_OUT, "%s: limit output from 0x%08x to lower bound 0x%08x\n",
+            record->name, rval, priv->hwLow);
+        rval = priv->hwLow;
+    }
 
     rval ^= priv->invert;
     
