@@ -611,6 +611,7 @@ long regDevSpecialLinconvAi(aiRecord* record, int after)
                 record->eoff = 
                     ((epicsInt32)priv->hwHigh * record->egul - (epicsInt32)priv->hwLow * record->eguf)
                     / hwSpan;
+                break;
             default:
                 record->eoff = 
                     ((epicsUInt32)priv->hwHigh * record->egul - (epicsUInt32)priv->hwLow * record->eguf)
@@ -720,6 +721,7 @@ long regDevSpecialLinconvAo(aoRecord* record, int after)
                 record->eoff = 
                     ((epicsInt32)priv->hwHigh * record->egul - (epicsInt32)priv->hwLow * record->eguf)
                     / hwSpan;
+                break;
             default:
                 record->eoff = 
                     ((epicsUInt32)priv->hwHigh * record->egul - (epicsUInt32)priv->hwLow * record->eguf)
