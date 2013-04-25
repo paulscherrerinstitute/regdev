@@ -5,7 +5,7 @@
 
 /* byte swapping facility */
 
-#if defined (__GNUC__) && __GNUC__*100+__GNUC_MINOR__ >= 403
+#if defined (__PPC__) && defined (__GNUC__) && __GNUC__*100+__GNUC_MINOR__ >= 403
 #define bswap_16(x) __builtin_bswap16(x)
 #define bswap_32(x) __builtin_bswap32(x)
 #define bswap_64(x) __builtin_bswap64(x)
