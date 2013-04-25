@@ -526,7 +526,7 @@ record (aao, "$(DEV):AAOF2UL")
     field (PREC, "3")
 }
 
-record (ao, "$(DEV):AO1")
+record (ao, "$(DEV):AOD")
 {
     field (DTYP, "regDev")
     field (OUT,  "@test:0 T=double")
@@ -536,7 +536,7 @@ record (ao, "$(DEV):AO1")
     field (PINI, "YES")
 }
 
-record (ai, "$(DEV):AI1")
+record (ai, "$(DEV):AID")
 {
     field (DTYP, "regDev")
     field (INP,  "@test:0 T=double")
@@ -546,7 +546,7 @@ record (ai, "$(DEV):AI1")
     field (SCAN, "I/O Intr")
 }
 
-record (ao, "$(DEV):AO2")
+record (ao, "$(DEV):AOF")
 {
     field (DTYP, "regDev")
     field (OUT,  "@test:8 T=float")
@@ -556,7 +556,7 @@ record (ao, "$(DEV):AO2")
     field (PINI, "YES")
 }
 
-record (ai, "$(DEV):AI2")
+record (ai, "$(DEV):AIF")
 {
     field (DTYP, "regDev")
     field (INP,  "@test:8 T=float")
@@ -566,7 +566,7 @@ record (ai, "$(DEV):AI2")
     field (SCAN, "I/O Intr")
 }
 
-record (ao, "$(DEV):AO3")
+record (ao, "$(DEV):AOUS")
 {
     field (DTYP, "regDev")
     field (OUT,  "@test:12 T=uint16")
@@ -579,7 +579,7 @@ record (ao, "$(DEV):AO3")
     field (PINI, "YES")
 }
 
-record (ai, "$(DEV):AI3")
+record (ai, "$(DEV):AIUS")
 {
     field (DTYP, "regDev")
     field (INP,  "@test:12 T=uint16")
@@ -592,7 +592,7 @@ record (ai, "$(DEV):AI3")
     field (SCAN, "I/O Intr")
 }
 
-record (ao, "$(DEV):AO4")
+record (ao, "$(DEV):AOS")
 {
     field (DTYP, "regDev")
     field (OUT,  "@test:14 T=int16")
@@ -605,7 +605,7 @@ record (ao, "$(DEV):AO4")
     field (PINI, "YES")
 }
 
-record (ai, "$(DEV):AI4")
+record (ai, "$(DEV):AIS")
 {
     field (DTYP, "regDev")
     field (INP,  "@test:14 T=int16")
@@ -618,7 +618,7 @@ record (ai, "$(DEV):AI4")
     field (SCAN, "I/O Intr")
 }
 
-record (ao, "$(DEV):AO5")
+record (ao, "$(DEV):AOUL")
 {
     field (DTYP, "regDev")
     field (OUT,  "@test:16 T=uint32 H=0x7fffffff")
@@ -631,7 +631,7 @@ record (ao, "$(DEV):AO5")
     field (PINI, "YES")
 }
 
-record (ai, "$(DEV):AI5")
+record (ai, "$(DEV):AIUL")
 {
     field (DTYP, "regDev")
     field (INP,  "@test:16 T=uint32 H=0x7fffffff")
@@ -644,7 +644,7 @@ record (ai, "$(DEV):AI5")
     field (SCAN, "I/O Intr")
 }
 
-record (ao, "$(DEV):AO6")
+record (ao, "$(DEV):AOL")
 {
     field (DTYP, "regDev")
     field (OUT,  "@test:20 T=int32")
@@ -657,7 +657,7 @@ record (ao, "$(DEV):AO6")
     field (PINI, "YES")
 }
 
-record (ai, "$(DEV):AI6")
+record (ai, "$(DEV):AIL")
 {
     field (DTYP, "regDev")
     field (INP,  "@test:20 T=int32")
@@ -670,7 +670,7 @@ record (ai, "$(DEV):AI6")
     field (SCAN, "I/O Intr")
 }
 
-record (ao, "$(DEV):AO7")
+record (ao, "$(DEV):AOUB")
 {
     field (DTYP, "regDev")
     field (OUT,  "@test:24 T=uint8")
@@ -683,7 +683,7 @@ record (ao, "$(DEV):AO7")
     field (PINI, "YES")
 }
 
-record (ai, "$(DEV):AI7")
+record (ai, "$(DEV):AIUB")
 {
     field (DTYP, "regDev")
     field (INP,  "@test:24 T=uint8")
@@ -696,7 +696,7 @@ record (ai, "$(DEV):AI7")
     field (SCAN, "I/O Intr")
 }
 
-record (ao, "$(DEV):AO8")
+record (ao, "$(DEV):AOB")
 {
     field (DTYP, "regDev")
     field (OUT,  "@test:2*10+5 T=int8")
@@ -709,7 +709,7 @@ record (ao, "$(DEV):AO8")
     field (PINI, "YES")
 }
 
-record (ai, "$(DEV):AI8")
+record (ai, "$(DEV):AIB")
 {
     field (DTYP, "regDev")
     field (INP,  "@test:25 T=int8")
@@ -722,7 +722,7 @@ record (ai, "$(DEV):AI8")
     field (SCAN, "I/O Intr")
 }
 
-record (ao, "$(DEV):AO9")
+record (ao, "$(DEV):AOBCDB")
 {
     field (DTYP, "regDev")
     field (OUT,  "@test:26 T=bcd8")
@@ -735,7 +735,7 @@ record (ao, "$(DEV):AO9")
     field (PINI, "YES")
 }
 
-record (ai, "$(DEV):AI9")
+record (ai, "$(DEV):AIBCDB")
 {
     field (DTYP, "regDev")
     field (INP,  "@test:26 T=bcd8")
@@ -748,7 +748,7 @@ record (ai, "$(DEV):AI9")
     field (SCAN, "I/O Intr")
 }
 
-record (ao, "$(DEV):AO10")
+record (ao, "$(DEV):AOBCDS")
 {
     field (DTYP, "regDev")
     field (OUT,  "@test:27 T=bcd16")
@@ -761,7 +761,7 @@ record (ao, "$(DEV):AO10")
     field (PINI, "YES")
 }
 
-record (ai, "$(DEV):AI10")
+record (ai, "$(DEV):AIBCDS")
 {
     field (DTYP, "regDev")
     field (INP,  "@test:27 T=bcd16")
@@ -774,7 +774,7 @@ record (ai, "$(DEV):AI10")
     field (SCAN, "I/O Intr")
 }
 
-record (ao, "$(DEV):AO11")
+record (ao, "$(DEV):AOBCDL")
 {
     field (DTYP, "regDev")
     field (OUT,  "@test:29 T=bcd32")
@@ -787,7 +787,7 @@ record (ao, "$(DEV):AO11")
     field (PINI, "YES")
 }
 
-record (ai, "$(DEV):AI11")
+record (ai, "$(DEV):AIBCDL")
 {
     field (DTYP, "regDev")
     field (INP,  "@test:29 T=bcd32")
@@ -799,6 +799,84 @@ record (ai, "$(DEV):AI11")
     field (HOPR, "20")
     field (SCAN, "I/O Intr")
     field (FLNK, "$(DEV):INDEXED-LI")
+}
+
+record (longout, "$(DEV):LOUB")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test:12 T=uint8")
+}
+
+record (longin, "$(DEV):LIUB")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:12 T=uint8")
+    field (SCAN, "I/O Intr")
+}
+
+record (longout, "$(DEV):LOB")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test:12 T=int8")
+}
+
+record (longin, "$(DEV):LIB")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:12 T=int8")
+    field (SCAN, "I/O Intr")
+}
+
+record (longout, "$(DEV):LOUS")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test:12 T=uint16")
+}
+
+record (longin, "$(DEV):LIUS")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:12 T=uint16")
+    field (SCAN, "I/O Intr")
+}
+
+record (longout, "$(DEV):LOS")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test:12 T=int16")
+}
+
+record (longin, "$(DEV):LIS")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:12 T=int16")
+    field (SCAN, "I/O Intr")
+}
+
+record (longout, "$(DEV):LOUL")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test:12 T=uint32")
+}
+
+record (longin, "$(DEV):LIUL")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:12 T=uint32")
+    field (SCAN, "I/O Intr")
+}
+
+record (longout, "$(DEV):LOL")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test:12 T=int32")
+}
+
+record (longin, "$(DEV):LIL")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:12 T=int32")
+    field (SCAN, "I/O Intr")
 }
 
 record (mbbo, "$(DEV):MBBO1")
