@@ -16,7 +16,7 @@
 #define MAGIC 322588966U /* crc("simRegDev") */
 
 static char cvsid_simRegDev[] __attribute__((unused)) =
-    "$Id: simRegDev.c,v 1.8 2013/04/18 15:52:45 zimoch Exp $";
+    "$Id: simRegDev.c,v 1.9 2013/04/25 11:59:10 zimoch Exp $";
 
 typedef struct simRegDevAsyncMessage {
     struct simRegDevAsyncMessage* next;
@@ -67,9 +67,9 @@ int simRegDevAsynStartTransfer(
 {
     simRegDevAsyncMessage* msg;
 
-    if (simRegDevDebug >= 1)
-        printf ("simRegDevAsynStartTransfer %s: copy %"Z"u bytes * %"Z"u elements\n",
-        device->name, dlen, nelem);
+    if (simRegDevDebug & (isOutput ? DBG_OUT : DBG_IN))
+        printf ("simRegDevAsynStartTransfer %s: copy %s %"Z"u bytes * %"Z"u elements\n",
+        device->name, isOutput ? "out" : "in", dlen, nelem);
 
     epicsMutexLock(device->lock);
     if (device->msgFreelist[prio] == NULL)
@@ -113,7 +113,7 @@ void simRegDevAsyncCallback(void* arg)
     regDevice *device = msg->device;
     CALLBACK* cbStruct = msg->cbStruct;
 
-    if (simRegDevDebug >= 1)
+    if (simRegDevDebug & (msg->isOutput ? DBG_OUT : DBG_IN))
         printf ("simRegDevAsyncCallback %s: copy %"Z"u bytes * %"Z"u elements\n",
         device->name, msg->dlen, msg->nelem);
     epicsMutexLock(device->lock);
@@ -131,7 +131,7 @@ void simRegDevAsyncCallback(void* arg)
     if (msg->isOutput)
     {
         /* We got new data: trigger all interested input records */
-        if (simRegDevDebug >= 1)
+        if (simRegDevDebug & DBG_OUT)
             printf ("simRegDevAsyncCallback %s: trigger input records\n", device->name);
         scanIoRequest(device->ioscanpvt);
     }
@@ -204,7 +204,7 @@ int simRegDevAsyncRead(
         return ERROR;
     }
     regDevCheckOffset("simRegDevRead", device->name, offset, dlen, nelm, device->size);
-    if (simRegDevDebug >= 1)
+    if (simRegDevDebug & DBG_IN)
         printf ("simRegDevRead %s:%"Z"u: %u bytes * %"Z"u elements, prio=%d\n",
         device->name, offset, dlen, nelem, prio);
 
@@ -249,9 +249,31 @@ int simRegDevAsyncWrite(
         return ERROR;
     }
     regDevCheckOffset("simRegDevWrite", device->name, offset, dlen, nelm, device->size);
-    if (simRegDevDebug >= 1)
+    if (simRegDevDebug & DBG_OUT)
+    {
+        size_t n;
         printf ("simRegDevWrite %s:%"Z"u: %u bytes * %"Z"u elements, prio=%d\n",
         device->name, offset, dlen, nelem, prio);
+        for (n=0; n<nelem && n<10; n++)
+        {
+            switch (dlen)
+            {
+                case 1:
+                    printf (" %02x",((epicsUInt8*)pdata)[n*dlen]);
+                    break;
+                case 2:
+                    printf (" %04x",((epicsUInt16*)pdata)[n*dlen]);
+                    break;
+                case 4:
+                    printf (" %08x",((epicsUInt32*)pdata)[n*dlen]);
+                    break;
+                case 8:
+                    printf (" %08llx",((unsigned long long*)pdata)[n*dlen]);
+                    break;
+            }
+        }
+        printf ("\n");
+    }
 
     if (nelem > 1 && cbStruct != NULL)
         return simRegDevAsynStartTransfer(device, dlen, nelem, pdata,
@@ -259,7 +281,7 @@ int simRegDevAsyncWrite(
 
     regDevCopy(dlen, nelem, pdata, device->buffer+offset, pmask, device->swap);
     /* We got new data: trigger all interested input records */
-    if (simRegDevDebug >= 1)
+    if (simRegDevDebug & DBG_OUT)
         printf ("simRegDevWrite %s: trigger input records\n", device->name);
     scanIoRequest(device->ioscanpvt);
     return OK;
