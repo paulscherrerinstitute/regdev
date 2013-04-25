@@ -46,7 +46,7 @@ long regDevReadStat(biRecord* record)
         return -1;
     }
     /* psudo-read (0 bytes) just to get the connection status */
-    status = regDevReadStatus((dbCommon*)record);
+    status = regDevRead((dbCommon*)record, 0, 0, NULL);
     if (status == ASYNC_COMPLETITION) return OK;
     record->rval = (status == OK);
     return OK;
@@ -457,7 +457,7 @@ long regDevReadLongin(longinRecord* record)
     int status;
     epicsInt32 rval;
     
-    status = regDevReadInt((dbCommon*)record, &rval);
+    status = regDevReadNumber((dbCommon*)record, &rval, NULL);
     if (status == ASYNC_COMPLETITION) return OK;
     if (status == OK) record->val = rval;
     return status;
@@ -497,7 +497,7 @@ long regDevInitRecordLongout(longoutRecord* record)
         return status;
     if (priv->initoffset != DONT_INIT)
     {
-        status = regDevReadInt((dbCommon*)record, &rval);
+        status = regDevReadNumber((dbCommon*)record, &rval, NULL);
         if (!status) record->val = rval;
     }
     regDevDebugLog(DBG_INIT, "regDevInitRecordLongout(%s) done\n", record->name);
@@ -509,7 +509,7 @@ long regDevWriteLongout(longoutRecord* record)
     int status;
 
     regDevCheckAsyncWriteResult(record);
-    status = regDevWriteInt((dbCommon*)record, record->val);
+    status = regDevWriteNumber((dbCommon*)record, record->val, 0.0);
     if (status == ASYNC_COMPLETITION) return OK;
     return status;
 }
@@ -794,7 +794,7 @@ long regDevInitRecordStringin(stringinRecord* record)
             record->name, priv->dlen, (int)sizeof(record->val)-1);
         priv->dlen = (int)sizeof(record->val)-1;
     }
-    priv->result.buffer = record->val;
+    priv->data.buffer = record->val;
     regDevDebugLog(DBG_INIT, "regDevInitRecordStringin(%s) done\n", record->name);
     return OK;
 }
@@ -850,7 +850,7 @@ long regDevInitRecordStringout(stringoutRecord* record)
             record->name, priv->dlen, (int)sizeof(record->val)-1);
         priv->dlen = sizeof(record->val)-1;
     }
-    priv->result.buffer = record->val;
+    priv->data.buffer = record->val;
     if (priv->initoffset != DONT_INIT)
     {
         status = regDevReadArray((dbCommon*) record, sizeof(record->val));
@@ -901,12 +901,12 @@ long regDevInitRecordWaveform(waveformRecord* record)
     if ((status = regDevIoParse((dbCommon*)record, &record->inp)) != OK)
         return status;
     record->nord = record->nelm;
-    priv->result.buffer = record->bptr;
+    priv->data.buffer = record->bptr;
     if ((status = regDevCheckType((dbCommon*)record, record->ftvl, record->nelm)) != OK)
     {
         if (status != ARRAY_CONVERT) return status;
         /* convert to float/double */
-        priv->result.buffer = calloc(1, record->nelm * priv->dlen);
+        priv->data.buffer = calloc(1, record->nelm * priv->dlen);
     }
     regDevDebugLog(DBG_INIT, "regDevInitRecordWaveform(%s) done\n", record->name);
     return status;
@@ -920,7 +920,7 @@ long regDevReadWaveform(waveformRecord* record)
     status = regDevReadArray((dbCommon*) record, record->nelm);
     if (status == ASYNC_COMPLETITION) return OK;
     if (status != OK) return status;
-    if (priv->result.buffer != record->bptr)
+    if (priv->data.buffer != record->bptr)
     {    
         return regDevScaleFromRaw((dbCommon*)record, record->ftvl,
             record->bptr, record->nelm, record->lopr, record->hopr);

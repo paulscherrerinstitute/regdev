@@ -92,12 +92,13 @@ typedef struct regDevPrivate{
     epicsInt32 hwLow;            /* Hardware Low limit */
     epicsInt32 hwHigh;           /* Hardware High limit */
     epicsUInt32 invert;          /* Invert bits for bi,bo,mbbi,... */
-    void* hwPtr;                 /* here we can add the bus address got from buf alloc routine */
+    void* hwPtr;                 /* here we can add the hardware (DMA) address from buf alloc routine */
     CALLBACK callback;           /* For asynchonous drivers */
     int status;                  /* For asynchonous drivers */
     epicsEventId initDone;       /* For asynchonous drivers */
     size_t asyncOffset;          /* For asynchonous drivers */
-    regDevAnytype result;        /* For asynchonous drivers */
+    regDevAnytype data;          /* For asynchonous drivers and arrays */
+    regDevAnytype mask;          /* For asynchonous drivers */
 } regDevPrivate;
 
 struct devsup {
@@ -116,26 +117,19 @@ int regDevCheckFTVL(dbCommon* record, int ftvl);
 int regDevIoParse(dbCommon* record, struct link* link);
 int regDevCheckType(dbCommon* record, int ftvl, int nelm);
 int regDevAssertType(dbCommon *record, int types);
-const char* regDevTypeName(int dtype);
+const char* regDevTypeName(unsigned short dtype);
 int regDevMemAlloc(dbCommon* record, void** bptr, size_t size);
 
 /* returns OK, ERROR, or ASYNC_COMPLETITION */
+/* here buffer must not point to local variable! */
 int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer);
-int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* pdata, void* mask);
+int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer, void* mask);
 
-int regDevReadScalar(dbCommon* record, epicsInt32* rval, double* fval, epicsUInt32 mask);
-int regDevWriteScalar(dbCommon* record, epicsInt32 rval, double fval, epicsUInt32 mask);
+int regDevReadNumber(dbCommon* record, epicsInt32* rval, double* fval);
+int regDevWriteNumber(dbCommon* record, epicsInt32 rval, double fval);
 
-#define regDevReadBits(record, val, mask)     regDevReadScalar(record, val, NULL, mask)
-#define regDevWriteBits(record, val, mask)    regDevWriteScalar(record, val, 0.0, mask)
-
-#define regDevReadInt(record, val)            regDevReadScalar(record, val, NULL, (epicsUInt32)-1)
-#define regDevWriteInt(record, val)           regDevWriteScalar(record, val, 0.0, (epicsUInt32)-1)
-
-#define regDevReadNumber(record, rval, fval)  regDevReadScalar(record, rval, fval, (epicsUInt32)-1)
-#define regDevWriteNumber(record, rval, fval) regDevWriteScalar(record, rval, fval, (epicsUInt32)-1)
-
-#define regDevReadStatus(record)              regDevRead(record, 0, 0, NULL)
+int regDevReadBits(dbCommon* record, epicsInt32* rval, epicsUInt32 mask);
+int regDevWriteBits(dbCommon* record, epicsInt32 rval, epicsUInt32 mask);
 
 /* returns OK or ERROR, or ASYNC_COMPLETITION */
 int regDevReadArray(dbCommon* record, size_t nelm);

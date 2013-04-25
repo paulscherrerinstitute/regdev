@@ -19,7 +19,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.38 2013/04/24 14:00:17 zimoch Exp $";
+    "$Id: regDev.c,v 1.39 2013/04/25 11:58:31 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -141,6 +141,21 @@ const static struct {char* name; int dlen; epicsType type;} datatypes [] =
     { "bcd",        1, regDevBCD8T   },
     { "time",       1, regDevBCD8T   } /* for backward compatibility */
 };
+
+const char* regDevTypeName(unsigned short dtype)
+{
+    const char* regDevTypeNames [] = { 
+        "regDevBCD8T",
+        "regDevBCD16T",
+        "regDevBCD32T",
+        "regDev64T"
+    };
+
+    if (dtype > regDevLastType) return "invalid";
+    return dtype < regDevFirstType ?
+        epicsTypeNames[dtype] :
+        regDevTypeNames[dtype-regDevFirstType];
+}
 
 long regDevParseExpr(char** pp);
 
@@ -872,21 +887,6 @@ regDevPrivate* regDevAllocPriv(dbCommon *record)
     return priv;
 }
 
-const char* regDevTypeName(int dtype)
-{
-    const char* regDevTypeNames [] = { 
-        "regDevBCD8T",
-        "regDevBCD16T",
-        "regDevBCD32T",
-        "regDev64T"
-    };
-
-    if (dtype > regDevLastType) return "invalid";
-    return dtype < regDevFirstType ?
-        epicsTypeNames[dtype] :
-        regDevTypeNames[dtype-regDevFirstType];
-}
-
 int regDevAssertType(dbCommon *record, int allowedTypes)
 {
     unsigned short dtype;
@@ -1151,6 +1151,8 @@ int regDevMemAlloc(dbCommon* record, void** bptr, size_t size)
 
 int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer)
 {
+    /* buffer must not point to local variable: not suitable for async processing */
+
     int status = OK;
     regDevPrivate* priv = record->dpvt;
     regDeviceNode* device;
@@ -1164,7 +1166,8 @@ int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer
     }
     assert (priv->magic == MAGIC);
     device = priv->device;
-    assert (device);
+    assert (device != NULL);
+    assert (buffer != NULL || nelem == 0 || dlen == 0);
     
     if (record->pact)
     {
@@ -1182,14 +1185,6 @@ int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer
         size_t offset;
         /* First call of (probably asynchronous) device */
 
-        if (buffer == NULL || (nelem == 1 && device->asupport))
-        {
-            /* buffer may point to local var, not suitable for async processing */
-            /* use persistent storage */
-            /* arrays however are always non-local */
-            buffer = &priv->result;
-        }
-
         /* At init we may use a different offset */
         if (!interruptAccept && priv->initoffset != DONT_INIT)
             offset = priv->initoffset;
@@ -1201,12 +1196,12 @@ int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer
                 struct {
                     DBRstatus
                     epicsInt32 i;
-                } buffer;
+                } fieldval;
                 long options = DBR_STATUS;
                 ssize_t off = offset;
 
-                status = dbGetField(priv->offsetRecord, DBR_LONG, &buffer, &options, NULL, NULL);
-                if (status == OK && buffer.severity == INVALID_ALARM) status = ERROR;
+                status = dbGetField(priv->offsetRecord, DBR_LONG, &fieldval, &options, NULL, NULL);
+                if (status == OK && fieldval.severity == INVALID_ALARM) status = ERROR;
                 if (status != OK)
                 {
                     recGblSetSevr(record, LINK_ALARM, INVALID_ALARM);
@@ -1214,12 +1209,12 @@ int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer
                         record->name, priv->offsetRecord->precord->name);
                     return status;
                 }
-                off += buffer.i * priv->offsetScale;
+                off += fieldval.i * priv->offsetScale;
                 if (off < 0)
                 {
                     regDevDebugLog(DBG_IN, "%s: effective offset '%s'=%d * %"Z"d + %"Z"d = %"Z"d < 0\n",
                         record->name, priv->offsetRecord->precord->name,
-                        buffer.i, priv->offsetScale, offset, off);
+                        fieldval.i, priv->offsetScale, offset, off);
                     return ERROR;
                 }
                 offset = off;
@@ -1270,25 +1265,25 @@ int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer
             case 1:
                 errlogSevPrintf(errlogInfo,
                     "%s: read %"Z"u * 8 bit 0x%02x from %s:%"Z"u (status=%x)\n",
-                    record->name, nelem, priv->result.uval8,
+                    record->name, nelem, *(epicsUInt8*)buffer,
                     device->name, priv->asyncOffset, status);
                 break;
             case 2:
                 errlogSevPrintf(errlogInfo,
                     "%s: read %"Z"u * 16 bit 0x%04x from %s:%"Z"u (status=%x)\n",
-                    record->name, nelem, priv->result.uval16,
+                    record->name, nelem, *(epicsUInt16*)buffer,
                     device->name, priv->asyncOffset, status);
                 break;
             case 4:
                 errlogSevPrintf(errlogInfo,
                     "%s: read %"Z"u * 32 bit 0x%08x from %s:%"Z"u (status=%x)\n",
-                    record->name, nelem, priv->result.uval32,
+                    record->name, nelem, *(epicsUInt32*)buffer,
                     device->name, priv->asyncOffset, status);
                 break;
             case 8:
                 errlogSevPrintf(errlogInfo,
                     "%s: read %"Z"u * 64 bit 0x%016llx from %s:%"Z"u (status=%x)\n",
-                    record->name, nelem, priv->result.uval64,
+                    record->name, nelem, *(epicsUInt64*)buffer,
                     device->name, priv->asyncOffset, status);
                 break;
             default:
@@ -1304,31 +1299,21 @@ int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer
         /* Prepare for  completition of asynchronous device */
         regDevDebugLog(DBG_IN, "%s: wait for asynchronous read completition\n", record->name);
         record->pact = 1;
-        return status;
     }
-    
-    if (status != OK && nelem != 0)
+    else if (status != OK && nelem != 0) /* nelem == 0 => only status readout */
     {
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
         regDevDebugLog(DBG_IN, "%s: read error\n", record->name);
-        return status;
     }
-    
-    if (buffer != NULL && nelem == 1 && device->asupport)
-    {
-        /* Got data after asyncronous completition:
-           Copy result back into user buffer */
-        memcpy(buffer, &priv->result, dlen);
-    }
-
     return status;
 }
 
-int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* pdata, void* mask)
+int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer, void* mask)
 {
+    /* buffer must not point to local variable: not suitable for async processing */
+
     int status;
     size_t offset;  
-    void* buffer;
     regDevPrivate* priv = record->dpvt;
     regDeviceNode* device;
     
@@ -1342,7 +1327,6 @@ int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* pdata
     assert (priv->magic == MAGIC);
     device = priv->device;
     assert (device);
-    assert (pdata != NULL);
     
     if (record->pact)
     {
@@ -1357,20 +1341,6 @@ int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* pdata
     }
     
     /* First call of (probably asynchronous) device */
-
-    if (nelem == 1 && device->asupport)
-    {
-        /* buffer may point to local var, not suitable for async processing */
-        /* copy user data into persistent storage */
-        /* arrays however are always non-local */
-        buffer = &priv->result;
-        memcpy(buffer, pdata, dlen);
-    }
-    else
-    {
-        buffer = pdata;
-    }
-
     offset = priv->offset;
     if (priv->offsetRecord)
     {
@@ -1495,19 +1465,16 @@ int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* pdata
         /* Prepare for  completition of asynchronous device */
         regDevDebugLog(DBG_OUT, "%s: wait for asynchronous write completition\n", record->name);
         record->pact = 1;
-        return status;
     }
-
-    if (status != OK)
+    else if (status != OK)
     {
         recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM);
         regDevDebugLog(DBG_OUT, "%s: write error\n", record->name);
     }
-    
     return status;
 }
 
-int regDevReadScalar(dbCommon* record, epicsInt32* rval, double* fval, epicsUInt32 mask)
+int regDevReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
 {
     int status = OK;
     epicsInt32 rv = 0;
@@ -1521,47 +1488,47 @@ int regDevReadScalar(dbCommon* record, epicsInt32* rval, double* fval, epicsUInt
         return ERROR;
     }
 
-    status = regDevRead(record, priv->dlen, 1, NULL);
+    status = regDevRead(record, priv->dlen, 1, &priv->data);
     if (status != OK)
         return status;
 
     switch (priv->dtype)
     {
         case epicsInt8T:
-            rv = priv->result.sval8;
+            rv = priv->data.sval8;
             break;
         case epicsUInt8T:
         case regDevBCD8T:
-            rv = priv->result.uval8;
+            rv = priv->data.uval8;
             break;
         case epicsInt16T:
-            rv = priv->result.sval16;
+            rv = priv->data.sval16;
             break;
         case epicsUInt16T:
         case regDevBCD16T:
-            rv = priv->result.uval16;
+            rv = priv->data.uval16;
             break;
         case epicsInt32T:
-            rv = priv->result.sval32;
+            rv = priv->data.sval32;
             break;
         case epicsUInt32T:
         case regDevBCD32T:
-            rv = priv->result.uval32;
+            rv = priv->data.uval32;
             break;
         case regDev64T:
-            rv = priv->result.uval64; /* cut off high bits */
+            rv = priv->data.uval64; /* cut off high bits */
             break;
         case epicsFloat32T:
-            fv = priv->result.fval32;
+            fv = priv->data.fval32;
             break;
         case epicsFloat64T:
-            fv = priv->result.fval64;
+            fv = priv->data.fval64;
             break;
         default:
-            recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
+            recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
             fprintf(stderr,
-                "%s: unexpected data type requested\n",
-                record->name);
+                "regDevReadScalar %s: unexpected data %s type requested\n",
+                record->name, regDevTypeName(priv->dtype));
             return ERROR;
     }
 
@@ -1587,14 +1554,12 @@ int regDevReadScalar(dbCommon* record, epicsInt32* rval, double* fval, epicsUInt
             return DONT_CONVERT;
     }
     assert(rval != NULL);
-    *rval = (rv ^ priv->invert) & mask;
+    *rval = rv;
     return OK;
 }
 
-int regDevWriteScalar(dbCommon* record, epicsInt32 rval, double fval, epicsUInt32 mask)
+int regDevWriteNumber(dbCommon* record, epicsInt32 rval, double fval)
 {
-    int status;
-    regDevAnytype v, m;
     regDevPrivate* priv = record->dpvt;
 
     if (!priv)
@@ -1607,75 +1572,192 @@ int regDevWriteScalar(dbCommon* record, epicsInt32 rval, double fval, epicsUInt3
 
     regDevCheckAsyncWriteResult(record);
     
-    regDevDebugLog(DBG_OUT, "regDevWriteScalar(record=%s, rval=0x%08x , fval=%g, mask=0x%08x)\n",
-        record->name, rval, fval, mask);
+    regDevDebugLog(DBG_OUT, "regDevWriteNumber(record=%s, rval=0x%08x, fval=%g)\n",
+        record->name, rval, fval);
     
     /* enforce bounds */
-    if (rval > priv->hwHigh)
+    switch (priv->dtype)
     {
-        regDevDebugLog(DBG_OUT, "%s: limit output from 0x%08x to upper bound 0x%08x\n",
-            record->name, rval, priv->hwHigh);
-        rval = priv->hwHigh;
-    }
-    if (rval < priv->hwLow)
-    {
-        regDevDebugLog(DBG_OUT, "%s: limit output from 0x%08x to lower bound 0x%08x\n",
-            record->name, rval, priv->hwLow);
-        rval = priv->hwLow;
+        case epicsFloat32T:
+        case epicsFloat64T:
+            break;
+        case epicsUInt32T:
+        case regDevBCD32T:
+            if ((epicsUInt32)rval > (epicsUInt32)priv->hwHigh)
+            {
+                regDevDebugLog(DBG_OUT, "%s: limit output from 0x%08x to upper bound 0x%08x\n",
+                    record->name, rval, priv->hwHigh);
+                rval = priv->hwHigh;
+            }
+            if ((epicsUInt32)rval < (epicsUInt32)priv->hwLow)
+            {
+                regDevDebugLog(DBG_OUT, "%s: limit output from 0x%08x to lower bound 0x%08x\n",
+                    record->name, rval, priv->hwLow);
+                rval = priv->hwLow;
+            }
+            break;
+        default:
+            if (rval > priv->hwHigh)
+            {
+                regDevDebugLog(DBG_OUT, "%s: limit output from 0x%08x to upper bound 0x%08x\n",
+                    record->name, rval, priv->hwHigh);
+                rval = priv->hwHigh;
+            }
+            if (rval < priv->hwLow)
+            {
+                regDevDebugLog(DBG_OUT, "%s: limit output from 0x%08x to lower bound 0x%08x\n",
+                    record->name, rval, priv->hwLow);
+                rval = priv->hwLow;
+            }
     }
 
-    rval ^= priv->invert;
-    
     switch (priv->dtype)
     {
         case regDevBCD8T:
             rval = i2bcd(rval);
         case epicsInt8T:
         case epicsUInt8T:
-            v.uval8 = rval;
-            m.uval8 = mask;
-            status = regDevWrite(record, 1, 1, &v,
-                m.uval8 == 0xFF ? NULL : &m);
+            priv->data.uval8 = rval;
             break;
         case regDevBCD16T:
             rval = i2bcd(rval);
         case epicsInt16T:
         case epicsUInt16T:
-            v.uval16 = rval;
-            m.uval16 = mask;
-            status = regDevWrite(record, 2, 1, &v,
-                m.uval16 == 0xFFFF ? NULL : &m);
+            priv->data.uval16 = rval;
             break;
         case regDevBCD32T:
             rval = i2bcd(rval);
         case epicsInt32T:
         case epicsUInt32T:
-            v.uval32 = rval;
-            m.uval32 = mask;
-            status = regDevWrite(record, 4, 1, &v,
-                m.uval32 == 0xFFFFFFFFUL ? NULL : &m);
+            priv->data.uval32 = rval;
             break;
         case regDev64T:
-            v.uval64 = rval;
-            m.uval64 = mask;
-            status = regDevWrite(record, 8, 1, &v, &m);
+            priv->data.uval64 = rval;
             break;
         case epicsFloat32T:
-            v.fval32 = fval;
-            status = regDevWrite(record, 4, 1, &v, NULL);
+            priv->data.fval32 = fval;
             break;
         case epicsFloat64T:
-            v.fval64 = fval;
-            status = regDevWrite(record, 8, 1, &v, NULL);
+            priv->data.fval64 = fval;
             break;
         default:
-            recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
+            recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
             fprintf(stderr,
-                "%s: unexpected data type requested\n",
-                record->name);
+                "regDevWriteNumber %s: unexpected data type %s requested\n",
+                record->name, regDevTypeName(priv->dtype));
             return ERROR;
     }
-    return status;
+    return regDevWrite(record, priv->dlen, 1, &priv->data, NULL);
+}
+
+int regDevReadBits(dbCommon* record, epicsInt32* rval, epicsUInt32 mask)
+{
+    int status = OK;
+    epicsInt32 rv = 0;
+    regDevPrivate* priv = record->dpvt;
+
+    if (!priv)
+    {
+        recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
+        fprintf(stderr, "%s: not initialized\n", record->name);
+        return ERROR;
+    }
+
+    status = regDevRead(record, priv->dlen, 1, &priv->data);
+    if (status != OK)
+        return status;
+
+    switch (priv->dtype)
+    {
+        case epicsInt8T:
+            rv = priv->data.sval8;
+            break;
+        case epicsUInt8T:
+            rv = priv->data.uval8;
+            break;
+        case epicsInt16T:
+            rv = priv->data.sval16;
+            break;
+        case epicsUInt16T:
+            rv = priv->data.uval16;
+            break;
+        case epicsInt32T:
+            rv = priv->data.sval32;
+            break;
+        case epicsUInt32T:
+            rv = priv->data.uval32;
+            break;
+        case regDev64T:
+            rv = priv->data.uval64; /* cut off high bits */
+            break;
+        default:
+            recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
+            fprintf(stderr,
+                "regDevReadScalar %s: unexpected data %s type requested\n",
+                record->name, regDevTypeName(priv->dtype));
+            return ERROR;
+    }
+
+    if (!interruptAccept)
+    {
+        /* initialize output record to valid state */
+        record->sevr = NO_ALARM;
+        record->stat = NO_ALARM;
+    }
+    
+    assert(rval != NULL);
+    *rval = (rv ^ priv->invert) & mask;
+    return OK;
+}
+
+int regDevWriteBits(dbCommon* record, epicsInt32 rval, epicsUInt32 mask)
+{
+    regDevPrivate* priv = record->dpvt;
+
+    if (!priv)
+    {
+        recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
+        fprintf(stderr,
+            "%s: not initialized\n", record->name);
+        return ERROR;
+    }
+
+    regDevCheckAsyncWriteResult(record);
+    
+    regDevDebugLog(DBG_OUT, "regDevWriteBits record=%s, rval=0x%08x, mask=0x%08x)\n",
+        record->name, rval, mask);
+    
+    rval ^= priv->invert;
+    
+    switch (priv->dtype)
+    {
+        case epicsInt8T:
+        case epicsUInt8T:
+            priv->data.uval8 = rval;
+            priv->mask.uval8 = mask;
+            break;
+        case epicsInt16T:
+        case epicsUInt16T:
+            priv->data.uval16 = rval;
+            priv->mask.uval16 = mask;
+            break;
+        case epicsInt32T:
+        case epicsUInt32T:
+            priv->data.uval32 = rval;
+            priv->mask.uval32 = mask;
+            break;
+        case regDev64T:
+            priv->data.uval64 = rval;
+            priv->mask.uval64 = mask;
+            break;
+        default:
+            recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
+            fprintf(stderr,
+                "regDevWriteBits %s: unexpected data type %s requested\n",
+                record->name, regDevTypeName(priv->dtype));
+            return ERROR;
+    }
+    return regDevWrite(record, priv->dlen, 1, &priv->data, &priv->mask);
 }
 
 int regDevReadArray(dbCommon* record, size_t nelm)
@@ -1708,7 +1790,7 @@ int regDevReadArray(dbCommon* record, size_t nelm)
     if (packing)
     {
         /* FIFO: read element wise */
-        char* buffer = priv->result.buffer;
+        char* buffer = priv->data.buffer;
         dlen *= packing;
         for (i = 0; i < nelm/packing; i++)
         {
@@ -1722,7 +1804,7 @@ int regDevReadArray(dbCommon* record, size_t nelm)
     {
         packing = priv->arraypacking;
         status = regDevRead(record,
-            dlen*packing, nelm/packing, priv->result.buffer);
+            dlen*packing, nelm/packing, priv->data.buffer);
     }
 
     if (status != OK) return status;
@@ -1731,21 +1813,21 @@ int regDevReadArray(dbCommon* record, size_t nelm)
     {
         case regDevBCD8T:
         {
-            epicsUInt8* buffer = priv->result.buffer;
+            epicsUInt8* buffer = priv->data.buffer;
             for (i = 0; i < nelm; i++)
                 buffer[i] = bcd2i(buffer[i]);
             break;
         }
         case regDevBCD16T:
         {
-            epicsUInt16* buffer = priv->result.buffer;
+            epicsUInt16* buffer = priv->data.buffer;
             for (i = 0; i < nelm; i++)
                 buffer[i] = bcd2i(buffer[i]);
             break;
         }
         case regDevBCD32T:
         {
-            epicsUInt32* buffer = priv->result.buffer;
+            epicsUInt32* buffer = priv->data.buffer;
             for (i = 0; i < nelm; i++)
                 buffer[i] = bcd2i(buffer[i]);
             break;
@@ -1786,21 +1868,21 @@ int regDevWriteArray(dbCommon* record, size_t nelm)
     {
         case regDevBCD8T:
         {
-            epicsUInt8* buffer = priv->result.buffer;
+            epicsUInt8* buffer = priv->data.buffer;
             for (i = 0; i < nelm; i++)
                 buffer[i] = i2bcd(buffer[i]);
             break;
         }
         case regDevBCD16T:
         {
-            epicsUInt16* buffer = priv->result.buffer;
+            epicsUInt16* buffer = priv->data.buffer;
             for (i = 0; i < nelm; i++)
                 buffer[i] = i2bcd(buffer[i]);
             break;
         }
         case regDevBCD32T:
         {
-            epicsUInt32* buffer = priv->result.buffer;
+            epicsUInt32* buffer = priv->data.buffer;
             for (i = 0; i < nelm; i++)
                 buffer[i] = i2bcd(buffer[i]);
             break;
@@ -1811,7 +1893,7 @@ int regDevWriteArray(dbCommon* record, size_t nelm)
     if (packing)
     {
         /* FIFO: write element wise */
-        char* buffer = priv->result.buffer;
+        char* buffer = priv->data.buffer;
         dlen *= packing;
         for (i = 0; i < nelm/packing; i++)
         {
@@ -1823,7 +1905,7 @@ int regDevWriteArray(dbCommon* record, size_t nelm)
     else
     {
         packing = priv->arraypacking;
-        status = regDevWrite(record, dlen*packing, nelm/packing, priv->result.buffer, NULL);
+        status = regDevWrite(record, dlen*packing, nelm/packing, priv->data.buffer, NULL);
     }
     return status;
 }
@@ -1851,7 +1933,7 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
     {
         case epicsInt8T:
         {
-            epicsInt8* r = priv->result.buffer;
+            epicsInt8* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
@@ -1868,7 +1950,7 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
         case epicsUInt8T:
         case regDevBCD8T:
         {
-            epicsUInt8* r = priv->result.buffer;
+            epicsUInt8* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
@@ -1884,7 +1966,7 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
         }
         case epicsInt16T:
         {
-            epicsInt16* r = priv->result.buffer;
+            epicsInt16* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
@@ -1901,7 +1983,7 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
         case epicsUInt16T:
         case regDevBCD16T:
         {
-            epicsUInt16* r = priv->result.buffer;
+            epicsUInt16* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
@@ -1917,7 +1999,7 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
         }
         case epicsInt32T:
         {
-            epicsInt32* r = priv->result.buffer;
+            epicsInt32* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
@@ -1935,7 +2017,7 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
         case regDevBCD32T:
         {
             /* we need to care more about the type of hwHigh and hwLow here */
-            epicsUInt32* r = priv->result.buffer;
+            epicsUInt32* r = priv->data.buffer;
             
             s = (double)(epicsUInt32)priv->hwHigh - (epicsUInt32)priv->hwLow;
             o = ((epicsUInt32)priv->hwHigh * low - (epicsUInt32)priv->hwLow * high) / s;
@@ -1955,7 +2037,7 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
             return OK;
         }
     }
-    recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
+    recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
     fprintf(stderr,
         "%s: unexpected conversion from %s to %s\n",
         record->name, regDevTypeName(priv->dtype), pamapdbfType[ftvl].strvalue);
@@ -1985,7 +2067,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
     {
         case epicsInt8T:
         {
-            epicsInt8* r = priv->result.buffer;
+            epicsInt8* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
@@ -2012,7 +2094,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
         case epicsUInt8T:
         case regDevBCD8T:
         {
-            epicsUInt8* r = priv->result.buffer;
+            epicsUInt8* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
@@ -2038,7 +2120,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
         }
         case epicsInt16T:
         {
-            epicsInt16* r = priv->result.buffer;
+            epicsInt16* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
@@ -2065,7 +2147,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
         case epicsUInt16T:
         case regDevBCD16T:
         {
-            epicsUInt16* r = priv->result.buffer;
+            epicsUInt16* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
@@ -2091,7 +2173,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
         }
         case epicsInt32T:
         {
-            epicsInt32* r = priv->result.buffer;
+            epicsInt32* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
@@ -2119,7 +2201,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
         case regDevBCD32T:
         {
             /* we need to care more about the type of hwHigh and hwLow here */
-            epicsUInt32* r = priv->result.buffer;
+            epicsUInt32* r = priv->data.buffer;
             
             s = (double)(epicsUInt32)priv->hwHigh - (epicsUInt32)priv->hwLow;
             o = ((epicsUInt32)priv->hwLow * high - (epicsUInt32)priv->hwHigh * low) / s;
@@ -2149,7 +2231,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             return OK;
         }
     }
-    recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
+    recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
     fprintf(stderr,
         "%s: unexpected conversion from %s to %s\n",
         record->name, pamapdbfType[ftvl].strvalue, regDevTypeName(priv->dtype));

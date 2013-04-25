@@ -40,7 +40,7 @@ long regDevInitRecordAai(aaiRecord* record)
     /* aai record does not allocate bptr. */
     if ((status = regDevMemAlloc((dbCommon*)record, (void*)&record->bptr, record->nelm * priv->dlen)) != OK)
         return status;
-    priv->result.buffer = record->bptr;
+    priv->data.buffer = record->bptr;
     if ((status = regDevCheckType((dbCommon*)record, record->ftvl, record->nelm)) != OK)
     {
         if (status != ARRAY_CONVERT) return status;
@@ -65,8 +65,9 @@ long regDevReadAai(aaiRecord* record)
     status = regDevReadArray((dbCommon*)record, record->nelm);
     if (status == ASYNC_COMPLETITION) return OK;
     if (status != OK) return status;
-    if (priv->result.buffer != record->bptr)
+    if (priv->data.buffer != record->bptr)
     {    
+         /* convert to float/double */
         return regDevScaleFromRaw((dbCommon*)record, record->ftvl,
             record->bptr, record->nelm, record->lopr, record->hopr);
     }
@@ -110,7 +111,7 @@ long regDevInitRecordAao(aaoRecord* record)
     /* aao record does not allocate bptr. */
     if ((status = regDevMemAlloc((dbCommon*)record, (void *)&record->bptr, record->nelm * priv->dlen)) != OK)
         return status;
-    priv->result.buffer = record->bptr;
+    priv->data.buffer = record->bptr;
     if ((status = regDevCheckType((dbCommon*)record, record->ftvl, record->nelm)) != OK)
     {
         if (status != ARRAY_CONVERT) return status;
@@ -120,8 +121,9 @@ long regDevInitRecordAao(aaoRecord* record)
     if (priv->initoffset != DONT_INIT)
     {
         status = regDevReadArray((dbCommon*)record, record->nelm);
-        if (status == OK && priv->result.buffer != record->bptr)
+        if (status == OK && priv->data.buffer != record->bptr)
         {    
+            /* convert to float/double */
             status = regDevScaleFromRaw((dbCommon*)record, record->ftvl,
                 record->bptr, record->nelm, record->lopr, record->hopr);
         }
@@ -142,8 +144,9 @@ long regDevWriteAao(aaoRecord* record)
         fprintf (stderr, "regDevWriteAao %s: private buffer is not allocated\n", record->name);
         return S_dev_noMemory;
     }
-    if (priv->result.buffer != record->bptr)
+    if (priv->data.buffer != record->bptr)
     {
+         /* convert from float/double */
         status = regDevScaleToRaw((dbCommon*)record, record->ftvl,
                 record->bptr, record->nelm, record->lopr, record->hopr);
         if (status) return status;
