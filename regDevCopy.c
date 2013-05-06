@@ -1,5 +1,4 @@
 #include "regDevSup.h"
-#include <string.h>
 
 /* driver helper function ***************************************************/
 
