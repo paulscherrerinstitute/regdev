@@ -12,3 +12,8 @@ CMPLR = ANSI
 
 test:
 	make -C test test
+
+copytest: regDevCopy.c
+	gcc -o copytest regDevCopy.c -DTESTCASE -I /usr/local/epics/base/include -I /usr/local/epics/base/include/os/Linux
+	./copytest
+	rm copytest
