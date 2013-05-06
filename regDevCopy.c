@@ -36,10 +36,25 @@
 #define bswap_8(x) (x)
 
 #define COPY(N, nelem, src, dest) \
-    memcpy ((void*)(dest), (void*)(src), N/8*(nelem))
+{ \
+    volatile epicsUInt##N* s = src;\
+    volatile epicsUInt##N* d = dest;\
+    while (nelem--) \
+    { \
+        *d++ = *s++; \
+    } \
+}
 
 #define COPY_D(N, dlen, nelem, src, dest) \
-    memcpy ((void*)(dest), (void*)(src), N/8*(nelem)*(dlen))
+{ \
+    volatile epicsUInt##N* s = src;\
+    volatile epicsUInt##N* d = dest;\
+    int i = nelem * dlen; \
+    while (i--) \
+    { \
+        *d++ = *s++; \
+    } \
+}
 
 #define COPY_SWAP(N, nelem, src, dest) \
 { \
@@ -281,6 +296,7 @@ void regDevCopy(unsigned int dlen, size_t nelem, volatile void* src, volatile vo
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 static void printfbuf(char*b, int n)
 {
