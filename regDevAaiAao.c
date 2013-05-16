@@ -63,6 +63,7 @@ long regDevReadAai(aaiRecord* record)
         return S_dev_noMemory;
     }
     status = regDevReadArray((dbCommon*)record, record->nelm);
+    record->nord = record->nelm;
     if (status == ASYNC_COMPLETITION) return OK;
     if (status != OK) return status;
     if (priv->data.buffer != record->bptr)

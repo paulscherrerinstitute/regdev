@@ -918,6 +918,7 @@ long regDevReadWaveform(waveformRecord* record)
     int status;
 
     status = regDevReadArray((dbCommon*) record, record->nelm);
+    record->nord = record->nelm;
     if (status == ASYNC_COMPLETITION) return OK;
     if (status != OK) return status;
     if (priv->data.buffer != record->bptr)
