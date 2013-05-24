@@ -10,8 +10,9 @@
 #include <memLib.h>
 #endif
 
-#include "recSup.h"
 #define epicsTypesGLOBAL
+#include <dbAccess.h>
+#include "recSup.h"
 #include "regDevSup.h"
 
 #ifndef __GNUC__
@@ -19,7 +20,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.39 2013/04/25 11:58:31 zimoch Exp $";
+    "$Id: regDev.c,v 1.40 2013/05/24 15:04:28 brands Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -42,12 +43,12 @@ static void regDevCallback(CALLBACK *callback)
 {
     struct dbCommon* record;
     regDevPrivate* priv;
-    
+
     callbackGetUser(record, callback);
     priv = record->dpvt;
     assert (priv != NULL);
     assert (priv->magic == MAGIC);
-    
+
     if (!interruptAccept)
     {
         epicsEventSignal(priv->initDone);
@@ -134,7 +135,7 @@ const static struct {char* name; int dlen; epicsType type;} datatypes [] =
     { "uint64",     8, regDev64T     },
     { "unsign64",   8, regDev64T     },
     { "unsigned64", 8, regDev64T     },
-    
+
     { "bcd8",       1, regDevBCD8T   },
     { "bcd16",      2, regDevBCD16T  },
     { "bcd32",      4, regDevBCD32T  },
@@ -144,7 +145,7 @@ const static struct {char* name; int dlen; epicsType type;} datatypes [] =
 
 const char* regDevTypeName(unsigned short dtype)
 {
-    const char* regDevTypeNames [] = { 
+    const char* regDevTypeNames [] = {
         "regDevBCD8T",
         "regDevBCD16T",
         "regDevBCD32T",
@@ -160,11 +161,11 @@ const char* regDevTypeName(unsigned short dtype)
 long regDevParseExpr(char** pp);
 
 long regDevParseValue(char** pp)
-{   
+{
     long val;
     char *p = *pp;
     int neg = 0;
-    
+
     if (*p == '+' || *p == '-') neg = *p++ == '-';
     while (isspace((unsigned char)*p)) p++;
     if (*p == '(')
@@ -199,7 +200,7 @@ long regDevParseExpr(char** pp)
     long sum = 0;
     long val;
     char *p = *pp;
-    
+
     do {
         val = regDevParseValue(&p);
         val *= regDevParseProd(&p);
@@ -220,7 +221,7 @@ int regDevIoParse2(
     char separator;
     int nchar;
     int status = 0;
-    
+
     static const int maxtype = sizeof(datatypes)/sizeof(*datatypes);
     int type = 0;
     int hset = 0;
@@ -231,11 +232,11 @@ int regDevIoParse2(
     regDevDebugLog(DBG_INIT, "regDevIoParse %s: \"%s\"\n", recordName, parameterstring);
 
     /* Get rid of leading whitespace and non-alphanumeric chars */
-    while (!isalnum((unsigned char)*p)) if (*p++ == '\0') 
+    while (!isalnum((unsigned char)*p)) if (*p++ == '\0')
     {
         fprintf(stderr,
             "regDevIoParse %s: no device name in parameter string \"%s\"\n",
-            recordName, parameterstring);        
+            recordName, parameterstring);
         return S_dev_badArgument;
     }
 
@@ -260,13 +261,13 @@ int regDevIoParse2(
         return S_dev_noDevice;
     }
     priv->device = device;
-    
+
     /* Check device offset (for backward compatibility allow '/') */
     if (separator == ':' || separator == '/')
     {
         long offset = 0;
         while (isspace((unsigned char)*p)) p++;
-        
+
         if (!isdigit((unsigned char)*p))
         {
             /* expect record name, maybe in ' quotes, maby in () */
@@ -274,10 +275,10 @@ int regDevIoParse2(
             int i = 0;
             char q = 0;
             char b = 0;
-            
+
             if (*p == '(')
             {
-                b = *p++; 
+                b = *p++;
                 while (isspace((unsigned char)*p)) p++;
             }
             if (*p == '\'') q = *p++;
@@ -309,7 +310,7 @@ int regDevIoParse2(
                 }
             }
         }
-        
+
         offset += regDevParseExpr(&p);
         if (offset < 0 && !priv->offsetRecord)
         {
@@ -367,7 +368,7 @@ int regDevIoParse2(
     priv->hwLow = 0;
     priv->hwHigh = 0;
     priv->invert = 0;
-    
+
     /* allow whitespaces before parameter for device support */
     while ((separator == '\t') || (separator == ' '))
         separator = *p++;
@@ -375,7 +376,7 @@ int regDevIoParse2(
     /* driver parameter for device support if present */
 
     if (separator != '\'') p--; /* optional quote for compatibility */
-    
+
     /* parse parameters */
     while (p && *p)
     {
@@ -386,7 +387,7 @@ int regDevIoParse2(
                 p++;
                 break;
             case 'T': /* T=<datatype> */
-                p+=2; 
+                p+=2;
                 for (type = 0; type < maxtype; type++)
                 {
                     nchar = startswith(p, datatypes[type].name);
@@ -446,7 +447,7 @@ int regDevIoParse2(
                 return S_dev_badArgument;
         }
     }
-    
+
     /* check if bit number is in range */
     if (priv->dlen && priv->bit >= priv->dlen*8)
     {
@@ -455,7 +456,7 @@ int regDevIoParse2(
             recordName, priv->bit, priv->dlen*8-1);
         return S_dev_badArgument;
     }
-    
+
     /* get default values for L and H if user did'n define them */
     switch (priv->dtype)
     {
@@ -526,7 +527,7 @@ int regDevIoParse2(
                     hset?"H":"",
                     datatypes[type].name);
             }
-            break;   
+            break;
     }
     priv->hwLow = hwLow;
     priv->hwHigh = hwHigh;
@@ -543,7 +544,7 @@ int regDevIoParse2(
             recordName, priv->hwLow, priv->hwLow, priv->hwHigh, priv->hwHigh, datatypes[type].name);
         return status;
     }
-    
+
     return OK;
 }
 
@@ -577,8 +578,8 @@ int regDevRegisterDevice2(const char* name,
     regDevice* driver)
 {
     char* nameCpy;
-    
-    regDeviceNode **pdevice; 
+
+    regDeviceNode **pdevice;
     for (pdevice=&registeredDevices; *pdevice; pdevice=&(*pdevice)->next)
     {
         if (strcmp((*pdevice)->name, name) == 0)
@@ -632,7 +633,7 @@ long regDevGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
 {
     regDevPrivate* priv = record->dpvt;
     regDeviceNode* device;
-    
+
     if (priv == NULL)
     {
         fprintf(stderr,
@@ -680,7 +681,7 @@ long regDevGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
 {
     regDevPrivate* priv = record->dpvt;
     regDeviceNode* device;
-    
+
     if (priv == NULL)
     {
         fprintf(stderr,
@@ -729,7 +730,7 @@ long regDevReport(int level)
 {
     regDeviceNode* device;
     int headerPrinted;
-    
+
     printf("  regDev version: %s\n", cvsid_regDev);
     if (level < 1) return OK;
     headerPrinted = 0;
@@ -826,12 +827,12 @@ struct drvsupAsyn {
 epicsExportAddress(drvet, regDevAsyn);
 
 /* routine to convert bytes from BCD to integer format. */
- 
+
 static unsigned long bcd2i(unsigned long bcd)
 {
     unsigned long i = 0;
     unsigned long m = 1;
-    
+
     while (bcd)
     {
         i += (bcd & 0xF) * m;
@@ -842,12 +843,12 @@ static unsigned long bcd2i(unsigned long bcd)
 }
 
 /* routine to convert bytes from integer to BCD format. */
- 
+
 static unsigned long i2bcd(unsigned long i)
 {
     int bcd = 0;
     int s = 0;
-    
+
     while (i)
     {
         bcd += (i % 10) << s;
@@ -901,7 +902,7 @@ int regDevAssertType(dbCommon *record, int allowedTypes)
     }
     assert (priv->magic == MAGIC);
     dtype = priv->dtype;
-    
+
     regDevDebugLog(DBG_INIT, "regDevAssertType(%s,%s%s%s%s) %s\n",
         record->name,
         allowedTypes && TYPE_INT ? " INT" : "",
@@ -1007,7 +1008,7 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
 {
     regDevPrivate* priv = record->dpvt;
     regDeviceNode* device;
-    
+
     if (priv == NULL)
     {
         fprintf(stderr,
@@ -1034,7 +1035,7 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
             if (ftvl == DBF_FLOAT)
                 return OK;
             break;
-        case epicsStringT:    
+        case epicsStringT:
             if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
             {
                 if (!priv->dlen) priv->dlen = nelm;
@@ -1112,7 +1113,7 @@ int regDevMemAlloc(dbCommon* record, void** bptr, size_t size)
     void* ptr = NULL;
     regDevPrivate* priv = record->dpvt;
     regDeviceNode* device;
-    
+
     if (priv == NULL)
     {
         fprintf(stderr,
@@ -1135,7 +1136,7 @@ int regDevMemAlloc(dbCommon* record, void** bptr, size_t size)
                 "regDevMemAlloc %s: allocating device memory failed.",
                 record->name);
         }
-        return status;    
+        return status;
     }
     ptr = (char *)calloc(1, size);
     if (ptr == NULL)
@@ -1156,7 +1157,7 @@ int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer
     int status = OK;
     regDevPrivate* priv = record->dpvt;
     regDeviceNode* device;
-    
+
     if (priv == NULL)
     {
         fprintf(stderr,
@@ -1168,7 +1169,7 @@ int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer
     device = priv->device;
     assert (device != NULL);
     assert (buffer != NULL || nelem == 0 || dlen == 0);
-    
+
     if (record->pact)
     {
         /* Second call of asynchronous device */
@@ -1241,7 +1242,7 @@ int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer
                 record->prio);
         else status = ERROR;
         epicsMutexUnlock(device->accesslock);
-    
+
         /* At init wait for completition of asynchronous device */
         if (!interruptAccept && status == ASYNC_COMPLETITION)
         {
@@ -1313,10 +1314,10 @@ int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* buffe
     /* buffer must not point to local variable: not suitable for async processing */
 
     int status;
-    size_t offset;  
+    size_t offset;
     regDevPrivate* priv = record->dpvt;
     regDeviceNode* device;
-    
+
     if (priv == NULL)
     {
         fprintf(stderr,
@@ -1327,7 +1328,7 @@ int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* buffe
     assert (priv->magic == MAGIC);
     device = priv->device;
     assert (device);
-    
+
     if (record->pact)
     {
         /* Second call of asynchronous device */
@@ -1339,7 +1340,7 @@ int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* buffe
         }
         return priv->status;
     }
-    
+
     /* First call of (probably asynchronous) device */
     offset = priv->offset;
     if (priv->offsetRecord)
@@ -1430,7 +1431,7 @@ int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* buffe
                     device->name, offset);
         }
     }
-    
+
     priv->status = OK;
     epicsMutexLock(device->accesslock);
     if (device->asupport && device->asupport->write)
@@ -1538,7 +1539,7 @@ int regDevReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
         record->sevr = NO_ALARM;
         record->stat = NO_ALARM;
     }
-    
+
     switch (priv->dtype)
     {
         case regDevBCD8T:
@@ -1571,10 +1572,10 @@ int regDevWriteNumber(dbCommon* record, epicsInt32 rval, double fval)
     }
 
     regDevCheckAsyncWriteResult(record);
-    
+
     regDevDebugLog(DBG_OUT, "regDevWriteNumber(record=%s, rval=0x%08x, fval=%g)\n",
         record->name, rval, fval);
-    
+
     /* enforce bounds */
     switch (priv->dtype)
     {
@@ -1704,7 +1705,7 @@ int regDevReadBits(dbCommon* record, epicsInt32* rval, epicsUInt32 mask)
         record->sevr = NO_ALARM;
         record->stat = NO_ALARM;
     }
-    
+
     assert(rval != NULL);
     *rval = (rv ^ priv->invert) & mask;
     return OK;
@@ -1723,12 +1724,12 @@ int regDevWriteBits(dbCommon* record, epicsInt32 rval, epicsUInt32 mask)
     }
 
     regDevCheckAsyncWriteResult(record);
-    
+
     regDevDebugLog(DBG_OUT, "regDevWriteBits record=%s, rval=0x%08x, mask=0x%08x)\n",
         record->name, rval, mask);
-    
+
     rval ^= priv->invert;
-    
+
     switch (priv->dtype)
     {
         case epicsInt8T:
@@ -1767,7 +1768,7 @@ int regDevReadArray(dbCommon* record, size_t nelm)
     unsigned short dlen;
     int packing;
     regDevPrivate* priv = record->dpvt;
-    
+
     if (!priv)
     {
         recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
@@ -1775,7 +1776,7 @@ int regDevReadArray(dbCommon* record, size_t nelm)
             "%s: not initialized\n", record->name);
         return ERROR;
     }
-    
+
     if (priv->dtype == epicsStringT)
     {
         /* strings are arrays of single bytes but priv->dlen contains string length */
@@ -1785,7 +1786,7 @@ int regDevReadArray(dbCommon* record, size_t nelm)
     }
     else
         dlen = priv->dlen;
-    
+
     packing = priv->fifopacking;
     if (packing)
     {
@@ -1808,7 +1809,7 @@ int regDevReadArray(dbCommon* record, size_t nelm)
     }
 
     if (status != OK) return status;
-    
+
     switch (priv->dtype)
     {
         case regDevBCD8T:
@@ -1851,7 +1852,7 @@ int regDevWriteArray(dbCommon* record, size_t nelm)
             "%s: not initialized\n", record->name);
         return ERROR;
     }
-    
+
     if (priv->dtype == epicsStringT)
     {
         /* strings are arrays of single bytes but priv->dlen contains string length */
@@ -1863,7 +1864,7 @@ int regDevWriteArray(dbCommon* record, size_t nelm)
     {
         dlen = priv->dlen;
     }
-    
+
     switch (priv->dtype)
     {
         case regDevBCD8T:
@@ -1915,7 +1916,7 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
     double o, s;
     size_t i;
     regDevPrivate* priv = record->dpvt;
-    
+
     if (priv == NULL)
     {
         fprintf(stderr,
@@ -2018,11 +2019,11 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
         {
             /* we need to care more about the type of hwHigh and hwLow here */
             epicsUInt32* r = priv->data.buffer;
-            
+
             s = (double)(epicsUInt32)priv->hwHigh - (epicsUInt32)priv->hwLow;
             o = ((epicsUInt32)priv->hwHigh * low - (epicsUInt32)priv->hwLow * high) / s;
             s = (high - low) / s;
-            
+
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
@@ -2049,7 +2050,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
     double o, s, x;
     size_t i;
     regDevPrivate* priv = record->dpvt;
-    
+
     if (priv == NULL)
     {
         fprintf(stderr,
@@ -2202,7 +2203,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
         {
             /* we need to care more about the type of hwHigh and hwLow here */
             epicsUInt32* r = priv->data.buffer;
-            
+
             s = (double)(epicsUInt32)priv->hwHigh - (epicsUInt32)priv->hwLow;
             o = ((epicsUInt32)priv->hwLow * high - (epicsUInt32)priv->hwHigh * low) / s;
             s = s / (high - low);

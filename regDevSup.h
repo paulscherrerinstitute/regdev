@@ -14,6 +14,12 @@
 #include <recGbl.h>
 #include <assert.h>
 
+#ifdef _WIN32
+ #include <BaseTsd.h>
+ #define ssize_t SSIZE_T
+#endif
+
+
 #ifdef EPICS_3_14
 #include <epicsExport.h>
 #include <epicsMutex.h>

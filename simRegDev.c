@@ -1,7 +1,11 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifndef _WIN32
 #include <unistd.h>
+#endif
+
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -15,8 +19,12 @@
 
 #define MAGIC 322588966U /* crc("simRegDev") */
 
+#ifndef __GNUC__
+#define  __attribute__(x)  /*NOTHING*/
+#endif
+
 static char cvsid_simRegDev[] __attribute__((unused)) =
-    "$Id: simRegDev.c,v 1.9 2013/04/25 11:59:10 zimoch Exp $";
+    "$Id: simRegDev.c,v 1.10 2013/05/24 15:04:28 brands Exp $";
 
 typedef struct simRegDevAsyncMessage {
     struct simRegDevAsyncMessage* next;
@@ -49,7 +57,7 @@ struct regDevice {
 int simRegDevDebug = 0;
 epicsExportAddress(int, simRegDevDebug);
 
-/******** async processing *****************************/ 
+/******** async processing *****************************/
 
 void simRegDevAsyncCallback(void* arg);
 
@@ -139,7 +147,7 @@ void simRegDevAsyncCallback(void* arg)
     callbackRequest(cbStruct);
 }
 
-/******** Support functions *****************************/ 
+/******** Support functions *****************************/
 
 void simRegDevReport(
     regDevice *device,
@@ -175,7 +183,7 @@ IOSCANPVT simRegDevGetInScanPvt(
     size_t offset)
 {
     if (!device || device->magic != MAGIC)
-    { 
+    {
         errlogSevPrintf(errlogMajor,
             "simRegDevGetInScanPvt: illegal device handle\n");
         return NULL;
@@ -237,7 +245,7 @@ int simRegDevAsyncWrite(
     void* pmask,
     int prio,
     int *pstatus)
-{    
+{
     if (!device || device->magic != MAGIC)
     {
         errlogSevPrintf(errlogMajor,
@@ -391,7 +399,7 @@ int simRegDevSetStatus(
     int status)
 {
     regDevice* device;
-    
+
     if (!name)
     {
         printf ("usage: simRegDevSetStatus name, 0|1\n");
@@ -425,7 +433,7 @@ int simRegDevSetData(
     int value)
 {
     regDevice* device;
-    
+
     if (!name)
     {
         printf ("usage: simRegDevSetData name, offset, value\n");
@@ -474,7 +482,7 @@ static const iocshArg * const simRegDevConfigureArgs[] = {
 
 static const iocshFuncDef simRegDevConfigureDef =
     { "simRegDevConfigure", 3, simRegDevConfigureArgs };
-    
+
 static void simRegDevConfigureFunc (const iocshArgBuf *args)
 {
     int status = simRegDevConfigure(
@@ -493,7 +501,7 @@ static const iocshArg * const simRegDevAsyncConfigureArgs[] = {
 
 static const iocshFuncDef simRegDevAsyncConfigureDef =
     { "simRegDevAsyncConfigure", 3, simRegDevAsyncConfigureArgs };
-    
+
 static void simRegDevAsyncConfigureFunc (const iocshArgBuf *args)
 {
     int status = simRegDevAsyncConfigure(
@@ -510,7 +518,7 @@ static const iocshArg * const simRegDevSetStatusArgs[] = {
 
 static const iocshFuncDef simRegDevSetStatusDef =
     { "simRegDevSetStatus", 2, simRegDevSetStatusArgs };
-    
+
 static void simRegDevSetStatusFunc (const iocshArgBuf *args)
 {
     simRegDevSetStatus(
@@ -528,7 +536,7 @@ static const iocshArg * const simRegDevSetDataArgs[] = {
 
 static const iocshFuncDef simRegDevSetDataDef =
     { "simRegDevSetData", 3, simRegDevSetDataArgs };
-    
+
 static void simRegDevSetDataFunc (const iocshArgBuf *args)
 {
     simRegDevSetData(

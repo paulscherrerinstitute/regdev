@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
-/* $Author: zimoch $ */ 
-/* $Date: 2013/04/19 12:44:49 $ */ 
-/* $Id: regDev.h,v 1.15 2013/04/19 12:44:49 zimoch Exp $ */  
-/* $Name:  $ */ 
-/* $Revision: 1.15 $ */ 
+/* $Author: brands $ */
+/* $Date: 2013/05/24 15:04:28 $ */
+/* $Id: regDev.h,v 1.16 2013/05/24 15:04:28 brands Exp $ */
+/* $Name:  $ */
+/* $Revision: 1.16 $ */
 
 #ifndef regDev_h
 #define regDev_h
@@ -13,6 +13,8 @@
 #include <callback.h>
 #include <epicsVersion.h>
 #include <errlog.h>
+#include <epicsExport.h>
+
 
 #ifdef BASE_VERSION
 #define EPICS_3_13
@@ -43,11 +45,11 @@ typedef struct regDevSupport {
     void (*report)(
         regDevice *device,
         int level);
-    
+
     IOSCANPVT (*getInScanPvt)(
         regDevice *device,
         size_t offset);
-    
+
     IOSCANPVT (*getOutScanPvt)(
         regDevice *device,
         size_t offset);
@@ -59,7 +61,7 @@ typedef struct regDevSupport {
         size_t nelem,
         void* pdata,
         int priority);
-    
+
     int (*write)(
         regDevice *device,
         size_t offset,
@@ -68,7 +70,7 @@ typedef struct regDevSupport {
         void* pdata,
         void* pmask,
         int priority);
-        
+
 } regDevSupport;
 
 /* Every sync driver must create and register each device instance */
@@ -85,7 +87,7 @@ regDevice* regDevFind(
 /* It may be constant and is used for all device instances */
 /* Unimplemented functions may be NULL */
 
-/** 
+/**
 Here we have to add an "init" routine to the regDevAsyncSupport,
 This will be then called at record initialization routine if it is provided.
 We can the use this to pass a pointer to memory which is suitable for DMA.
@@ -95,11 +97,11 @@ typedef struct regDevAsyncSupport {
     void (*report)(
         regDevice *device,
         int level);
-    
+
     IOSCANPVT (*getInScanPvt)(
         regDevice *device,
         size_t offset);
-    
+
     IOSCANPVT (*getOutScanPvt)(
         regDevice *device,
         size_t offset);
@@ -113,7 +115,7 @@ typedef struct regDevAsyncSupport {
 	CALLBACK* cbStruct,
         int priority,
 	int* status);
-    
+
     int (*write)(
         regDevice *device,
         size_t offset,
@@ -124,12 +126,12 @@ typedef struct regDevAsyncSupport {
         void* pmask,
         int priority,
 	int* status);
-	
+
     int (*buff_alloc)(
        	void** usrBufPtr,
-       	void** busBufPtr, 
-    	size_t size);  
-        
+       	void** busBufPtr,
+    	size_t size);
+
 } regDevAsyncSupport;
 
 /* Every async driver must create and register each device instance */
@@ -146,8 +148,14 @@ regDevice* regDevAsynFind(
     const char* name);
 
 extern int regDevDebug;
+#ifdef _WIN32
+#define regDevDebugLog(level, fmt, ...) \
+    do {if ((level) & regDevDebug) errlogSevPrintf(errlogInfo, fmt, __VA_ARGS__);} while(0)
+#else
 #define regDevDebugLog(level, fmt, args...) \
     do {if ((level) & regDevDebug) errlogSevPrintf(errlogInfo, fmt, ## args);} while(0)
+#endif
+
 #define DBG_INIT 1
 #define DBG_IN   2
 #define DBG_OUT  4
