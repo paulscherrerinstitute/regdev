@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
-/* $Author: brands $ */
-/* $Date: 2013/05/24 15:04:28 $ */
-/* $Id: regDev.h,v 1.16 2013/05/24 15:04:28 brands Exp $ */
+/* $Author: zimoch $ */
+/* $Date: 2013/06/05 07:49:18 $ */
+/* $Id: regDev.h,v 1.17 2013/06/05 07:49:18 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.16 $ */
+/* $Revision: 1.17 $ */
 
 #ifndef regDev_h
 #define regDev_h
@@ -13,15 +13,13 @@
 #include <callback.h>
 #include <epicsVersion.h>
 #include <errlog.h>
-#include <epicsExport.h>
-
 
 #ifdef BASE_VERSION
 #define EPICS_3_13
 #else
 #define EPICS_3_14
-#include <epicsExport.h>
 #include <iocsh.h>
+#include <epicsExport.h>
 #endif
 
 /* return states for driver functions */
@@ -166,7 +164,7 @@ void regDevCopy(unsigned int dlen, size_t nelem, volatile void* src, volatile vo
 #endif /* regDev_h */
 
 /* utility: size_t modifier for printf */
-#ifdef __vxworks
+#ifdef vxWorks
 #define Z ""
 #else
 #define Z "z"
