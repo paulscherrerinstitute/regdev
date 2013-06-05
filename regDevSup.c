@@ -576,7 +576,9 @@ long regDevReadAi(aiRecord* record)
         /* emulate scaling */
         if (record->aslo != 0.0) val *= record->aslo;
         val += record->aoff;
-        if (!record->udf)
+        if (!record->udf &&
+            record->smoo != 0.0 &&
+            record->val == record->val) /* don't smooth NAN */
         {
             /* emulate smoothing */
             record->val = record->val * record->smoo +
