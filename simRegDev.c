@@ -24,7 +24,7 @@
 #endif
 
 static char cvsid_simRegDev[] __attribute__((unused)) =
-    "$Id: simRegDev.c,v 1.10 2013/05/24 15:04:28 brands Exp $";
+    "$Id: simRegDev.c,v 1.11 2013/06/05 07:49:35 zimoch Exp $";
 
 typedef struct simRegDevAsyncMessage {
     struct simRegDevAsyncMessage* next;
@@ -330,7 +330,7 @@ static regDevAsyncSupport simRegDevAsyncSupport = {
 
 /****** startup script configuration function ***********************/
 
-#if defined(__vxworks) && !defined(_WRS_VXWORKS_MAJOR)
+#if defined(vxWorks) && !defined(_WRS_VXWORKS_MAJOR)
 /* vxWorks 5 does not have strdup */
 static char* strdup(const char* s)
 {
