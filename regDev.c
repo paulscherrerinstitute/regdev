@@ -20,7 +20,7 @@
 #endif
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.40 2013/05/24 15:04:28 brands Exp $";
+    "$Id: regDev.c,v 1.41 2013/07/19 11:48:52 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -578,8 +578,10 @@ int regDevRegisterDevice2(const char* name,
     regDevice* driver)
 {
     char* nameCpy;
-
     regDeviceNode **pdevice;
+
+    regDevDebugLog(DBG_INIT, "regDevRegisterDevice %s: support=%p, asupport=%p driver=%p\n",
+        name, support, asupport, driver);
     for (pdevice=&registeredDevices; *pdevice; pdevice=&(*pdevice)->next)
     {
         if (strcmp((*pdevice)->name, name) == 0)
@@ -2238,3 +2240,106 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
         record->name, pamapdbfType[ftvl].strvalue, regDevTypeName(priv->dtype));
     return ERROR;
 }
+
+static epicsEventId regDevDisplayEvent;
+
+static void regDevDisplayCallback(CALLBACK *callback)
+{
+    epicsEventSignal(regDevDisplayEvent);
+}
+
+int regDevDisplay(const char* devName, int start, int dlen, int bytes)
+{
+    static int offset=0;
+    static int save_bytes=64;
+    static int save_dlen=2;
+    static regDeviceNode* device = NULL;
+    CALLBACK cb;
+    int status;
+    char* buffer;
+    int nelem;
+    
+    if (devName && *devName) {
+        for (device=registeredDevices; device; device=device->next)
+        {
+            if (strcmp(device->name, devName) == 0) break;
+        }
+    }
+    if (!device)
+    {
+        fprintf(stderr, "device %s not found\n", devName);
+        return ERROR;
+    }
+    if (dlen) save_dlen = dlen; else dlen = save_dlen;
+    if (start >= 0) offset = start;
+    if (bytes) save_bytes = bytes; else bytes = save_bytes;
+    
+    nelem = (bytes-1)/dlen+1;
+    buffer = calloc(nelem, dlen);
+    if (!buffer)
+    {
+        fprintf(stderr, "out of memory\n");
+        return ERROR;
+    }
+    epicsMutexLock(device->accesslock);
+    if (device->asupport && device->asupport->read)
+    {
+        if (regDevDisplayEvent)
+            regDevDisplayEvent = epicsEventCreate(epicsEventEmpty);
+        callbackSetCallback(regDevDisplayCallback, &cb);
+        status = device->asupport->read(device->driver,
+            offset, dlen, nelem, buffer, &cb, 0, &status);
+    }
+    else if (device->support && device->support->read)
+        status = device->support->read(device->driver,
+            offset, dlen, nelem, buffer, 0);
+    else
+    {
+        fprintf(stderr, "device has no read method\n");
+        status = ERROR;
+    }
+    epicsMutexUnlock(device->accesslock);
+    if (status == OK)
+    {
+        int i;
+        int line = 16 / dlen * dlen;
+        for (i = 0; i < dlen * nelem; i++)        
+        {
+            if (i % line == 0) printf ("\n%08x", offset+i);
+            if (i % dlen == 0) printf (" ");
+            printf ("%02x", buffer[i]);
+        }
+        printf ("\n");
+    }
+    free (buffer);
+    offset += dlen * nelem;
+    return status;
+}
+
+#ifdef EPICS_3_14
+#include <iocsh.h>
+static const iocshArg regDevDisplayArg0 = { "devName", iocshArgString };
+static const iocshArg regDevDisplayArg1 = { "start", iocshArgInt };
+static const iocshArg regDevDisplayArg2 = { "dlen", iocshArgInt };
+static const iocshArg regDevDisplayArg3 = { "bytes", iocshArgInt };
+static const iocshArg * const regDevDisplayArgs[] = {
+    &regDevDisplayArg0,
+    &regDevDisplayArg1,
+    &regDevDisplayArg2,
+    &regDevDisplayArg3,
+};
+static const iocshFuncDef regDevDisplayDef =
+    { "regDevDisplay", 4, regDevDisplayArgs };
+    
+static void regDevDisplayFunc (const iocshArgBuf *args)
+{
+    regDevDisplay(
+        args[0].sval, args[1].ival, args[2].ival, args[3].ival);
+}
+static void regDevRegistrar ()
+{
+    iocshRegister(&regDevDisplayDef, regDevDisplayFunc);
+}
+
+epicsExportRegistrar(regDevRegistrar);
+#endif
