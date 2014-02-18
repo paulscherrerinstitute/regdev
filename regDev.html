@@ -216,8 +216,8 @@ Bit number 0 is the least significant bit.
 Note that in big endian byte order (also known as motorola format) bit 0
 is in the last byte, while in little endian byte order (intel format)
 bit 0 is in the first byte.
-If in doubt, use <code>T=byte</code> to avoid all byte order problems
-when handling single bits.
+If in doubt and allowed by the hardware, use <code>T=byte</code> to avoid
+all byte order problems when handling single bits.
 </li>
 <li>
 <code>I=<i>invertmask</i></code> is used to flip bits of integer values
@@ -359,7 +359,7 @@ Disconnect does not raise an alarm.
 
 <a name="ai"></a>
 <h3>Analog Input</h3>
-<h4>Integer registers with linear converion</h4>
+<h4>Integer registers with linear conversion</h4>
 <pre>
  record (ai, "$(RECORDNAME)") {
   field (DTYP, "regDev")
@@ -373,9 +373,9 @@ Disconnect does not raise an alarm.
 <p>
 If <code>T</code> is an integer type, the register is read into
 <code>RVAL</code>.
-If <code>LINR</code> is set to <code>"LINEAR"</code>, then the record
+If <code>LINR="LINEAR"</code>, then the record
 converts <code>RVAL</code> to <code>VAL</code> so that <code>L</code>
-mapps to <code>MINVAL</code> and <code>H</code> to <code>MAXVAL</code>.
+maps to <code>MINVAL</code> and <code>H</code> maps to <code>MAXVAL</code>.
 </p>
 <p>
 Default type is <code>T=int16</code>.
@@ -396,8 +396,9 @@ on <code>T</code> (see table <a href="#type">above</a>).
 If <code>T=float</code> or <code>T=double</code>,
 the register is read directly into <code>VAL</code> and <code>L</code>,
 <code>H</code>, <code>EGUL</code> and <code>EGUF</code> are ignored.
-The device support emulates adjustment scaling and smoothing which is done
-by the record only when using conversion from integer registers.
+The device support emulates adjustment scaling and smoothing according to
+<code>ASLO</code>, <code>AOFF</code> and <code>SMOO</code> which is done
+by the record itself only when using conversion from integer registers.
 </p>
 <p>
 <code>VAL = (<i>register</i>*ASLO+AOFF)*(1-SMOO) +
@@ -409,7 +410,7 @@ VAL<sub>old</sub>*SMOO</code>
 
 <a name="ao"></a>
 <h3>Analog Output</h3>
-<h4>Integer registers with linear converion</h4>
+<h4>Integer registers with linear conversion</h4>
 <pre>
  record (ao, "$(RECORDNAME)") {
   field (DTYP, "regDev")
@@ -423,11 +424,11 @@ VAL<sub>old</sub>*SMOO</code>
 <p>
 If <code>T</code> is an integer type, <code>RVAL</code> is written to the
 register.
-If <code>LINR</code> is set to <code>"LINEAR"</code>, then the record
+If <code>LINR="LINEAR"</code>, then the record
 support first scales the record value (to be exact <code>OVAL</code>) so
-that <code>MINVAL</code> mapps to <code>L</code> and <code>MAXVAL</code>
-mapps to <code>H</code>.
-The record may then use adjustmant scaling to modify <code>RVAL</code>.
+that <code>MINVAL</code> maps to <code>L</code> and <code>MAXVAL</code>
+maps to <code>H</code>.
+The record may then use adjustment scaling to modify <code>RVAL</code>.
 However, the device support will never write any value lower than
 <code>L</code> or higher than <code>H</code>.
 If necessary the value will be truncated to the nearest limit.
@@ -449,8 +450,9 @@ on <code>T</code> (see table <a href="#type">above</a>).
 If <code>T=float</code> or <code>T=double</code>,
 <code>OVAL</code> is written to the register. <code>L</code>,
 <code>H</code>, <code>EGUL</code> and <code>EGUF</code> are ignored.
-The device support emulates adjustment scaling which is done by the
-record only when converting to integer registers.
+The device support emulates adjustment scaling according to 
+<code>AOFF</code> and <code>ASLO</code> which is done by the
+record itself only when converting to integer registers.
 </p>
 <p>
 <code><i>register</i>=(OVAL-AOFF)/ASLO</code>
@@ -479,8 +481,8 @@ or 31.
 Bit 0 is the least significant bit. In little endian byte order, bit 0 is
 in the first byte, in big endian byte order it is in the last byte of the
 register.
-If in doubt, use <code>T=byte</code> to avoid all byte order problems when
-handling single bits.
+If in doubt and allowed by the hardware, use <code>T=byte</code> to avoid
+all byte order problems when handling single bits.
 </p>
 <p>
 The register is read to <code>RVAL</code> and masked with
@@ -515,8 +517,8 @@ Depending on <code>T</code>, <code>B</code> can vary from 0 to 7, 15, or
 Bit 0 is the least significant bit.
 In little endian byte order, bit 0 is in the first byte, in big endian byte
 order it is in the last byte of the register.
-If in doubt, use <code>T=byte</code> to avoid all byte order problems when
-handling single bits.
+If in doubt and allowed by the hardware, use <code>T=byte</code> to avoid
+all byte order problems when handling single bits.
 </p>
 <p>
 If <code>VAL</code> is not 0, then <code>RVAL</code> is set to
@@ -843,7 +845,7 @@ Default length is <code>L=40</code>.
 If the actual string length of <code>VAL</code> is shorter than
 <code>L</code>, the remaining space is filled with null bytes. If
 it is longer than <code>L</code>, the string is truncated and not
-null terminated
+null terminated.
 </p>
 
 <a name="waveform"></a>

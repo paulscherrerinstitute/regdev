@@ -42,6 +42,6 @@ long regDevWriteCalcout(calcoutRecord* record)
     
     regDevCheckAsyncWriteResult(record);
     status = regDevWriteNumber((dbCommon*)record, record->oval, record->oval);
-    if (status == ASYNC_COMPLETITION) return OK;
+    if (status == ASYNC_COMPLETION) return S_dev_success;
     return status;
 }
