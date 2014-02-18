@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: zimoch $ */
-/* $Date: 2013/06/05 07:49:18 $ */
-/* $Id: regDev.h,v 1.17 2013/06/05 07:49:18 zimoch Exp $ */
+/* $Date: 2014/02/18 16:09:18 $ */
+/* $Id: regDev.h,v 1.18 2014/02/18 16:09:18 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.17 $ */
+/* $Revision: 1.18 $ */
 
 #ifndef regDev_h
 #define regDev_h
@@ -22,22 +22,59 @@
 #include <epicsExport.h>
 #endif
 
-/* return states for driver functions */
-#ifndef OK
-#define OK 0
+/* vxWorks 5 does not have strdup */
+#if defined(vxWorks) && !defined(_WRS_VXWORKS_MAJOR)
+#include <string.h>
+#include <stdlib.h>
+extern __inline char* regDevStrdup(const char* s)
+{
+    char* r = malloc(strlen(s)+1);
+    if (!r) return NULL;
+    return strcpy(r, s);
+}
+#define strdup(s) regDevStrdup(s)
 #endif
-#ifndef ERROR
-#define ERROR -1
-#endif
-#define ASYNC_COMPLETITION 1
 
-/* Every device driver may define struct regDevice as needed */
-/* It's a handle to the device instance */
+/* utility: size_t modifier for printf */
+#if defined(vxWorks) && !defined(_WRS_VXWORKS_MAJOR)
+#define Z ""
+#else
+#define Z "z"
+#endif
+
+/* Every device driver may define struct regDevice as needed
+ * It's a handle to the device instance
+ */
 typedef struct regDevice regDevice;
 
-/* Every sync driver must provide this function table */
-/* It may be constant and is used for all device instances */
-/* Unimplemented functions may be NULL */
+/* Every driver must provide this function table
+ * It may be constant and is used for all device instances
+ * Unimplemented functions may be NULL
+ *
+ * Unless regDevRegisterDevice is called with a size of 0, offset+nelem*dlen will never be outside the valid range.
+ * 
+ * Synchronous read/write returns 0 on success or other values (but not 1) on failure.
+ * Each call is protected with a per device mutex, thus no two calls to the same device will happen at the same time.
+ *
+ * Asynchronous read/write returns ASYNC_COMPLETION (=1) and arranges to call
+ * callback(user, status) when the operation has finished (or failed).
+ * The the background task may use regDevLock()/regDevUnlock() to protect access to the device.
+ * Read and write functions may use priority (0=low, 1=medium, 2=high) to sort requests.
+ * 
+ * A driver can choose at each call to work synchronously or asynchronously.
+ * The user argument can be used to print messages. (It contains the record name).
+ *
+ * A driver may call regDevInstallWorkQueue at initialization to leave asynchonous handling to regDev.
+ * Once a work queue is installed, all read/write calls are executed in a separate thread which may block.
+ * In that case callback will allways be NULL.
+ *
+ */
+ 
+/* return states for driver functions */
+#define SUCCESS 0
+#define ASYNC_COMPLETION 1
+
+typedef void (*regDevTransferComplete) (char* user, int status);
 
 typedef struct regDevSupport {
     void (*report)(
@@ -58,7 +95,9 @@ typedef struct regDevSupport {
         unsigned int dlen,
         size_t nelem,
         void* pdata,
-        int priority);
+        int priority,
+        regDevTransferComplete callback,
+        char* user);
 
     int (*write)(
         regDevice *device,
@@ -67,126 +106,70 @@ typedef struct regDevSupport {
         size_t nelem,
         void* pdata,
         void* pmask,
-        int priority);
+        int priority,
+        regDevTransferComplete callback,
+        char* user);
 
 } regDevSupport;
 
-/* Every sync driver must create and register each device instance */
-/* together with name and function table */
+/* Every driver must create and register each device instance
+ * together with name and function table.
+ */
 int regDevRegisterDevice(
     const char* name,
     const regDevSupport* support,
-    regDevice* device);
+    regDevice* device,
+    size_t size);
 
+/* find the device instance by its name */
 regDevice* regDevFind(
     const char* name);
 
-/* Every async driver must provide this function table */
-/* It may be constant and is used for all device instances */
-/* Unimplemented functions may be NULL */
-
-/**
-Here we have to add an "init" routine to the regDevAsyncSupport,
-This will be then called at record initialization routine if it is provided.
-We can the use this to pass a pointer to memory which is suitable for DMA.
-**/
-
-typedef struct regDevAsyncSupport {
-    void (*report)(
-        regDevice *device,
-        int level);
-
-    IOSCANPVT (*getInScanPvt)(
-        regDevice *device,
-        size_t offset);
-
-    IOSCANPVT (*getOutScanPvt)(
-        regDevice *device,
-        size_t offset);
-
-    int (*read)(
-        regDevice *device,
-        size_t offset,
-        unsigned int dlen,
-        size_t nelem,
-        void* pdata,
-	CALLBACK* cbStruct,
-        int priority,
-	int* status);
-
-    int (*write)(
-        regDevice *device,
-        size_t offset,
-        unsigned int dlen,
-        size_t nelem,
-        void* pdata,
-	CALLBACK* cbStruct,
-        void* pmask,
-        int priority,
-	int* status);
-
-    int (*buff_alloc)(
-       	void** usrBufPtr,
-       	void** busBufPtr,
-    	size_t size);
-
-} regDevAsyncSupport;
-
-/* Every async driver must create and register each device instance */
-/* together with name and function table */
-int regDevAsyncRegisterDevice(
-    const char* name,
-    const regDevAsyncSupport* support,
+/* lock/unlock access to the device (for asynchronous work threads) */
+int regDevLock(
+    regDevice* device);
+    
+const char* regDevUnock(
     regDevice* device);
 
-/* For backward compatibility. Don't use any more */
-typedef struct regDeviceAsyn regDeviceAsyn;
+/* A driver can call regDevInstallWorkQueue to serialize all read/write requests.
+ * Once it is installed, record processing is asynchronous but the driver read and
+ * write functions are synrchonous in a separate thread (with callback=NULL).
+ * One thread per driver and prioriy level is created to handle the reads and writes.
+ * The queue has space for maxEntries pending requests on each of the 3 priority levels.
+ */
+int regDevInstallWorkQueue(
+    regDevice* device,
+    size_t maxEntries);
 
-regDevice* regDevAsynFind(
-    const char* name);
+/*
+A driver can call regDevRegisterDmaAlloc to register an allocator for DMA enabled memory.
+The allocator shall work similar to realloc (ptr=NULL: alloc, size=0: free, otherwise: resize)
+but need not copy nor initialize any content.
+If ptr has not previously been allocated by the allocator, it shall be treated as NULL.
+The function shall return NULL on failure.
+It is used for the array buffer by aai and aao records.
+*/
+int regDevRegisterDmaAlloc(
+    regDevice* device,
+    void* (*dmaAlloc) (regDevice *device, void* ptr, size_t size));
 
+/* Use this variable to control debugging messages */
 extern int regDevDebug;
-#ifdef _WIN32
-#define regDevDebugLog(level, fmt, ...) \
-    do {if ((level) & regDevDebug) errlogSevPrintf(errlogInfo, fmt, __VA_ARGS__);} while(0)
-#else
-#define regDevDebugLog(level, fmt, args...) \
-    do {if ((level) & regDevDebug) errlogSevPrintf(errlogInfo, fmt, ## args);} while(0)
-#endif
 
 #define DBG_INIT 1
 #define DBG_IN   2
 #define DBG_OUT  4
 
+#if defined __GNUC__ && __GNUC__ < 3
+#define regDevDebugLog(level, fmt, args...) \
+    do {if ((level) & regDevDebug) printf(fmt, ## args);} while(0)
+#else
+#define regDevDebugLog(level, fmt, ...) \
+    do {if ((level) & regDevDebug) printf(fmt, ## __VA_ARGS__);} while(0)
+#endif
 
 /* utility function for drivers to copy buffers */
 void regDevCopy(unsigned int dlen, size_t nelem, volatile void* src, volatile void* dest, void* pmask, int swap);
 #endif /* regDev_h */
-
-/* utility: size_t modifier for printf */
-#ifdef vxWorks
-#define Z ""
-#else
-#define Z "z"
-#endif
-
-/* utility macro to check offset */
-#define regDevCheckOffset(function, name, offset, dlen, nelm, size) \
-    do { \
-        if (offset > size) \
-        { \
-            errlogSevPrintf(errlogMajor, \
-                "%s %s: offset %"Z"u out of range (0-%"Z"u)\n", \
-                function, name, offset, size); \
-            return ERROR; \
-        } \
-        if (offset+dlen*nelem > size) \
-        { \
-            errlogSevPrintf(errlogMajor, \
-                "%s %s: offset %"Z"u + %"Z"u bytes length exceeds mapped size %"Z"u by %"Z"u bytes\n", \
-                function, name, offset, nelem, size, offset+dlen*nelem - size); \
-            return ERROR; \
-        }\
-    } while(0)
-
 
