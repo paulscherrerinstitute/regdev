@@ -23,11 +23,15 @@
 #define  __attribute__(x)  /*NOTHING*/
 #endif
 
-static char cvsid_simRegDev[] __attribute__((unused)) =
-    "$Id: simRegDev.c,v 1.11 2013/06/05 07:49:35 zimoch Exp $";
+#ifndef S_dev_badArgument
+#define S_dev_badArgument (M_devLib| 33)
+#endif
 
-typedef struct simRegDevAsyncMessage {
-    struct simRegDevAsyncMessage* next;
+static char cvsid_simRegDev[] __attribute__((unused)) =
+    "$Id: simRegDev.c,v 1.12 2014/02/18 16:14:50 zimoch Exp $";
+
+typedef struct simRegDevMessage {
+    struct simRegDevMessage* next;
     regDevice* device;
     epicsTimerId timer;
     size_t dlen;
@@ -35,22 +39,22 @@ typedef struct simRegDevAsyncMessage {
     volatile void* src;
     volatile void* dest;
     void* pmask;
-    CALLBACK* cbStruct;
     int prio;
-    int* pstatus;
+    regDevTransferComplete callback;
+    char* user;
     int isOutput;
-} simRegDevAsyncMessage;
+} simRegDevMessage;
 
 struct regDevice {
     unsigned long magic;
     const char* name;
     size_t size;
     int swap;
-    int status;
+    int connected;
     IOSCANPVT ioscanpvt;
     epicsMutexId lock;
     epicsTimerQueueId queue[NUM_CALLBACK_PRIORITIES];
-    simRegDevAsyncMessage* msgFreelist[NUM_CALLBACK_PRIORITIES];
+    simRegDevMessage* msgFreelist[NUM_CALLBACK_PRIORITIES];
     unsigned char buffer[1];
 };
 
@@ -59,39 +63,39 @@ epicsExportAddress(int, simRegDevDebug);
 
 /******** async processing *****************************/
 
-void simRegDevAsyncCallback(void* arg);
+void simRegDevCallback(void* arg);
 
-int simRegDevAsynStartTransfer(
+int simRegDevAsynTransfer(
     regDevice *device,
     size_t dlen,
     size_t nelem,
     void* src,
     void* dest,
     void* pmask,
-    CALLBACK* cbStruct,
     int prio,
-    int *pstatus,
+    regDevTransferComplete callback,
+    char* user,
     int isOutput)
 {
-    simRegDevAsyncMessage* msg;
+    simRegDevMessage* msg;
 
     if (simRegDevDebug & (isOutput ? DBG_OUT : DBG_IN))
-        printf ("simRegDevAsynStartTransfer %s: copy %s %"Z"u bytes * %"Z"u elements\n",
+        printf ("simRegDevAsynTransfer %s: copy %s %"Z"u bytes * %"Z"u elements\n",
         device->name, isOutput ? "out" : "in", dlen, nelem);
 
     epicsMutexLock(device->lock);
     if (device->msgFreelist[prio] == NULL)
     {
-        msg = calloc(sizeof(simRegDevAsyncMessage),1);
+        msg = calloc(sizeof(simRegDevMessage),1);
         if (msg)
-            msg->timer = epicsTimerQueueCreateTimer(device->queue[prio], simRegDevAsyncCallback, msg);
+            msg->timer = epicsTimerQueueCreateTimer(device->queue[prio], simRegDevCallback, msg);
         if (msg == NULL || msg->timer == NULL)
         {
             errlogSevPrintf(errlogMajor,
                 "simRegDevAllocMessage %s: out of memory\n", device->name);
             if (msg) free(msg);
             epicsMutexUnlock(device->lock);
-            return ERROR;
+            return S_dev_noMemory;
         }
     }
     else
@@ -106,33 +110,34 @@ int simRegDevAsynStartTransfer(
     msg->src = src;
     msg->dest = dest;
     msg->pmask = pmask;
-    msg->cbStruct = cbStruct;
     msg->prio = prio;
-    msg->pstatus = pstatus;
+    msg->callback = callback;
+    msg->user = user;
     msg->isOutput = isOutput;
     epicsMutexUnlock(device->lock);
     epicsTimerStartDelay(msg->timer, nelem*0.01);
-    return ASYNC_COMPLETITION;
+    return ASYNC_COMPLETION;
 }
 
-void simRegDevAsyncCallback(void* arg)
+void simRegDevCallback(void* arg)
 {
-    simRegDevAsyncMessage* msg = arg;
+    simRegDevMessage* msg = arg;
     regDevice *device = msg->device;
-    CALLBACK* cbStruct = msg->cbStruct;
+    regDevTransferComplete callback = msg->callback;
+    int status;
 
     if (simRegDevDebug & (msg->isOutput ? DBG_OUT : DBG_IN))
-        printf ("simRegDevAsyncCallback %s: copy %"Z"u bytes * %"Z"u elements\n",
+        printf ("simRegDevCallback %s: copy %"Z"u bytes * %"Z"u elements\n",
         device->name, msg->dlen, msg->nelem);
     epicsMutexLock(device->lock);
-    if (device->status == 0)
+    if (device->connected == 0)
     {
-        *msg->pstatus = ERROR;
+        status = S_dev_noDevice;
     }
     else
     {
         regDevCopy(msg->dlen, msg->nelem, msg->src, msg->dest, msg->pmask, device->swap);
-        *msg->pstatus = OK;
+        status = S_dev_success;
     }
     msg->next = device->msgFreelist[msg->prio];
     device->msgFreelist[msg->prio] = msg;
@@ -140,11 +145,11 @@ void simRegDevAsyncCallback(void* arg)
     {
         /* We got new data: trigger all interested input records */
         if (simRegDevDebug & DBG_OUT)
-            printf ("simRegDevAsyncCallback %s: trigger input records\n", device->name);
+            printf ("simRegDevCallback %s: trigger input records\n", device->name);
         scanIoRequest(device->ioscanpvt);
     }
     epicsMutexUnlock(device->lock);
-    callbackRequest(cbStruct);
+    callback(msg->user, status);
 }
 
 /******** Support functions *****************************/
@@ -157,7 +162,7 @@ void simRegDevReport(
     {
         printf("simRegDev driver: %"Z"u bytes, status=%s\n",
             device->size,
-            device->status ? "connected" : "disconnected");
+            device->connected ? "connected" : "disconnected");
         if (level > 0)
         {
             int i;
@@ -191,77 +196,64 @@ IOSCANPVT simRegDevGetInScanPvt(
     return device->ioscanpvt;
 }
 
-int simRegDevAsyncRead(
-    regDevice *device,
-    size_t offset,
-    unsigned int dlen,
-    size_t nelem,
-    void* pdata,
-    CALLBACK* cbStruct,
-    int prio,
-    int* pstatus)
-{
-    if (!device || device->magic != MAGIC)
-    {
-        errlogSevPrintf(errlogMajor,
-            "simRegDevRead: illegal device handle\n");
-        return ERROR;
-    }
-    if (device->status == 0)
-    {
-        return ERROR;
-    }
-    regDevCheckOffset("simRegDevRead", device->name, offset, dlen, nelm, device->size);
-    if (simRegDevDebug & DBG_IN)
-        printf ("simRegDevRead %s:%"Z"u: %u bytes * %"Z"u elements, prio=%d\n",
-        device->name, offset, dlen, nelem, prio);
-
-    if (nelem > 1 && cbStruct != NULL)
-        return simRegDevAsynStartTransfer(device, dlen, nelem,
-            device->buffer+offset, pdata, NULL, cbStruct, prio, pstatus, FALSE);
-
-    regDevCopy(dlen, nelem, device->buffer+offset, pdata, NULL, device->swap);
-    return OK;
-}
-
 int simRegDevRead(
     regDevice *device,
     size_t offset,
     unsigned int dlen,
     size_t nelem,
     void* pdata,
-    int prio)
+    int prio,
+    regDevTransferComplete callback,
+    char* user)
 {
-    return simRegDevAsyncRead(device, offset, dlen, nelem, pdata, NULL, prio, NULL);
+    if (!device || device->magic != MAGIC)
+    {
+        errlogSevPrintf(errlogMajor,
+            "simRegDevRead: illegal device handle\n");
+        return S_dev_wrongDevice;
+    }
+    if (device->connected == 0)
+    {
+        return S_dev_noDevice;
+    }
+    if (simRegDevDebug & DBG_IN)
+        printf ("simRegDevRead %s %s:%"Z"u: %u bytes * %"Z"u elements, prio=%d\n",
+        user, device->name, offset, dlen, nelem, prio);
+
+    if (nelem > 1 && device->lock)
+        return simRegDevAsynTransfer(device, dlen, nelem,
+            device->buffer+offset, pdata, NULL, prio, callback, user, FALSE);
+
+    regDevCopy(dlen, nelem, device->buffer+offset, pdata, NULL, device->swap);
+    return S_dev_success;
 }
 
-int simRegDevAsyncWrite(
+int simRegDevWrite(
     regDevice *device,
     size_t offset,
     unsigned int dlen,
     size_t nelem,
     void* pdata,
-    CALLBACK* cbStruct,
     void* pmask,
     int prio,
-    int *pstatus)
+    regDevTransferComplete callback,
+    char* user)
 {
     if (!device || device->magic != MAGIC)
     {
         errlogSevPrintf(errlogMajor,
             "simRegDevWrite: illegal device handle\n");
-        return ERROR;
+        return S_dev_wrongDevice;
     }
-    if (device->status == 0)
+    if (device->connected == 0)
     {
-        return ERROR;
+        return S_dev_noDevice;
     }
-    regDevCheckOffset("simRegDevWrite", device->name, offset, dlen, nelm, device->size);
     if (simRegDevDebug & DBG_OUT)
     {
         size_t n;
-        printf ("simRegDevWrite %s:%"Z"u: %u bytes * %"Z"u elements, prio=%d\n",
-        device->name, offset, dlen, nelem, prio);
+        printf ("simRegDevWrite %s %s:%"Z"u: %u bytes * %"Z"u elements, prio=%d\n",
+        user, device->name, offset, dlen, nelem, prio);
         for (n=0; n<nelem && n<10; n++)
         {
             switch (dlen)
@@ -283,62 +275,27 @@ int simRegDevAsyncWrite(
         printf ("\n");
     }
 
-    if (nelem > 1 && cbStruct != NULL)
-        return simRegDevAsynStartTransfer(device, dlen, nelem, pdata,
-            device->buffer+offset, pmask, cbStruct, prio, pstatus, TRUE);
+    if (nelem > 1 && device->lock)
+        return simRegDevAsynTransfer(device, dlen, nelem, pdata,
+            device->buffer+offset, pmask, prio, callback, user, TRUE);
 
     regDevCopy(dlen, nelem, pdata, device->buffer+offset, pmask, device->swap);
     /* We got new data: trigger all interested input records */
     if (simRegDevDebug & DBG_OUT)
         printf ("simRegDevWrite %s: trigger input records\n", device->name);
     scanIoRequest(device->ioscanpvt);
-    return OK;
+    return S_dev_success;
 }
-
-int simRegDevWrite(
-    regDevice *device,
-    size_t offset,
-    unsigned int dlen,
-    size_t nelem,
-    void* pdata,
-    void* pmask,
-    int prio)
-{
-    return simRegDevAsyncWrite(device, offset, dlen, nelem, pdata, NULL, pmask, prio, NULL);
-}
-
-#define simRegDevGetOutScanPvt NULL
 
 static regDevSupport simRegDevSupport = {
     simRegDevReport,
     simRegDevGetInScanPvt,
-    simRegDevGetOutScanPvt,
+    NULL,
     simRegDevRead,
-    simRegDevWrite
-};
-
-#define simRegDevAlloc NULL
-
-static regDevAsyncSupport simRegDevAsyncSupport = {
-    simRegDevReport,
-    simRegDevGetInScanPvt,
-    simRegDevGetOutScanPvt,
-    simRegDevAsyncRead,
-    simRegDevAsyncWrite,
-    simRegDevAlloc
+    simRegDevWrite,
 };
 
 /****** startup script configuration function ***********************/
-
-#if defined(vxWorks) && !defined(_WRS_VXWORKS_MAJOR)
-/* vxWorks 5 does not have strdup */
-static char* strdup(const char* s)
-{
-    char* r = malloc(strlen(s)+1);
-    if (!r) return NULL;
-    return strcpy(r, s);
-}
-#endif
 
 int simRegDevConfigure(
     const char* name,
@@ -353,7 +310,7 @@ int simRegDevConfigure(
         printf("usage: simRegDevConfigure(\"name\", size, swapEndianFlag)\n");
         printf("maps allocated memory block to device \"name\"");
         printf("\"name\" must be a unique string on this IOC\n");
-        return OK;
+        return S_dev_success;
     }
     device = (regDevice*)calloc(sizeof(regDevice)+size-1,1);
     if (device == NULL)
@@ -366,7 +323,7 @@ int simRegDevConfigure(
     device->magic = MAGIC;
     device->name = strdup(name);
     device->size = size;
-    device->status = 1;
+    device->connected = 1;
     device->swap = swapEndianFlag;
     if (async)
     {
@@ -378,12 +335,10 @@ int simRegDevConfigure(
                 {epicsThreadPriorityLow, epicsThreadPriorityMedium, epicsThreadPriorityHigh};
             device->queue[i] = epicsTimerQueueAllocate(FALSE, prio[i]);
         }
-        regDevAsyncRegisterDevice(name, &simRegDevAsyncSupport, device);
     }
-    else
-        regDevRegisterDevice(name, &simRegDevSupport, device);
+    regDevRegisterDevice(name, &simRegDevSupport, device, size);
     scanIoInit(&device->ioscanpvt);
-    return OK;
+    return S_dev_success;
 }
 
 int simRegDevAsyncConfigure(
@@ -396,14 +351,14 @@ int simRegDevAsyncConfigure(
 
 int simRegDevSetStatus(
     const char* name,
-    int status)
+    int connected)
 {
     regDevice* device;
 
     if (!name)
     {
         printf ("usage: simRegDevSetStatus name, 0|1\n");
-        return ERROR;
+        return S_dev_badArgument;
     }
     device = regDevFind(name);
     if (!device)
@@ -411,20 +366,20 @@ int simRegDevSetStatus(
         errlogSevPrintf(errlogFatal,
             "simRegDevSetStatus: %s not found\n",
             name);
-        return ERROR;
+        return S_dev_noDevice;
     }
     if (device->magic != MAGIC)
     {
         errlogSevPrintf(errlogFatal,
             "simRegDevSetStatus: %s is not a simRegDev\n",
             name);
-        return ERROR;
+        return S_dev_wrongDevice;
     }
-    device->status = status;
+    device->connected = connected;
     if (simRegDevDebug >= 1)
         printf ("simRegDevSetStatus %s: trigger input records\n", device->name);
     scanIoRequest(device->ioscanpvt);
-    return OK;
+    return S_dev_success;
 }
 
 int simRegDevSetData(
@@ -437,7 +392,7 @@ int simRegDevSetData(
     if (!name)
     {
         printf ("usage: simRegDevSetData name, offset, value\n");
-        return ERROR;
+        return S_dev_badArgument;
     }
     device = regDevFind(name);
     if (!device)
@@ -445,27 +400,28 @@ int simRegDevSetData(
         errlogSevPrintf(errlogFatal,
             "simRegDevSetData: %s not found\n",
             name);
-        return ERROR;
+        return S_dev_noDevice;
     }
     if (device->magic != MAGIC)
     {
         errlogSevPrintf(errlogFatal,
             "simRegDevSetData: %s is not a simRegDev\n",
             name);
-        return ERROR;
+        return S_dev_wrongDevice;
     }
-    if (offset < 0 || offset >= device->size)
+    if (offset > device->size)
     {
         errlogSevPrintf(errlogFatal,
-            "simRegDevSetData %s: offset %"Z"u out of range\n",
-            name, offset);
-        return ERROR;
+            "simRegDevSetData: %s offset %"Z"d out of range (0-%"Z"d)\n",
+            name, offset, device->size);
+        return S_dev_badSignalNumber;
     }
+    
     device->buffer[offset] = value;
     if (simRegDevDebug >= 1)
         printf ("simRegDevSetData %s: trigger input records\n", device->name);
     scanIoRequest(device->ioscanpvt);
-    return OK;
+    return S_dev_success;
 }
 
 
@@ -510,7 +466,7 @@ static void simRegDevAsyncConfigureFunc (const iocshArgBuf *args)
 }
 
 static const iocshArg simRegDevSetStatusArg0 = { "name", iocshArgString };
-static const iocshArg simRegDevSetStatusArg1 = { "status", iocshArgInt };
+static const iocshArg simRegDevSetStatusArg1 = { "connected", iocshArgInt };
 static const iocshArg * const simRegDevSetStatusArgs[] = {
     &simRegDevSetStatusArg0,
     &simRegDevSetStatusArg1
