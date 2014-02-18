@@ -160,6 +160,10 @@ void regDevCopy(unsigned int dlen, size_t nelem, volatile void* src, volatile vo
 {
     /* check alignment */
     size_t alignment = (1<<dlen)-1;
+
+    regDevDebugLog(DBG_IN|DBG_OUT, "regDevCopy(dlen=%d, nelem=%"Z"d, src=%p, dest=%p, pmask=%p, swap=%d)\n",
+        dlen, nelem, src, dest, pmask, swap);
+
     if (((size_t)src  & alignment) == 0 &&
         ((size_t)dest & alignment) == 0 &&
         (pmask == 0 || ((size_t)pmask & alignment) == 0) &&
