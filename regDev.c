@@ -29,7 +29,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.42 2014/02/18 16:09:31 zimoch Exp $";
+    "$Id: regDev.c,v 1.43 2014/02/18 16:47:50 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -1084,14 +1084,14 @@ void regDevWorkThread(regDeviceNode* device)
                 regDevDebugLog(DBG_OUT, "regDevWorkThread %s-%d %s: doing dispatched write\n", device->name, prio, msg.record->name);
                 epicsMutexLock(device->accesslock);
                 status = support->write(driver, msg.offset, msg.dlen, msg.nelem,
-                    msg.buffer, msg.mask, msg.record->prio, NULL, NULL);
+                    msg.buffer, msg.mask, msg.record->prio, NULL, msg.record->name);
                 epicsMutexUnlock(device->accesslock);
                 break;
             case CMD_READ:
                 regDevDebugLog(DBG_IN, "regDevWorkThread %s-%d %s: doing dispatched read\n", device->name, prio, msg.record->name);
                 epicsMutexLock(device->accesslock);
                 status = support->read(driver, msg.offset, msg.dlen, msg.nelem,
-                    msg.buffer, msg.record->prio, NULL, NULL);
+                    msg.buffer, msg.record->prio, NULL, msg.record->name);
                 epicsMutexUnlock(device->accesslock);
                 break;
             case CMD_EXIT:
