@@ -529,7 +529,17 @@ record (aao, "$(DEV):AAOF2UL")
 record (ao, "$(DEV):AOD")
 {
     field (DTYP, "regDev")
-    field (OUT,  "@test:0 T=double")
+    field (OUT,  "@test:0 T=double U=3000")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (PINI, "YES")
+}
+
+record (ao, "$(DEV):AOD2")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0 T=double U=3000")
     field (PREC, "6")
     field (LOPR, "-20")
     field (HOPR, "20")
@@ -883,6 +893,13 @@ record (mbbo, "$(DEV):MBBO1")
 {
     field (DTYP, "regDev")
     field (OUT,  "@test:16 T=word")
+}
+
+record (mbbo, "$(DEV):MBBO2")
+{
+    field (DTYP, "regDev")
+    field (NOBT, "32")
+    field (OUT,  "@test:16 T=uint32")
 }
 
 record (longout, "$(DEV):INDEX")
