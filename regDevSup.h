@@ -20,25 +20,20 @@
 #endif
 
 
-#ifdef EPICS_3_14
 #include <epicsExport.h>
 #include <epicsMutex.h>
 #include <epicsEvent.h>
-#else
-#define S_dev_success 0
+#include <epicsThread.h>
+#include <epicsTimer.h>
+#include <epicsTime.h>
+#include <epicsExit.h>
+
+/*
+#define epicsMutexUnlock(m) do { printf("epicsMutexUnlock(" #m ") in " __FILE__ " line %d\n", __LINE__); epicsMutexUnlock(m); } while (0)
+*/
+
+#ifndef S_dev_badArgument
 #define S_dev_badArgument (M_devLib| 33)
-#include <semLib.h>
-#define epicsMutexId SEM_ID
-#define epicsExportAddress(a,b) extern int dummy
-#define epicsMutexCreate() semMCreate(SEM_Q_PRIORITY)
-#define epicsMutexLock(m) semTake(m, WAIT_FOREVER)
-#define epicsMutexUnlock(m) semGive(m)
-#define epicsEventId SEM_ID
-#define epicsEventEmpty SEM_EMPTY
-#define epicsEventCreate(i) semBCreate(SEM_Q_FIFO, i)
-#define epicsEventWait(e) semTake(e, WAIT_FOREVER)
-#define epicsEventSignal(e) semGive(e)
-epicsShareExtern struct dbBase *pdbbase;
 #endif
 
 #include <sys/types.h>
@@ -58,15 +53,19 @@ typedef unsigned long long epicsUInt64;
 #define ARRAY_CONVERT 1
 #define DONT_CONVERT 2
 
-#define MAGIC 2181699655U /* crc("regDev") */
+typedef struct regDevDispatcher regDevDispatcher;
 
-typedef struct regDeviceNode {
-    struct regDeviceNode* next;    /* Next registered device */
-    const char* name;              /* Device name */
-    const regDevSupport* support;  /* Device function table */
-    const regDevAsyncSupport* asupport;  /* Device function table */
-    void* driver;                  /* Generic device driver */
-    epicsMutexId accesslock;       /* Access semaphore */
+typedef struct regDeviceNode {                     /* per device data structure */
+    epicsInt32 magic;
+    struct regDeviceNode* next;                    /* Next registered device */
+    const char* name;                              /* Device name */
+    size_t size;                                   /* Device size in bytes */
+    const regDevSupport* support;                  /* Device function table */
+    regDevice* driver;                             /* Generic device driver */
+    epicsMutexId accesslock;                       /* Access semaphore */
+    void* (*dmaAlloc) (regDevice*, void*, size_t); /* DMA memory allocator */
+    regDevDispatcher* dispatcher;                  /* serialize requests */
+    epicsTimerQueueId updateTimerQueue;            /* For update timers */
 } regDeviceNode;
 
 typedef union {
@@ -83,7 +82,7 @@ typedef union {
     void* buffer;
 } regDevAnytype;
 
-typedef struct regDevPrivate{
+typedef struct regDevPrivate{    /* per record data structure */
     epicsInt32 magic;
     regDeviceNode* device;
     size_t offset;               /* Offset (in bytes) within device memory */
@@ -98,8 +97,10 @@ typedef struct regDevPrivate{
     epicsInt32 hwLow;            /* Hardware Low limit */
     epicsInt32 hwHigh;           /* Hardware High limit */
     epicsUInt32 invert;          /* Invert bits for bi,bo,mbbi,... */
-    void* hwPtr;                 /* here we can add the hardware (DMA) address from buf alloc routine */
-    CALLBACK callback;           /* For asynchonous drivers */
+    epicsUInt32 update;          /* Periodic update of output records (msec) */
+    DEVSUPFUN updater;           /* Update function */
+    epicsTimerId updateTimer;    /* Update timer */
+    int updateActive;            /* Update processing active */
     int status;                  /* For asynchonous drivers */
     epicsEventId initDone;       /* For asynchonous drivers */
     size_t asyncOffset;          /* For asynchonous drivers */
@@ -125,8 +126,9 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm);
 int regDevAssertType(dbCommon *record, int types);
 const char* regDevTypeName(unsigned short dtype);
 int regDevMemAlloc(dbCommon* record, void** bptr, size_t size);
+int regDevInstallUpdateFunction(dbCommon* record, DEVSUPFUN updater);
 
-/* returns OK, ERROR, or ASYNC_COMPLETITION */
+/* returns OK, ERROR, or ASYNC_COMPLETION */
 /* here buffer must not point to local variable! */
 int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer);
 int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer, void* mask);
@@ -134,33 +136,50 @@ int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* buffe
 int regDevReadNumber(dbCommon* record, epicsInt32* rval, double* fval);
 int regDevWriteNumber(dbCommon* record, epicsInt32 rval, double fval);
 
-int regDevReadBits(dbCommon* record, epicsInt32* rval, epicsUInt32 mask);
+int regDevReadBits(dbCommon* record, epicsInt32* rval);
 int regDevWriteBits(dbCommon* record, epicsInt32 rval, epicsUInt32 mask);
 
-/* returns OK or ERROR, or ASYNC_COMPLETITION */
+/* returns OK or ERROR, or ASYNC_COMPLETION */
 int regDevReadArray(dbCommon* record, size_t nelm);
 int regDevWriteArray(dbCommon* record, size_t nelm);
 
 int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double low, double high);
 int regDevScaleToRaw(dbCommon* record, int ftvl, void* rval, size_t nelm, double low, double high);
 
+#define regDevCommonInit(record, link, types) \
+    int status; \
+    regDevPrivate* priv; \
+    priv = regDevAllocPriv((dbCommon*)record); \
+    if (!priv) return S_dev_noMemory; \
+    status = regDevIoParse((dbCommon*)record, &record->link); \
+    if (status) return status; \
+    status = regDevAssertType((dbCommon*)record, types); \
+    if (status) return status
+    
+
 #define regDevCheckAsyncWriteResult(record) \
-    regDevDebugLog(DBG_OUT, "regDevCheckAsyncWriteResult %s: PACT=%d\n", record->name, record->pact); \
-    do if (record->pact) \
+    regDevPrivate* priv = (regDevPrivate*)(record->dpvt); \
+    if (record->pact) \
     { \
-        regDevPrivate* priv = (regDevPrivate*)(record->dpvt); \
         if (priv == NULL) \
         { \
             recGblSetSevr(record, UDF_ALARM, INVALID_ALARM); \
             regDevDebugLog(DBG_OUT, "%s: record not initialized\n", record->name); \
         } \
-        if (priv->status != OK) \
+        if (priv->status != S_dev_success) \
         { \
             recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM); \
             regDevDebugLog(DBG_OUT, "%s: asynchronous write error\n", record->name); \
         } \
         regDevDebugLog(DBG_OUT, "regDevCheckAsyncWriteResult %s: status=%x\n", record->name, priv->status); \
         return priv->status; \
-    } while(0)
+    } \
+    if (priv->updateActive) \
+    { \
+        regDevDebugLog(DBG_IN, "%s: running updater\n", record->name); \
+        return priv->updater(record); \
+    }
 
 #endif
+
+#define regDevPrintErr(f, args...) errlogPrintf("%s %s: " f "\n", __FUNCTION__, record->name , ##args)
