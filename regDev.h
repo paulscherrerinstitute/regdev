@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: zimoch $ */
-/* $Date: 2014/02/18 16:09:18 $ */
-/* $Id: regDev.h,v 1.18 2014/02/18 16:09:18 zimoch Exp $ */
+/* $Date: 2014/02/18 16:47:21 $ */
+/* $Id: regDev.h,v 1.19 2014/02/18 16:47:21 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.18 $ */
+/* $Revision: 1.19 $ */
 
 #ifndef regDev_h
 #define regDev_h
@@ -47,33 +47,49 @@ extern __inline char* regDevStrdup(const char* s)
  */
 typedef struct regDevice regDevice;
 
-/* Every driver must provide this function table
- * It may be constant and is used for all device instances
- * Unimplemented functions may be NULL
- *
- * Unless regDevRegisterDevice is called with a size of 0, offset+nelem*dlen will never be outside the valid range.
- * 
- * Synchronous read/write returns 0 on success or other values (but not 1) on failure.
- * Each call is protected with a per device mutex, thus no two calls to the same device will happen at the same time.
- *
- * Asynchronous read/write returns ASYNC_COMPLETION (=1) and arranges to call
- * callback(user, status) when the operation has finished (or failed).
- * The the background task may use regDevLock()/regDevUnlock() to protect access to the device.
- * Read and write functions may use priority (0=low, 1=medium, 2=high) to sort requests.
- * 
- * A driver can choose at each call to work synchronously or asynchronously.
- * The user argument can be used to print messages. (It contains the record name).
- *
- * A driver may call regDevInstallWorkQueue at initialization to leave asynchonous handling to regDev.
- * Once a work queue is installed, all read/write calls are executed in a separate thread which may block.
- * In that case callback will allways be NULL.
- *
- */
- 
 /* return states for driver functions */
 #define SUCCESS 0
 #define ASYNC_COMPLETION 1
 
+/* Every driver must provide a regDevSupport table.
+ * It may be constant and is used for all device instances.
+ * The functions from this table are called from the device support.
+ * Unimplemented functions may be NULL.
+ *
+ * Unless regDevRegisterDevice is called with a size of 0,
+ * offset+nelem*dlen will never be larger than size in any call of any
+ * function in this table. Thus the driver normally does not need to
+ * check if the range is valid.
+ * 
+ * Synchronous read/write calls shall return 0 on success or other values
+ * (but not 1) on failure. They can safely ignore the callback argument.
+ *
+ * The calls are thread-safe as they are protected with a device specific
+ * mutex. Thus a synchronous driver normally does not need to care about
+ * concurency.
+ *
+ * Asynchronous read/write shall return ASYNC_COMPLETION (1) and arrange
+ * to call the provided callback when the operation has finished or failed
+ * and give back the passed user argument as well as the status (0 on success).
+ *
+ * Typically an asynchronous driver will create a work thread. In this thread
+ * it shall use regDevLock()/regDevUnlock() to protect access to the device
+ * from concurrent access by other calls.
+ *
+ * Read and write functions may use priority (0=low, 1=medium, 2=high) to sort
+ * requests.
+ * 
+ * A driver can choose at each call to work synchronously or asynchronously.
+ * The user argument can be used to print messages. (It point to the record name).
+ *
+ * A driver may call regDevInstallWorkQueue at initialization to leave asynchonous
+ * handling to regDev. Once a work queue is installed, all read/write calls are
+ * executed in priority order and are allowed to bock.
+ * In that case the callback argument will allways be NULL and the driver function
+ * shall not return ASYNC_COMPLETION (1).
+ *
+ */
+ 
 typedef void (*regDevTransferComplete) (char* user, int status);
 
 typedef struct regDevSupport {
@@ -134,7 +150,7 @@ const char* regDevUnock(
 
 /* A driver can call regDevInstallWorkQueue to serialize all read/write requests.
  * Once it is installed, record processing is asynchronous but the driver read and
- * write functions are synrchonous in a separate thread (with callback=NULL).
+ * write functions are synrchonously called in a separate thread (with callback=NULL).
  * One thread per driver and prioriy level is created to handle the reads and writes.
  * The queue has space for maxEntries pending requests on each of the 3 priority levels.
  */
