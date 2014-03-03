@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: zimoch $ */
-/* $Date: 2014/02/18 16:47:21 $ */
-/* $Id: regDev.h,v 1.19 2014/02/18 16:47:21 zimoch Exp $ */
+/* $Date: 2014/03/03 09:04:26 $ */
+/* $Id: regDev.h,v 1.20 2014/03/03 09:04:26 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.19 $ */
+/* $Revision: 1.20 $ */
 
 #ifndef regDev_h
 #define regDev_h
@@ -24,19 +24,12 @@
 
 /* vxWorks 5 does not have strdup */
 #if defined(vxWorks) && !defined(_WRS_VXWORKS_MAJOR)
-#include <string.h>
-#include <stdlib.h>
-extern __inline char* regDevStrdup(const char* s)
-{
-    char* r = malloc(strlen(s)+1);
-    if (!r) return NULL;
-    return strcpy(r, s);
-}
-#define strdup(s) regDevStrdup(s)
+#define strdup(s) ({ char* __r=malloc(strlen(s)+1); __r ? strcpy(__r, s) : NULL; })
 #endif
 
-/* utility: size_t modifier for printf */
+/* utility: size_t modifier for printf. Example usage: printf("%"Z"x", s) */
 #if defined(vxWorks) && !defined(_WRS_VXWORKS_MAJOR)
+/* vxWorks 5 does not know the z modifier */
 #define Z ""
 #else
 #define Z "z"
