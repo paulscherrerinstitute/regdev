@@ -29,7 +29,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.43 2014/02/18 16:47:50 zimoch Exp $";
+    "$Id: regDev.c,v 1.44 2014/03/03 12:41:16 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -358,7 +358,9 @@ int regDevIoParse2(
     /* Check init offset (for backward compatibility allow '!' and '/') */
     if (separator == ':' || separator == '/' || separator == '!')
     {
-        char* p1 = p;
+        char* p1;
+        while (isspace((unsigned char)*p)) p++;
+        p1 = p;
         long initoffset = regDevParseExpr(&p);
         if (p1 == p)
         {
@@ -495,13 +497,13 @@ int regDevIoParse2(
             if (!hset) hwHigh = 0xFFFFFFFF;
             break;
         case epicsInt8T:
-            if (priv->hwHigh > 0x7F || priv->hwLow < -0x80)
+            if (hwHigh > 0x7F || hwLow < -0x80)
                 status = S_dev_badArgument;
             if (!lset) hwLow = -0x7F;
             if (!hset) hwHigh = 0x7F;
             break;
         case epicsInt16T:
-            if (priv->hwHigh > 0x7FFF || priv->hwLow < -0x8000)
+            if (hwHigh > 0x7FFF || hwLow < -0x8000)
                 status = S_dev_badArgument;
             if (!lset) hwLow = -0x7FFF;
             if (!hset) hwHigh = 0x7FFF;
@@ -1426,54 +1428,54 @@ int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* buffe
         switch (dlen+(mask?10:0))
         {
             case 1:
-                errlogSevPrintf(errlogInfo,
+                regDevDebugLog(DBG_OUT, 
                     "%s: write %"Z"u * 8 bit 0x%02x to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt8*)buffer,
                     device->name, offset);
                 break;
             case 2:
-                errlogSevPrintf(errlogInfo,
+                regDevDebugLog(DBG_OUT,
                     "%s: write %"Z"u * 16 bit 0x%04x to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt16*)buffer,
                     device->name, offset);
                 break;
             case 4:
-                errlogSevPrintf(errlogInfo,
+                regDevDebugLog(DBG_OUT,
                     "%s: write %"Z"u * 32 bit 0x%08x to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt32*)buffer,
                     device->name, offset);
                 break;
             case 8:
-                errlogSevPrintf(errlogInfo,
+                regDevDebugLog(DBG_OUT,
                     "%s: write %"Z"u * 64 bit 0x%016llx to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt64*)buffer,
                     device->name, offset);
                 break;
             case 11:
-                errlogSevPrintf(errlogInfo,
+                regDevDebugLog(DBG_OUT,
                     "%s: write %"Z"u * 8 bit 0x%02x mask 0x%02x to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt8*)buffer, *(epicsUInt8*)mask,
                     device->name, offset);
             case 12:
-                errlogSevPrintf(errlogInfo,
+                regDevDebugLog(DBG_OUT,
                     "%s: write %"Z"u * 16 bit 0x%04x mask 0x%04x to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt16*)buffer, *(epicsUInt16*)mask,
                     device->name, offset);
                 break;
             case 14:
-                errlogSevPrintf(errlogInfo,
+                regDevDebugLog(DBG_OUT,
                     "%s: write %"Z"u * 32 bit 0x%08x mask 0x%08x to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt32*)buffer, *(epicsUInt32*)mask,
                     device->name, offset);
                 break;
             case 18:
-                errlogSevPrintf(errlogInfo,
+                regDevDebugLog(DBG_OUT,
                     "%s: write %"Z"u * 64 bit 0x%016llx mask 0x%016llx to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt64*)buffer, *(epicsUInt64*)mask,
                     device->name, offset);
                 break;
             default:
-                errlogSevPrintf(errlogInfo,
+                regDevDebugLog(DBG_OUT,
                     "%s: write %"Z"u * %d bit to %s:%"Z"u\n",
                     record->name, nelem, dlen*8,
                     device->name, offset);
@@ -1616,8 +1618,8 @@ int regDevReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
 int regDevWriteNumber(dbCommon* record, epicsInt32 rval, double fval)
 {
     regDevGetPriv();
-    regDevDebugLog(DBG_OUT, "regDevWriteNumber(record=%s, rval=0x%08x, fval=%g)\n",
-        record->name, rval, fval);
+    regDevDebugLog(DBG_OUT, "regDevWriteNumber(record=%s, rval=%d (0x%08x), fval=%#g)\n",
+        record->name, rval, rval, fval);
 
     /* enforce bounds */
     switch (priv->dtype)
@@ -1629,28 +1631,28 @@ int regDevWriteNumber(dbCommon* record, epicsInt32 rval, double fval)
         case regDevBCD32T:
             if ((epicsUInt32)rval > (epicsUInt32)priv->hwHigh)
             {
-                regDevDebugLog(DBG_OUT, "%s: limit output from 0x%08x to upper bound 0x%08x\n",
-                    record->name, rval, priv->hwHigh);
+                regDevDebugLog(DBG_OUT, "%s: limit output from %u (0x%08x) to upper bound %u (0x%08x)\n",
+                    record->name, rval, rval, priv->hwHigh, priv->hwHigh);
                 rval = priv->hwHigh;
             }
             if ((epicsUInt32)rval < (epicsUInt32)priv->hwLow)
             {
-                regDevDebugLog(DBG_OUT, "%s: limit output from 0x%08x to lower bound 0x%08x\n",
-                    record->name, rval, priv->hwLow);
+                regDevDebugLog(DBG_OUT, "%s: limit output from %u (0x%08x) to lower bound %u (0x%08x)\n",
+                    record->name, rval, rval, priv->hwLow, priv->hwLow);
                 rval = priv->hwLow;
             }
             break;
         default:
             if (rval > priv->hwHigh)
             {
-                regDevDebugLog(DBG_OUT, "%s: limit output from 0x%08x to upper bound 0x%08x\n",
-                    record->name, rval, priv->hwHigh);
+                regDevDebugLog(DBG_OUT, "%s: limit output from %d (0x%08x) to upper bound %d (0x%08x)\n",
+                    record->name, rval, rval, priv->hwHigh, priv->hwHigh);
                 rval = priv->hwHigh;
             }
             if (rval < priv->hwLow)
             {
-                regDevDebugLog(DBG_OUT, "%s: limit output from 0x%08x to lower bound 0x%08x\n",
-                    record->name, rval, priv->hwLow);
+                regDevDebugLog(DBG_OUT, "%s: limit output from %d (0x%08x) to lower bound %d (0x%08x)\n",
+                    record->name, rval, rval, priv->hwLow, priv->hwLow);
                 rval = priv->hwLow;
             }
     }
