@@ -16,6 +16,7 @@
 #include <epicsMutex.h>
 #include <epicsThread.h>
 #include <epicsExport.h>
+#include "simRegDev.h"
 
 #define MAGIC 322588966U /* crc("simRegDev") */
 
@@ -28,7 +29,7 @@
 #endif
 
 static char cvsid_simRegDev[] __attribute__((unused)) =
-    "$Id: simRegDev.c,v 1.12 2014/02/18 16:14:50 zimoch Exp $";
+    "$Id: simRegDev.c,v 1.13 2014/03/03 12:41:54 zimoch Exp $";
 
 typedef struct simRegDevMessage {
     struct simRegDevMessage* next;
@@ -421,6 +422,45 @@ int simRegDevSetData(
     if (simRegDevDebug >= 1)
         printf ("simRegDevSetData %s: trigger input records\n", device->name);
     scanIoRequest(device->ioscanpvt);
+    return S_dev_success;
+}
+
+int simRegDevGetData(
+    const char* name,
+    size_t offset,
+    int *value)
+{
+    regDevice* device;
+
+    if (!name)
+    {
+        printf ("usage: simRegDevGetData name, offset, &value\n");
+        return S_dev_badArgument;
+    }
+    device = regDevFind(name);
+    if (!device)
+    {
+        errlogSevPrintf(errlogFatal,
+            "simRegDevGetData: %s not found\n",
+            name);
+        return S_dev_noDevice;
+    }
+    if (device->magic != MAGIC)
+    {
+        errlogSevPrintf(errlogFatal,
+            "simRegDevGetData: %s is not a simRegDev\n",
+            name);
+        return S_dev_wrongDevice;
+    }
+    if (offset > device->size)
+    {
+        errlogSevPrintf(errlogFatal,
+            "simRegDevGetData: %s offset %"Z"d out of range (0-%"Z"d)\n",
+            name, offset, device->size);
+        return S_dev_badSignalNumber;
+    }
+    
+    *value = device->buffer[offset];
     return S_dev_success;
 }
 
