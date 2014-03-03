@@ -149,14 +149,14 @@ int test_regDevIoParse()
         }
         if (priv->offset !=  parameters[i].offs)
         {
-            printf (FAILED ": wrong offset %d instead of %d\n",
+            printf (FAILED ": wrong offset %"Z"d instead of %d\n",
                 priv->offset, parameters[i].offs);
             errorcount++;
             continue;
         }
         if (priv->initoffset !=  parameters[i].init)
         {
-            printf (FAILED ": wrong init offset %d instead of %d\n",
+            printf (FAILED ": wrong init offset %"Z"d instead of %d\n",
                 priv->initoffset, parameters[i].init);
             errorcount++;
             continue;
