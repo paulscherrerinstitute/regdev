@@ -1,3 +1,17 @@
+#include <string.h>
+#include <stdlib.h>
+#include <devLib.h>
+#include "epicsTypes.h"
+#include "regDevSup.h"
+#include "test_regDev.h"
+
+#define regDevBCD8T  (100)
+#define regDevBCD16T (101)
+#define regDevBCD32T (102)
+#define regDev64T    (103)
+#define regDevFirstType regDevBCD8T
+#define regDevLastType  regDev64T
+
 struct  { char* string;
         int result;    int offs; int init; int dtype; int dlen;    int l;      int h; int b; int p;} 
 parameters[] = {
@@ -89,74 +103,93 @@ static regDevSupport dummyRegDevSupport = {
 int test_regDevIoParse()
 {
     int i;
-    regDevPrivate priv;
     int result;
     char errormessage[80];
+    char expectedmessage[80];
+    dbCommon record;
+    struct link link;
+    regDevPrivate* priv;
     
-    memset(&priv,0,sizeof(priv));
-    priv.dtype=epicsInt16T;
-    priv.dlen=2;
+    memset(&record, 0, sizeof(record));
+    strcpy(record.name ,"test");
     
-    regDevRegisterDevice("dev1", &dummyRegDevSupport, NULL);
+    memset(&link,  0, sizeof(link));
+    link.type = INST_IO;
+    link.value.instio.string = malloc(80);
+    
+    
+    regDevRegisterDevice("dev1", &dummyRegDevSupport, NULL, 0);
     
     for (i = 0; i < sizeof(parameters)/sizeof(parameters[0]); i++)
     {
         printf("parse \"%s\" ", parameters[i].string); fflush(stdout);
-        result = regDevIoParse2("test", parameters[i].string, &priv);
+        strcpy(link.value.instio.string, parameters[i].string);
+        free(record.dpvt);
+        record.dpvt = NULL;
+        if ((priv = regDevAllocPriv(&record)) == NULL)
+        {
+            printf (FAILED ".\n");
+            errorcount++;
+            continue;
+        }
+        result = regDevIoParse(&record, &link);
         if (result != parameters[i].result)
         {
             errSymLookup(result, errormessage, sizeof(errormessage));
-            printf (FAILED ": %s (error code %d-%d)\n", errormessage, result>>16, result&0xffff);
+            errSymLookup(parameters[i].result, expectedmessage, sizeof(expectedmessage));
+            printf (FAILED ": \"%s\" instead of \"%s\"\n", errormessage, expectedmessage);
             errorcount++;
+            continue;
         }
         if (result != 0) 
         {
-            printf (PASSED ".\n");
+            errSymLookup(result, errormessage, sizeof(errormessage));
+            printf (PASSED " (\"%s\").\n", errormessage);
             continue;
         }
-        if (priv.offset !=  parameters[i].offs)
+        if (priv->offset !=  parameters[i].offs)
         {
             printf (FAILED ": wrong offset %d instead of %d\n",
-                priv.offset, parameters[i].offs);
+                priv->offset, parameters[i].offs);
             errorcount++;
             continue;
         }
-        if (priv.initoffset !=  parameters[i].init)
+        if (priv->initoffset !=  parameters[i].init)
         {
             printf (FAILED ": wrong init offset %d instead of %d\n",
-                priv.initoffset, parameters[i].init);
+                priv->initoffset, parameters[i].init);
             errorcount++;
             continue;
         }
-        if (priv.dtype !=  parameters[i].dtype)
+        if (priv->dtype !=  parameters[i].dtype)
         {
             printf (FAILED ": wrong dtype %d instead of %d\n",
-                priv.dtype, parameters[i].dtype);
+                priv->dtype, parameters[i].dtype);
             errorcount++;
             continue;
         }
-        if (priv.dlen !=  parameters[i].dlen)
+        if (priv->dlen !=  parameters[i].dlen)
         {
             printf (FAILED ": wrong dlen %d instead of %d\n",
-                priv.dlen, parameters[i].dlen);
+                priv->dlen, parameters[i].dlen);
             errorcount++;
             continue;
         }
-        if (priv.hwLow !=  parameters[i].l)
+        if (priv->hwLow !=  parameters[i].l)
         {
             printf (FAILED ": wrong low limit %#x (%d) instead of %#x (%d) \n",
-                priv.hwLow, priv.hwLow, parameters[i].l, parameters[i].l);
+                priv->hwLow, priv->hwLow, parameters[i].l, parameters[i].l);
             errorcount++;
             continue;
         }
-        if (priv.hwHigh !=  parameters[i].h)
+        if (priv->hwHigh !=  parameters[i].h)
         {
             printf (FAILED ": wrong high limit %#x (%d) instead of %#x (%d) \n",
-                priv.hwHigh, priv.hwHigh, parameters[i].h, parameters[i].h);
+                priv->hwHigh, priv->hwHigh, parameters[i].h, parameters[i].h);
             errorcount++;
             continue;
         }
         printf (PASSED ".\n");
     }
-    return 0;
+    return errorcount;
 }
