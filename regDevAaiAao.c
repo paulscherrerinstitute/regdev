@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <stdio.h>
 #include "regDevSup.h"
 
 /* aai **************************************************************/
@@ -57,20 +56,17 @@ long regDevReadAai(aaiRecord* record)
 
     if (!record->bptr)
     {
-        fprintf (stderr, "regDevReadAai %s: private buffer is not allocated\n", record->name);
+        regDevPrintErr("private buffer is not allocated");
         return S_dev_noMemory;
     }
     status = regDevReadArray((dbCommon*)record, record->nelm);
     record->nord = record->nelm;
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status) return status;
-    if (priv->data.buffer != record->bptr)
-    {    
-         /* convert to float/double */
-        return regDevScaleFromRaw((dbCommon*)record, record->ftvl,
-            record->bptr, record->nelm, record->lopr, record->hopr);
-    }
-    return S_dev_success;
+    if (priv->data.buffer == record->bptr) return S_dev_success;
+    /* convert to float/double */
+    return regDevScaleFromRaw((dbCommon*)record, record->ftvl,
+        record->bptr, record->nelm, record->lopr, record->hopr);
 }
 
 /* aao **************************************************************/
@@ -79,6 +75,7 @@ long regDevReadAai(aaiRecord* record)
 
 long regDevInitRecordAao(aaoRecord *);
 long regDevWriteAao(aaoRecord *);
+long regDevUpdateAao(aaoRecord *);
 
 struct devsup regDevAao =
 {
@@ -94,8 +91,8 @@ epicsExportAddress(dset, regDevAao);
 
 long regDevInitRecordAao(aaoRecord* record)
 {
-    int status;
     regDevPrivate* priv;
+    int status;
     
     regDevDebugLog(DBG_INIT, "regDevInitRecordAao(%s) link type %d\n", record->name, record->out.type);
     priv = regDevAllocPriv((dbCommon*)record);
@@ -117,19 +114,36 @@ long regDevInitRecordAao(aaoRecord* record)
         if (!record->bptr) return S_dev_noMemory;  
     }
     else if (status) return status;
-    if (priv->initoffset != DONT_INIT)
-    {
-        status = regDevReadArray((dbCommon*)record, record->nelm);
-        if (status) return status;
-        if (priv->data.buffer != record->bptr)
-        {    
-            /* convert to float/double */
-            return regDevScaleFromRaw((dbCommon*)record, record->ftvl,
-                record->bptr, record->nelm, record->lopr, record->hopr);
-        }
-    }
-    return S_dev_success;
+    status = regDevInstallUpdateFunction((dbCommon*)record, regDevUpdateAao);
+    if (status) return status;
+    if (priv->initoffset == DONT_INIT) return S_dev_success;
+    status = regDevReadArray((dbCommon*)record, record->nelm);
+    if (status) return status;
+    if (priv->data.buffer == record->bptr) return S_dev_success;
+    /* convert to float/double */
+    return regDevScaleFromRaw((dbCommon*)record, record->ftvl,
+        record->bptr, record->nelm, record->lopr, record->hopr);
 }
+
+long regDevUpdateAao(aaoRecord* record)
+{
+    regDevPrivate* priv = (regDevPrivate*)record->dpvt;
+    int status;
+    
+    if (!record->bptr)
+    {
+        regDevPrintErr("private buffer is not allocated");
+        return S_dev_noMemory;
+    }
+    status = regDevReadArray((dbCommon*)record, record->nelm);
+    if (status == ASYNC_COMPLETION) return S_dev_success;
+    if (status) return status;
+    if (priv->data.buffer == record->bptr) return S_dev_success;
+    /* convert to float/double */
+    return regDevScaleFromRaw((dbCommon*)record, record->ftvl,
+        record->bptr, record->nelm, record->lopr, record->hopr);
+}
+
 
 long regDevWriteAao(aaoRecord* record)
 {
@@ -139,7 +153,7 @@ long regDevWriteAao(aaoRecord* record)
     regDevCheckAsyncWriteResult(record);
     if (!record->bptr)
     {
-        fprintf (stderr, "regDevWriteAao %s: private buffer is not allocated\n", record->name);
+        regDevPrintErr("private buffer is not allocated");
         return S_dev_noMemory;
     }
     if (priv->data.buffer != record->bptr)
