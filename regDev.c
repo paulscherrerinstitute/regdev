@@ -29,7 +29,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.44 2014/03/03 12:41:16 zimoch Exp $";
+    "$Id: regDev.c,v 1.45 2014/03/03 12:44:12 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -359,9 +359,11 @@ int regDevIoParse2(
     if (separator == ':' || separator == '/' || separator == '!')
     {
         char* p1;
+        long initoffset;
+        
         while (isspace((unsigned char)*p)) p++;
         p1 = p;
-        long initoffset = regDevParseExpr(&p);
+        initoffset = regDevParseExpr(&p);
         if (p1 == p)
         {
             priv->initoffset = priv->offset;
