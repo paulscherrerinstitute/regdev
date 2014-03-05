@@ -25,7 +25,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.46 2014/03/05 08:37:41 zimoch Exp $";
+    "$Id: regDev.c,v 1.47 2014/03/05 08:42:23 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -832,14 +832,7 @@ regDevPrivate* regDevAllocPriv(dbCommon *record)
     priv = calloc(1, sizeof(regDevPrivate));
     if (priv == NULL)
     {
-        regDevPrintErr("try to allocate %d bytes. %s",
-            (int)sizeof(regDevPrivate), strerror(errno));
-#ifdef vxWorks
-        {
-            MEM_PART_STATS meminfo;
-            memPartInfoGet(memSysPartId, &meminfo);
-        }
-#endif
+        regDevPrintErr("out of memory");
         return NULL;
     }
     priv->magic = MAGIC_PRIV;
