@@ -6,16 +6,12 @@
 #include <stdio.h>
 #include <errno.h>
 
-#ifdef vxWorks
-#include <memLib.h>
-#endif
-
 #define epicsTypesGLOBAL
 #include <dbAccess.h>
-#include "recSup.h"
-#include "regDevSup.h"
-
+#include <recSup.h>
 #include <epicsMessageQueue.h>
+#include <epicsThread.h>
+#include "regDevSup.h"
 
 #ifndef __GNUC__
 #define __attribute__(a)
@@ -29,7 +25,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.45 2014/03/03 12:44:12 zimoch Exp $";
+    "$Id: regDev.c,v 1.46 2014/03/05 08:37:41 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -1072,12 +1068,21 @@ void regDevWorkThread(regDeviceNode* device)
     int status;
     int prio;
     
-    epicsThreadId tid = epicsThreadGetIdSelf();
-    for (prio = 0; prio <= 2; prio ++)
+    regDevDebugLog(DBG_INIT, "%s %s starting\n", __FUNCTION__, epicsThreadGetNameSelf());
+
+    prio = epicsThreadGetPrioritySelf();
+    if (prio == epicsThreadPriorityLow) prio = 0;
+    else
+    if (prio == epicsThreadPriorityMedium) prio = 1;
+    else
+    if (prio == epicsThreadPriorityHigh) prio = 2;
+    else
     {
-        if (epicsThreadIsEqual(tid, dispatcher->tid[prio])) break;
+        errlogPrintf("%s %s: illegal priority %d\n",
+            __FUNCTION__, epicsThreadGetNameSelf(), prio);
+        return;
     }
-    assert (prio <= 2);
+    regDevDebugLog(DBG_INIT, "%s prio %d qid=%p\n", __FUNCTION__, prio, dispatcher->qid[prio]);
     
     while (1)
     {
@@ -1085,34 +1090,36 @@ void regDevWorkThread(regDeviceNode* device)
         switch (msg.cmd)
         {
             case CMD_WRITE:
-                regDevDebugLog(DBG_OUT, "regDevWorkThread %s-%d %s: doing dispatched write\n", device->name, prio, msg.record->name);
+                regDevDebugLog(DBG_OUT, "%s %s-%d %s: doing dispatched write\n", __FUNCTION__, device->name, prio, msg.record->name);
                 epicsMutexLock(device->accesslock);
                 status = support->write(driver, msg.offset, msg.dlen, msg.nelem,
                     msg.buffer, msg.mask, msg.record->prio, NULL, msg.record->name);
                 epicsMutexUnlock(device->accesslock);
                 break;
             case CMD_READ:
-                regDevDebugLog(DBG_IN, "regDevWorkThread %s-%d %s: doing dispatched read\n", device->name, prio, msg.record->name);
+                regDevDebugLog(DBG_IN, "%s %s-%d %s: doing dispatched read\n", __FUNCTION__, device->name, prio, msg.record->name);
                 epicsMutexLock(device->accesslock);
                 status = support->read(driver, msg.offset, msg.dlen, msg.nelem,
                     msg.buffer, msg.record->prio, NULL, msg.record->name);
                 epicsMutexUnlock(device->accesslock);
                 break;
             case CMD_EXIT:
-                regDevDebugLog(DBG_INIT, "regDevWorkThread %s-%d exiting\n", device->name, prio);
+                regDevDebugLog(DBG_INIT, "%s %s-%d exiting\n", __FUNCTION__, device->name, prio);
                 return;
             default:
-                errlogPrintf("regDevWorkThread %s-%d: illegal command 0x%x\n", device->name, prio, msg.cmd);
+                errlogPrintf("%s %s-%d: illegal command 0x%x\n", __FUNCTION__, device->name, prio, msg.cmd);
                 continue;                
         }
         msg.callback(msg.record->name, status);
     }
 }
 
-void regDevWorkExit(regDevDispatcher *dispatcher)
+void regDevWorkExit(regDeviceNode* device)
 {
     struct regDevWorkMsg msg;
+    regDevDispatcher *dispatcher = device->dispatcher;
 
+    regDevDebugLog(DBG_INIT, "regDevWorkExit %s terminating work threads\n", device->name);
     /* destroying the queue cancels all pending requests and terminates the work threads [not true] */
     msg.cmd = CMD_EXIT;
     epicsMessageQueueSend(dispatcher->qid[0], &msg, sizeof(msg));
@@ -1124,6 +1131,7 @@ void regDevWorkExit(regDevDispatcher *dispatcher)
             epicsThreadIsSuspended(dispatcher->tid[1]) &&
             epicsThreadIsSuspended(dispatcher->tid[2]))
         epicsThreadSleep(0.1);
+    regDevDebugLog(DBG_INIT, "regDevWorkExit %s done\n", device->name);
 }
 
 int regDevInstallWorkQueue(regDevice* driver, size_t maxEntries)
@@ -1131,20 +1139,28 @@ int regDevInstallWorkQueue(regDevice* driver, size_t maxEntries)
     regDevDispatcher *dispatcher;
     regDeviceNode* device = regDevGetDeviceNode(driver);
 
+    regDevDebugLog(DBG_INIT, "regDevInstallWorkQueue %s, maxEntries=%"Z"d\n", device->name, maxEntries);
+
     dispatcher = malloc(sizeof(regDevDispatcher));
+    device->dispatcher = dispatcher;
+    
     dispatcher->qid[0] = epicsMessageQueueCreate(maxEntries, sizeof(struct regDevWorkMsg));
     dispatcher->qid[1] = epicsMessageQueueCreate(maxEntries, sizeof(struct regDevWorkMsg));
     dispatcher->qid[2] = epicsMessageQueueCreate(maxEntries, sizeof(struct regDevWorkMsg));
+ 
     dispatcher->tid[0] = epicsThreadCreate(device->name, epicsThreadPriorityLow,
         epicsThreadGetStackSize(epicsThreadStackSmall),
         (EPICSTHREADFUNC) regDevWorkThread, device);
+
     dispatcher->tid[1] = epicsThreadCreate(device->name, epicsThreadPriorityMedium,
         epicsThreadGetStackSize(epicsThreadStackSmall),
         (EPICSTHREADFUNC) regDevWorkThread, device);
+
     dispatcher->tid[2] = epicsThreadCreate(device->name, epicsThreadPriorityHigh,
         epicsThreadGetStackSize(epicsThreadStackSmall),
         (EPICSTHREADFUNC) regDevWorkThread, device);
-    epicsAtExit((void(*)(void*))regDevWorkExit, dispatcher);
+
+    epicsAtExit((void(*)(void*))regDevWorkExit, device);
 
     if (!dispatcher->qid[0] || !dispatcher->qid[1] || !dispatcher->qid[2] ||
         !dispatcher->tid[0] || !dispatcher->tid[1] || !dispatcher->tid[2])
@@ -1153,7 +1169,6 @@ int regDevInstallWorkQueue(regDevice* driver, size_t maxEntries)
             __FUNCTION__);
         return S_dev_noMemory;
     }
-    device->dispatcher = dispatcher;
     return S_dev_success;
 }
 
@@ -1242,15 +1257,13 @@ int regDevGetOffset(dbCommon* record, int read, unsigned short dlen, size_t nele
     {
         if (offset > device->size)
         {
-            errlogSevPrintf(errlogMajor,
-                "%s %s: offset %"Z"u out of range of device %s (0-%"Z"u)\n",
+            errlogPrintf("%s %s: offset %"Z"u out of range of device %s (0-%"Z"u)\n",
                 record->name, read ? "read" : "write", offset, device->name, device->size-1);
             return S_dev_badSignalNumber;
         }
         if (offset + dlen * nelem > device->size)
         {
-            errlogSevPrintf(errlogMajor,
-                "%s %s: offset %"Z"u + %"Z"u bytes length exceeds device %s size %"Z"u by %"Z"u bytes\n",
+            errlogPrintf("%s %s: offset %"Z"u + %"Z"u bytes length exceeds device %s size %"Z"u by %"Z"u bytes\n",
                 record->name, read ? "read" : "write", offset, nelem*dlen, device->name, device->size,
                 offset + dlen * nelem - device->size);
             return S_dev_badSignalCount;
@@ -1342,40 +1355,34 @@ int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer
     {
         if (status == ASYNC_COMPLETION)
         {
-            errlogSevPrintf(errlogInfo,
-                "%s: async read %"Z"d * %d bit from %s:%"Z"u\n",
+            printf("%s: async read %"Z"d * %d bit from %s:%"Z"u\n",
                 record->name, nelem, dlen*8,
                 device->name, priv->asyncOffset);
         }
         else switch (dlen)
         {
             case 1:
-                errlogSevPrintf(errlogInfo,
-                    "%s: read %"Z"u * 8 bit 0x%02x from %s:%"Z"u (status=%x)\n",
+                printf("%s: read %"Z"u * 8 bit 0x%02x from %s:%"Z"u (status=%x)\n",
                     record->name, nelem, *(epicsUInt8*)buffer,
                     device->name, priv->asyncOffset, status);
                 break;
             case 2:
-                errlogSevPrintf(errlogInfo,
-                    "%s: read %"Z"u * 16 bit 0x%04x from %s:%"Z"u (status=%x)\n",
+                printf("%s: read %"Z"u * 16 bit 0x%04x from %s:%"Z"u (status=%x)\n",
                     record->name, nelem, *(epicsUInt16*)buffer,
                     device->name, priv->asyncOffset, status);
                 break;
             case 4:
-                errlogSevPrintf(errlogInfo,
-                    "%s: read %"Z"u * 32 bit 0x%08x from %s:%"Z"u (status=%x)\n",
+                printf("%s: read %"Z"u * 32 bit 0x%08x from %s:%"Z"u (status=%x)\n",
                     record->name, nelem, *(epicsUInt32*)buffer,
                     device->name, priv->asyncOffset, status);
                 break;
             case 8:
-                errlogSevPrintf(errlogInfo,
-                    "%s: read %"Z"u * 64 bit 0x%016llx from %s:%"Z"u (status=%x)\n",
+                printf("%s: read %"Z"u * 64 bit 0x%016llx from %s:%"Z"u (status=%x)\n",
                     record->name, nelem, *(epicsUInt64*)buffer,
                     device->name, priv->asyncOffset, status);
                 break;
             default:
-                errlogSevPrintf(errlogInfo,
-                    "%s: read %"Z"u * %d bit from %s:%"Z"u (status=%x)\n",
+                printf("%s: read %"Z"u * %d bit from %s:%"Z"u (status=%x)\n",
                     record->name, nelem, dlen*8,
                     device->name, priv->asyncOffset, status);
         }
