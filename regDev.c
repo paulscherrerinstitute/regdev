@@ -25,7 +25,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.47 2014/03/05 08:42:23 zimoch Exp $";
+    "$Id: regDev.c,v 1.48 2014/03/25 11:00:36 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -556,12 +556,14 @@ int regDevIoParse2(
     regDevDebugLog(DBG_INIT, "regDevIoParse %s: B=%d\n",   recordName, priv->bit);
     regDevDebugLog(DBG_INIT, "regDevIoParse %s: X=%#x\n",  recordName, priv->invert);
 
+/*  Sometimes it is useful to have limits out of range (for simpler scaling)
     if (status)
     {
         errlogPrintf("regDevIoParse %s: L=%#x (%d) or H=%#x (%d) out of range for T=%s\n",
             recordName, priv->hwLow, priv->hwLow, priv->hwHigh, priv->hwHigh, datatypes[type].name);
         return status;
     }
+*/
 
     return S_dev_success;
 }
