@@ -25,7 +25,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.48 2014/03/25 11:00:36 zimoch Exp $";
+    "$Id: regDev.c,v 1.49 2014/04/02 11:29:18 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -477,7 +477,7 @@ int regDevIoParse2(
         return S_dev_badArgument;
     }
 
-    /* get default values for L and H if user did'n define them */
+    /* get default values for L and H if user did not define them */
     switch (priv->dtype)
     {
         case epicsUInt8T:
@@ -943,96 +943,104 @@ int regDevCheckFTVL(dbCommon* record, int ftvl)
 int regDevCheckType(dbCommon* record, int ftvl, int nelm)
 {
     regDeviceNode* device;
+    int status = S_dev_badArgument;
 
     regDevGetPriv();
     device = priv->device;
     assert (device);
 
-    regDevDebugLog(DBG_INIT, "regDevCheckType(%s, %s, %i)\n",
-        record->name,
-        pamapdbfType[ftvl].strvalue+4,
-        nelm);
     assert(priv);
     switch (priv->dtype)
     {
         case epicsFloat64T:
             if (ftvl == DBF_DOUBLE)
-                return S_dev_success;
+                status = S_dev_success;
             break;
         case epicsFloat32T:
             if (ftvl == DBF_FLOAT)
-                return S_dev_success;
+                status = S_dev_success;
             break;
         case epicsStringT:
             if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
             {
                 if (!priv->dlen) priv->dlen = nelm;
                 if (priv->dlen > nelm) priv->dlen = nelm;
-                return S_dev_success;
+                status = S_dev_success;
             }
             break;
         case regDevBCD8T:
         case epicsInt8T:
         case epicsUInt8T:
             if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
-                return S_dev_success;
-            if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
-                return ARRAY_CONVERT;
+                status = S_dev_success;
+            else if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
+                status = ARRAY_CONVERT;
             break;
         case regDevBCD16T:
         case epicsInt16T:
         case epicsUInt16T:
             if ((ftvl == DBF_SHORT) || (ftvl == DBF_USHORT))
-                return S_dev_success;
-            if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
+                status = S_dev_success;
+            else if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
             {
                 priv->arraypacking = 2;
-                return S_dev_success;
+                status = S_dev_success;
             }
-            if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
-                return ARRAY_CONVERT;
+            else if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
+                status = ARRAY_CONVERT;
             break;
         case regDevBCD32T:
         case epicsInt32T:
         case epicsUInt32T:
             if ((ftvl == DBF_LONG) || (ftvl == DBF_ULONG))
-                return S_dev_success;
-            if ((ftvl == DBF_SHORT) || (ftvl == DBF_USHORT))
+                status = S_dev_success;
+            else if ((ftvl == DBF_SHORT) || (ftvl == DBF_USHORT))
             {
                 priv->arraypacking = 2;
-                return S_dev_success;
+                status = S_dev_success;
             }
-            if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
+            else if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
             {
                 priv->arraypacking = 4;
-                return S_dev_success;
+                status = S_dev_success;
             }
-            if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
-                return ARRAY_CONVERT;
+            else if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
+                status = ARRAY_CONVERT;
             break;
         case regDev64T:
             if ((ftvl == DBF_LONG) || (ftvl == DBF_ULONG))
             {
                 priv->arraypacking = 2;
-                return S_dev_success;
+                status = S_dev_success;
             }
-            if ((ftvl == DBF_SHORT) || (ftvl == DBF_USHORT))
+            else if ((ftvl == DBF_SHORT) || (ftvl == DBF_USHORT))
             {
                 priv->arraypacking = 4;
-                return S_dev_success;
+                status = S_dev_success;
             }
-            if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
+            else if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
             {
                 priv->arraypacking = 8;
-                return S_dev_success;
+                status = S_dev_success;
             }
-            if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
-                return ARRAY_CONVERT;
+            else if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
+                status = ARRAY_CONVERT;
+            break;
     }
-    fprintf (stderr,
-        "regDevCheckType %s: data type %s does not match FTVL %s\n",
-         record->name, regDevTypeName(priv->dtype), pamapdbfType[ftvl].strvalue);
-    return S_dev_badArgument;
+    regDevDebugLog(DBG_INIT, "regDevCheckType(%s, %s, %i): FTVL=%s dtyp=%s dlen=%d arraypacking=%d status=%d\n",
+        record->name,
+        pamapdbfType[ftvl].strvalue+4,
+        nelm,
+        pamapdbfType[ftvl].strvalue,
+        regDevTypeName(priv->dtype),
+        priv->dlen,
+        priv->arraypacking,
+        status);
+    if (status == S_dev_badArgument)
+        fprintf (stderr,
+            "regDevCheckType %s: data type %s does not match FTVL %s\n",
+             record->name, regDevTypeName(priv->dtype), pamapdbfType[ftvl].strvalue);
+    return status;
 }
 
 /*********  Work dispatcher thread ****************************/
@@ -1824,9 +1832,9 @@ int regDevReadArray(dbCommon* record, size_t nelm)
     }
     else
     {
-        packing = priv->arraypacking;
+        /* read packed array */
         status = regDevRead(record,
-            dlen*packing, nelm/packing, priv->data.buffer);
+            dlen, nelm/priv->arraypacking, priv->data.buffer);
     }
 
     if (status != S_dev_success) return status;
@@ -1919,8 +1927,8 @@ int regDevWriteArray(dbCommon* record, size_t nelm)
     }
     else
     {
-        packing = priv->arraypacking;
-        status = regDevWrite(record, dlen*packing, nelm/packing, priv->data.buffer, NULL);
+        status = regDevWrite(record,
+            dlen, nelm/priv->arraypacking, priv->data.buffer, NULL);
     }
     return status;
 }
