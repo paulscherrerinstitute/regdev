@@ -25,7 +25,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.50 2014/04/02 14:01:44 zimoch Exp $";
+    "$Id: regDev.c,v 1.51 2014/04/02 15:29:56 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -71,7 +71,6 @@ static void regDevCallback(char* user, int status)
     {
         if (priv->status != S_dev_success)
         {
-            recGblSetSevr(record, COMM_ALARM, INVALID_ALARM);
             if (priv->updateActive)
             {
                 regDevPrintErr("async record update failed");
