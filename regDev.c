@@ -25,7 +25,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.49 2014/04/02 11:29:18 zimoch Exp $";
+    "$Id: regDev.c,v 1.50 2014/04/02 14:01:44 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -1027,11 +1027,10 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
                 status = ARRAY_CONVERT;
             break;
     }
-    regDevDebugLog(DBG_INIT, "regDevCheckType(%s, %s, %i): FTVL=%s dtyp=%s dlen=%d arraypacking=%d status=%d\n",
+    regDevDebugLog(DBG_INIT, "regDevCheckType(%s, %s, %i): dtyp=%s dlen=%d arraypacking=%d status=%d\n",
         record->name,
         pamapdbfType[ftvl].strvalue+4,
         nelm,
-        pamapdbfType[ftvl].strvalue,
         regDevTypeName(priv->dtype),
         priv->dlen,
         priv->arraypacking,
@@ -1039,7 +1038,7 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
     if (status == S_dev_badArgument)
         fprintf (stderr,
             "regDevCheckType %s: data type %s does not match FTVL %s\n",
-             record->name, regDevTypeName(priv->dtype), pamapdbfType[ftvl].strvalue);
+             record->name, regDevTypeName(priv->dtype), pamapdbfType[ftvl].strvalue+4);
     return status;
 }
 
