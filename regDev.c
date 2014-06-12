@@ -25,7 +25,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.51 2014/04/02 15:29:56 zimoch Exp $";
+    "$Id: regDev.c,v 1.52 2014/06/12 08:07:05 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -240,7 +240,6 @@ int regDevIoParse2(
     char* p = parameterstring;
     char separator;
     int nchar;
-    int status = 0;
 
     static const int maxtype = sizeof(datatypes)/sizeof(*datatypes);
     int type = 0;
@@ -480,13 +479,9 @@ int regDevIoParse2(
     switch (priv->dtype)
     {
         case epicsUInt8T:
-            if (hwHigh > 0xFF || hwLow < 0)
-                status = S_dev_badArgument;
             if (!hset) hwHigh = 0xFF;
             break;
         case epicsUInt16T:
-            if (hwHigh > 0xFFFF || hwLow < 0)
-                status = S_dev_badArgument;
             if (!hset) hwHigh = 0xFFFF;
             break;
         case epicsUInt32T:
@@ -494,14 +489,10 @@ int regDevIoParse2(
             if (!hset) hwHigh = 0xFFFFFFFF;
             break;
         case epicsInt8T:
-            if (hwHigh > 0x7F || hwLow < -0x80)
-                status = S_dev_badArgument;
             if (!lset) hwLow = -0x7F;
             if (!hset) hwHigh = 0x7F;
             break;
         case epicsInt16T:
-            if (hwHigh > 0x7FFF || hwLow < -0x8000)
-                status = S_dev_badArgument;
             if (!lset) hwLow = -0x7FFF;
             if (!hset) hwHigh = 0x7FFF;
             break;
@@ -510,18 +501,12 @@ int regDevIoParse2(
             if (!hset) hwHigh = 0x7FFFFFFF;
             break;
         case regDevBCD8T:
-            if (hwHigh > 99 || hwLow < 0)
-                status = S_dev_badArgument;
             if (!hset) hwHigh = 99;
             break;
         case regDevBCD16T:
-            if (hwHigh > 9999 || hwLow < 0)
-                status = S_dev_badArgument;
             if (!hset) hwHigh = 9999;
             break;
         case regDevBCD32T:
-            if (hwHigh > 99999999 || hwLow < 0)
-                status = S_dev_badArgument;
             if (!hset) hwHigh = 99999999;
             break;
         case epicsStringT:
@@ -554,15 +539,6 @@ int regDevIoParse2(
     regDevDebugLog(DBG_INIT, "regDevIoParse %s: H=%#x\n",  recordName, priv->hwHigh);
     regDevDebugLog(DBG_INIT, "regDevIoParse %s: B=%d\n",   recordName, priv->bit);
     regDevDebugLog(DBG_INIT, "regDevIoParse %s: X=%#x\n",  recordName, priv->invert);
-
-/*  Sometimes it is useful to have limits out of range (for simpler scaling)
-    if (status)
-    {
-        errlogPrintf("regDevIoParse %s: L=%#x (%d) or H=%#x (%d) out of range for T=%s\n",
-            recordName, priv->hwLow, priv->hwLow, priv->hwHigh, priv->hwHigh, datatypes[type].name);
-        return status;
-    }
-*/
 
     return S_dev_success;
 }
