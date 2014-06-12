@@ -12,14 +12,12 @@ int main (int argc, char** argv)
 #endif
 {
     regDevDebug=0;
-/*
     printf ("test_regDevCopy\n");
     test_regDevCopy();
-*/
-/*
+
     printf ("test_regDevIoParse\n");
     test_regDevIoParse();
-*/
+
     printf ("test_regDevWriteNumber\n");
     test_regDevWriteNumber();
 
