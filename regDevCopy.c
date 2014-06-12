@@ -156,10 +156,16 @@
 #define SWAP (1<<4)
 #define MASK (1<<5)
 
+static union {epicsUInt8 b[0]; epicsUInt32 u;} endianess = {.u = 0x12345678};
+
 void regDevCopy(unsigned int dlen, size_t nelem, volatile void* src, volatile void* dest, void* pmask, int swap)
 {
     /* check alignment */
     size_t alignment = (1<<dlen)-1;
+    
+    /* handle conditional swapping */
+    if (swap == BE_SWAP) swap = (endianess.b[0] == 0x12);
+    else if (swap == LE_SWAP) swap = (endianess.b[0] == 0x78);
 
     regDevDebugLog(DBG_IN|DBG_OUT, "regDevCopy(dlen=%d, nelem=%"Z"d, src=%p, dest=%p, pmask=%p, swap=%d)\n",
         dlen, nelem, src, dest, pmask, swap);
@@ -169,7 +175,7 @@ void regDevCopy(unsigned int dlen, size_t nelem, volatile void* src, volatile vo
         (pmask == 0 || ((size_t)pmask & alignment) == 0) &&
         (dlen <= 8))
     {
-        /* handle standard element sizes: 1, 2 ,4, 8 bytes */
+        /* handle aligned standard element sizes: 1, 2 ,4, 8 bytes */
         switch (dlen + (swap ? SWAP : 0) + (pmask ? MASK : 0))
         {
             case 0:
