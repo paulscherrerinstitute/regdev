@@ -86,8 +86,6 @@ parameters[] = {
 
 { "dev2/42",
     S_dev_noDevice,          0,       0,  0,               0,          0,          0,    0,     0  },
-{ "dev1/42 T=int8 h=1000",
-    S_dev_badArgument,       0,       0,  0,               0,          0,          0,    0,     0  },
 { "dev1/-5",
     S_dev_badArgument,      -5,      -1,  epicsInt16T,   2,      -0x7fff,     0x7fff,    0,     0  },
 };    
