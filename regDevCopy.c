@@ -89,7 +89,7 @@
 { \
     const volatile epicsUInt##N* s = src;\
     volatile epicsUInt##N* d = dest;\
-    epicsUInt##N m = *(epicsUInt##N*)pmask;\
+    epicsUInt##N m = *(const epicsUInt##N*)pmask;\
     epicsUInt##N x; \
     while (nelem--) \
     { \
@@ -102,7 +102,7 @@
 { \
     const volatile epicsUInt##N* s = src;\
     volatile epicsUInt##N* d = dest;\
-    epicsUInt##N *m = pmask;\
+    const epicsUInt##N *m = pmask;\
     epicsUInt##N x; \
     int i; \
     while (nelem--) \
@@ -121,7 +121,7 @@
 { \
     const volatile epicsUInt##N* s = src;\
     volatile epicsUInt##N* d = dest;\
-    epicsUInt##N m = bswap_##N(*(epicsUInt##N*)pmask);\
+    epicsUInt##N m = bswap_##N(*(const epicsUInt##N*)pmask);\
     epicsUInt##N x; \
     while (nelem--) \
     { \
@@ -135,7 +135,7 @@
 { \
     const volatile epicsUInt##N* s = src;\
     volatile epicsUInt##N* d = dest;\
-    epicsUInt##N* m = pmask;\
+    const epicsUInt##N* m = pmask;\
     epicsUInt##N x; \
     int i; \
     while (nelem--) \
@@ -158,7 +158,7 @@
 
 static union {epicsUInt8 b[0]; epicsUInt32 u;} endianess = {.u = 0x12345678};
 
-void regDevCopy(unsigned int dlen, size_t nelem, const volatile void* src, volatile void* dest, void* pmask, int swap)
+void regDevCopy(unsigned int dlen, size_t nelem, const volatile void* src, volatile void* dest, const void* pmask, int swap)
 {
     /* check alignment */
     size_t alignment = (1<<dlen)-1;
