@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: zimoch $ */
-/* $Date: 2014/06/12 10:05:20 $ */
-/* $Id: regDev.h,v 1.21 2014/06/12 10:05:20 zimoch Exp $ */
+/* $Date: 2014/06/18 13:59:34 $ */
+/* $Id: regDev.h,v 1.22 2014/06/18 13:59:34 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.21 $ */
+/* $Revision: 1.22 $ */
 
 #ifndef regDev_h
 #define regDev_h
@@ -183,6 +183,6 @@ extern int regDevDebug;
 #define DO_SWAP 1 /* always swap */
 #define BE_SWAP 2 /* swap only on big endian systems */
 #define LE_SWAP 3 /* swap only on little endian systems */
-void regDevCopy(unsigned int dlen, size_t nelem, volatile void* src, volatile void* dest, void* pmask, int swap);
+void regDevCopy(unsigned int dlen, size_t nelem, const volatile void* src, volatile void* dest, void* pmask, int swap);
 #endif /* regDev_h */
 
