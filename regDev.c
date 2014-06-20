@@ -25,7 +25,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.52 2014/06/12 08:07:05 zimoch Exp $";
+    "$Id: regDev.c,v 1.53 2014/06/20 16:28:16 brands Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -38,7 +38,7 @@ epicsExportAddress(int, regDevDebug);
         regDevPrintErr("uninitialized record"); \
         return S_dev_badInit; } \
     assert (priv->magic == MAGIC_PRIV)
-    
+
 static int startswith(const char *s, const char *key)
 {
     int n = 0;
@@ -60,7 +60,7 @@ static void regDevCallback(char* user, int status)
     priv = record->dpvt;
     assert (priv != NULL);
     assert (priv->magic == MAGIC_PRIV);
-    
+
     priv->status = status;
 
     if (!interruptAccept)
@@ -354,7 +354,7 @@ int regDevIoParse2(
     {
         char* p1;
         long initoffset;
-        
+
         while (isspace((unsigned char)*p)) p++;
         p1 = p;
         initoffset = regDevParseExpr(&p);
@@ -611,7 +611,7 @@ int regDevAsyncRegisterDevice(const char* name,
 {
     return regDevRegisterDevice(name, support, driver, 0);
 }
-
+#ifndef _WIN32
 #define regDevGetDeviceNode(driver) ({ \
     regDeviceNode* device; \
     for (device = registeredDevices; device; device = device->next) \
@@ -620,6 +620,11 @@ int regDevAsyncRegisterDevice(const char* name,
     assert(device->magic == MAGIC_NODE);\
     device;\
 })
+#else
+regDeviceNode* device;
+#define regDevGetDeviceNode(driver) (device)
+#endif
+
 
 int regDevRegisterDmaAlloc(regDevice* driver,
     void* (*dmaAlloc) (regDevice *, void* ptr, size_t))
@@ -627,6 +632,7 @@ int regDevRegisterDmaAlloc(regDevice* driver,
     regDevGetDeviceNode(driver)->dmaAlloc = dmaAlloc;
     return S_dev_success;
 }
+
 
 
 int regDevLock(regDevice* driver)
@@ -766,6 +772,8 @@ struct drvsup {
     regDevReport,
     NULL
 };
+
+epicsExportAddress(drvet, regDev);
 
 /* routine to convert bytes from BCD to integer format. */
 
@@ -1044,7 +1052,7 @@ void regDevWorkThread(regDeviceNode* device)
     struct regDevWorkMsg msg;
     int status;
     int prio;
-    
+
     regDevDebugLog(DBG_INIT, "%s %s starting\n", __FUNCTION__, epicsThreadGetNameSelf());
 
     prio = epicsThreadGetPrioritySelf();
@@ -1060,7 +1068,7 @@ void regDevWorkThread(regDeviceNode* device)
         return;
     }
     regDevDebugLog(DBG_INIT, "%s prio %d qid=%p\n", __FUNCTION__, prio, dispatcher->qid[prio]);
-    
+
     while (1)
     {
         epicsMessageQueueReceive(dispatcher->qid[prio], &msg, sizeof(msg));
@@ -1085,7 +1093,7 @@ void regDevWorkThread(regDeviceNode* device)
                 return;
             default:
                 errlogPrintf("%s %s-%d: illegal command 0x%x\n", __FUNCTION__, device->name, prio, msg.cmd);
-                continue;                
+                continue;
         }
         msg.callback(msg.record->name, status);
     }
@@ -1120,11 +1128,11 @@ int regDevInstallWorkQueue(regDevice* driver, size_t maxEntries)
 
     dispatcher = malloc(sizeof(regDevDispatcher));
     device->dispatcher = dispatcher;
-    
+
     dispatcher->qid[0] = epicsMessageQueueCreate(maxEntries, sizeof(struct regDevWorkMsg));
     dispatcher->qid[1] = epicsMessageQueueCreate(maxEntries, sizeof(struct regDevWorkMsg));
     dispatcher->qid[2] = epicsMessageQueueCreate(maxEntries, sizeof(struct regDevWorkMsg));
- 
+
     dispatcher->tid[0] = epicsThreadCreate(device->name, epicsThreadPriorityLow,
         epicsThreadGetStackSize(epicsThreadStackSmall),
         (EPICSTHREADFUNC) regDevWorkThread, device);
@@ -1292,7 +1300,7 @@ int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer
             if (device->dispatcher)
             {
                 struct regDevWorkMsg msg;
-                
+
                 msg.cmd = CMD_READ;
                 msg.offset = offset;
                 msg.dlen = dlen;
@@ -1407,14 +1415,14 @@ int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* buffe
     /* First call of (probably asynchronous) device */
     status = regDevGetOffset(record, FALSE, dlen, nelem, &offset);
     if (status) return status;
-        
+
     /* Some debug output */
     if (regDevDebug  & DBG_OUT)
     {
         switch (dlen+(mask?10:0))
         {
             case 1:
-                regDevDebugLog(DBG_OUT, 
+                regDevDebugLog(DBG_OUT,
                     "%s: write %"Z"u * 8 bit 0x%02x to %s:%"Z"u\n",
                     record->name, nelem, *(epicsUInt8*)buffer,
                     device->name, offset);
@@ -2257,9 +2265,9 @@ int regDevInstallUpdateFunction(dbCommon* record, DEVSUPFUN updater)
     regDevGetPriv();
     device = priv->device;
     assert (device);
-    
+
     regDevDebugLog(DBG_INIT, "%s: regDevInstallUpdateFunction\n", record->name);
-    
+
     if (priv->update)
     {
         if (!device->updateTimerQueue)
@@ -2301,11 +2309,11 @@ int regDevDisplay(const char* devName, size_t start, unsigned int dlen, size_t b
     static char* buffer = NULL;
     static size_t bufferSize = 0;
     epicsTimeStamp startTime, endTime;
-    
+
     regDeviceNode* device;
     int status;
     size_t nelem;
-        
+
     if (devName && *devName) {
         for (device = registeredDevices; device; device = device->next)
         {
@@ -2326,7 +2334,7 @@ int regDevDisplay(const char* devName, size_t start, unsigned int dlen, size_t b
     if (start > 0 || dlen || bytes) offset = start;
     if (dlen) save_dlen = dlen; else dlen = save_dlen;
     if (bytes) save_bytes = bytes; else bytes = save_bytes;
-    
+
     if (offset >= device->size)
     {
         errlogPrintf("address 0x%"Z"x out of range\n", offset);
@@ -2337,7 +2345,7 @@ int regDevDisplay(const char* devName, size_t start, unsigned int dlen, size_t b
         bytes = device->size - offset;
     }
     nelem = bytes/dlen;
-    
+
     if (bytes > bufferSize)
     {
         if (device->dmaAlloc)
@@ -2362,7 +2370,7 @@ int regDevDisplay(const char* devName, size_t start, unsigned int dlen, size_t b
         }
         bufferSize = bytes;
     }
-    
+
     if (device->support->read)
     {
         if (!regDevDisplayEvent)
@@ -2431,7 +2439,7 @@ int regDevPut(const char* devName, int offset, unsigned short dlen, int value)
     regDeviceNode* device = NULL;
     int status;
     regDevAnytype buffer;
-    
+
     if (devName && *devName) {
         for (device = registeredDevices; device; device = device->next)
         {
@@ -2445,7 +2453,7 @@ int regDevPut(const char* devName, int offset, unsigned short dlen, int value)
     }
     switch (dlen)
     {
-    
+
         case 1:
             buffer.sval8 = value;
             break;
@@ -2494,7 +2502,7 @@ static const iocshArg * const regDevDisplayArgs[] = {
 
 static const iocshFuncDef regDevDisplayDef =
     { "regDevDisplay", 4, regDevDisplayArgs };
-    
+
 static void regDevDisplayFunc (const iocshArgBuf *args)
 {
     regDevDisplay(

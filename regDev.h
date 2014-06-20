@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
-/* $Author: zimoch $ */
-/* $Date: 2014/06/18 14:47:36 $ */
-/* $Id: regDev.h,v 1.23 2014/06/18 14:47:36 zimoch Exp $ */
+/* $Author: brands $ */
+/* $Date: 2014/06/20 16:28:16 $ */
+/* $Id: regDev.h,v 1.24 2014/06/20 16:28:16 brands Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.23 $ */
+/* $Revision: 1.24 $ */
 
 #ifndef regDev_h
 #define regDev_h
@@ -53,7 +53,7 @@ typedef struct regDevice regDevice;
  * offset+nelem*dlen will never be larger than size in any call of any
  * function in this table. Thus the driver normally does not need to
  * check if the range is valid.
- * 
+ *
  * Synchronous read/write calls shall return 0 on success or other values
  * (but not 1) on failure. They can safely ignore the callback argument.
  *
@@ -71,7 +71,7 @@ typedef struct regDevice regDevice;
  *
  * Read and write functions may use priority (0=low, 1=medium, 2=high) to sort
  * requests.
- * 
+ *
  * A driver can choose at each call to work synchronously or asynchronously.
  * The user argument can be used to print messages. (It point to the record name).
  *
@@ -82,7 +82,7 @@ typedef struct regDevice regDevice;
  * shall not return ASYNC_COMPLETION (1).
  *
  */
- 
+
 typedef void (*regDevTransferComplete) (char* user, int status);
 
 typedef struct regDevSupport {
@@ -124,21 +124,21 @@ typedef struct regDevSupport {
 /* Every driver must create and register each device instance
  * together with name and function table.
  */
-int regDevRegisterDevice(
+epicsShareFunc int regDevRegisterDevice(
     const char* name,
     const regDevSupport* support,
     regDevice* device,
     size_t size);
 
 /* find the device instance by its name */
-regDevice* regDevFind(
+epicsShareFunc regDevice* regDevFind(
     const char* name);
 
 /* lock/unlock access to the device (for asynchronous work threads) */
-int regDevLock(
+epicsShareFunc int regDevLock(
     regDevice* device);
-    
-const char* regDevUnock(
+
+epicsShareFunc const char* regDevUnock(
     regDevice* device);
 
 /* A driver can call regDevInstallWorkQueue to serialize all read/write requests.
@@ -147,7 +147,7 @@ const char* regDevUnock(
  * One thread per driver and prioriy level is created to handle the reads and writes.
  * The queue has space for maxEntries pending requests on each of the 3 priority levels.
  */
-int regDevInstallWorkQueue(
+epicsShareFunc int regDevInstallWorkQueue(
     regDevice* device,
     size_t maxEntries);
 
@@ -183,6 +183,6 @@ extern int regDevDebug;
 #define DO_SWAP 1 /* always swap */
 #define BE_SWAP 2 /* swap only on big endian systems */
 #define LE_SWAP 3 /* swap only on little endian systems */
-void regDevCopy(unsigned int dlen, size_t nelem, const volatile void* src, volatile void* dest, const void* pmask, int swap);
+epicsShareFunc  void regDevCopy(unsigned int dlen, size_t nelem, const volatile void* src, volatile void* dest, const void* pmask, int swap);
 #endif /* regDev_h */
 

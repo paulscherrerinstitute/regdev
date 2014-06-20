@@ -155,7 +155,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* rval, size_t nelm, double
     if (status) return status; \
     status = regDevAssertType((dbCommon*)record, types); \
     if (status) return status
-    
+
 
 #define regDevCheckAsyncWriteResult(record) \
     regDevPrivate* priv = (regDevPrivate*)(record->dpvt); \
@@ -182,4 +182,8 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* rval, size_t nelm, double
 
 #endif
 
-#define regDevPrintErr(f, args...) errlogPrintf("%s %s: " f "\n", __FUNCTION__, record->name , ##args)
+#ifdef _WIN32
+ #define regDevPrintErr(f, ...) errlogPrintf("%s %s: " f "\n", __FUNCTION__, record->name , __VA_ARGS__)
+#else
+ #define regDevPrintErr(f, args...) errlogPrintf("%s %s: " f "\n", __FUNCTION__, record->name , ##args)
+#endif
