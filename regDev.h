@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
-/* $Author: brands $ */
-/* $Date: 2014/06/20 16:28:16 $ */
-/* $Id: regDev.h,v 1.24 2014/06/20 16:28:16 brands Exp $ */
+/* $Author: zimoch $ */
+/* $Date: 2014/07/15 12:01:02 $ */
+/* $Id: regDev.h,v 1.25 2014/07/15 12:01:02 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.24 $ */
+/* $Revision: 1.25 $ */
 
 #ifndef regDev_h
 #define regDev_h
@@ -24,7 +24,7 @@
 
 /* vxWorks 5 does not have strdup */
 #if defined(vxWorks) && !defined(_WRS_VXWORKS_MAJOR)
-#define strdup(s) ({ char* __r=malloc(strlen(s)+1); __r ? strcpy(__r, s) : NULL; })
+#define strdup(s) ({ char* __r=(char*)malloc(strlen(s)+1); __r ? strcpy(__r, s) : NULL; })
 #endif
 
 /* utility: size_t modifier for printf. Example usage: printf("%"Z"x", s) */
@@ -82,6 +82,10 @@ typedef struct regDevice regDevice;
  * shall not return ASYNC_COMPLETION (1).
  *
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef void (*regDevTransferComplete) (char* user, int status);
 
@@ -186,3 +190,6 @@ extern int regDevDebug;
 epicsShareFunc  void regDevCopy(unsigned int dlen, size_t nelem, const volatile void* src, volatile void* dest, const void* pmask, int swap);
 #endif /* regDev_h */
 
+#ifdef __cplusplus
+}
+#endif
