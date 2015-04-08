@@ -2,10 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifndef _WIN32
-#include <unistd.h>
-#endif
-
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -29,7 +25,7 @@
 #endif
 
 static char cvsid_simRegDev[] __attribute__((unused)) =
-    "$Id: simRegDev.c,v 1.13 2014/03/03 12:41:54 zimoch Exp $";
+    "$Id: simRegDev.c,v 1.14 2015/04/08 12:17:50 zimoch Exp $";
 
 typedef struct simRegDevMessage {
     struct simRegDevMessage* next;
