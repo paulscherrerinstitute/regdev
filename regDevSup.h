@@ -3,19 +3,20 @@
 #ifndef regDevSup_h
 #define regDevSup_h
 
-#include "regDev.h"
 #include <devSup.h>
 #include <drvSup.h>
-#include <devLib.h>
 #include <dbCommon.h>
 #include <alarm.h>
 #include <errlog.h>
 #include <recGbl.h>
+#include <devLib.h>
 
 #include <epicsMutex.h>
 #include <epicsEvent.h>
 #include <epicsTimer.h>
+
 #include <epicsExport.h>
+#include "regDev.h"
 
 #ifndef S_dev_badArgument
 #define S_dev_badArgument (M_devLib| 33)

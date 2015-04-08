@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: zimoch $ */
-/* $Date: 2015/04/08 13:21:42 $ */
-/* $Id: regDev.h,v 1.26 2015/04/08 13:21:42 zimoch Exp $ */
+/* $Date: 2015/04/08 15:03:19 $ */
+/* $Id: regDev.h,v 1.27 2015/04/08 15:03:19 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.26 $ */
+/* $Revision: 1.27 $ */
 
 #ifndef regDev_h
 #define regDev_h
@@ -17,7 +17,7 @@
 #else
 #define EPICS_3_14
 #include <iocsh.h>
-#include <epicsExport.h>
+#include "shareLib.h"
 #endif
 
 /* vxWorks 5 does not have strdup */
@@ -161,12 +161,12 @@ If ptr has not previously been allocated by the allocator, it shall be treated a
 The function shall return NULL on failure.
 It is used for the array buffer by aai and aao records.
 */
-int regDevRegisterDmaAlloc(
+epicsShareFunc int regDevRegisterDmaAlloc(
     regDevice* device,
     void* (*dmaAlloc) (regDevice *device, void* ptr, size_t size));
 
 /* Use this variable to control debugging messages */
-extern int regDevDebug;
+epicsShareExtern int regDevDebug;
 
 #define DBG_INIT 1
 #define DBG_IN   2

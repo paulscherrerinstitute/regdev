@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include "regDevSup.h"
 #define epicsTypesGLOBAL
 #include <callback.h>
 #include <dbAccess.h>
@@ -16,7 +15,8 @@
 #include <epicsThread.h>
 #include <cantProceed.h>
 #include <epicsExit.h>
-#include <epicsExport.h>
+
+#include "regDevSup.h"
 
 #ifndef __GNUC__
 #define __attribute__(a)
@@ -30,7 +30,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.57 2015/04/08 13:48:55 zimoch Exp $";
+    "$Id: regDev.c,v 1.58 2015/04/08 15:03:19 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
