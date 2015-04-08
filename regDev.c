@@ -30,7 +30,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.55 2015/04/08 13:37:12 zimoch Exp $";
+    "$Id: regDev.c,v 1.56 2015/04/08 13:41:00 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -1029,6 +1029,7 @@ struct regDevWorkMsg {
 struct regDevDispatcher {
     epicsThreadId tid[NUM_CALLBACK_PRIORITIES];
     epicsMessageQueueId qid[NUM_CALLBACK_PRIORITIES];
+    size_t maxEntries;
 };
 
 
@@ -1091,57 +1092,78 @@ void regDevWorkExit(regDeviceNode* device)
 {
     struct regDevWorkMsg msg;
     regDevDispatcher *dispatcher = device->dispatcher;
+    int prio;
 
     regDevDebugLog(DBG_INIT, "regDevWorkExit %s terminating work threads\n", device->name);
     /* destroying the queue cancels all pending requests and terminates the work threads [not true] */
     msg.cmd = CMD_EXIT;
-    epicsMessageQueueSend(dispatcher->qid[0], &msg, sizeof(msg));
-    epicsMessageQueueSend(dispatcher->qid[1], &msg, sizeof(msg));
-    epicsMessageQueueSend(dispatcher->qid[2], &msg, sizeof(msg));
+    for (prio = 0; prio < NUM_CALLBACK_PRIORITIES; prio++)
+    {
+        if (dispatcher->qid[prio]) 
+            epicsMessageQueueSend(dispatcher->qid[prio], &msg, sizeof(msg));
+    }
 
     /* wait until work threads have terminated */
-    while (!epicsThreadIsSuspended(dispatcher->tid[0]) &&
-            epicsThreadIsSuspended(dispatcher->tid[1]) &&
-            epicsThreadIsSuspended(dispatcher->tid[2]))
-        epicsThreadSleep(0.1);
+    for (prio = 0; prio < NUM_CALLBACK_PRIORITIES; prio++)
+    {
+        while (!epicsThreadIsSuspended(dispatcher->tid[prio]))
+            epicsThreadSleep(0.1);
+    }
     regDevDebugLog(DBG_INIT, "regDevWorkExit %s done\n", device->name);
+}
+
+int regDevStartWorkQueue(regDeviceNode* device, unsigned int prio)
+{
+    char* threadName;
+    regDevDispatcher *dispatcher = device->dispatcher;
+    unsigned int threadPrio;
+
+    if (prio < 0) prio = 0;
+
+    if (prio >= NUM_CALLBACK_PRIORITIES) prio = NUM_CALLBACK_PRIORITIES-1;
+
+    dispatcher->qid[prio] = epicsMessageQueueCreate(dispatcher->maxEntries, sizeof(struct regDevWorkMsg));
+    threadName=mallocMustSucceed(strlen(device->name)+9, "regDevInstallWorkQueue");
+
+    switch (prio)
+
+    {
+        case 0:
+            sprintf(threadName, "regDevL %s", device->name);
+            threadPrio = epicsThreadPriorityLow;
+            break;
+        case 1:
+            sprintf(threadName, "regDevM %s", device->name);
+            threadPrio = epicsThreadPriorityMedium;
+            break;
+        case 2:
+            sprintf(threadName, "regDevH %s", device->name);
+            threadPrio = epicsThreadPriorityHigh;
+        default:
+            errlogPrintf("%s: illegal priority\n",
+            __FUNCTION__);
+            return S_dev_badRequest;
+    }          
+    dispatcher->tid[prio] = epicsThreadCreate(threadName, threadPrio,
+        epicsThreadGetStackSize(epicsThreadStackSmall),
+        (EPICSTHREADFUNC) regDevWorkThread, device);
+
+    free(threadName);
+    return S_dev_success;
 }
 
 int regDevInstallWorkQueue(regDevice* driver, size_t maxEntries)
 {
-    regDevDispatcher *dispatcher;
     regDeviceNode* device = regDevGetDeviceNode(driver);
 
     regDevDebugLog(DBG_INIT, "regDevInstallWorkQueue %s, maxEntries=%"Z"d\n", device->name, maxEntries);
 
-    dispatcher = malloc(sizeof(regDevDispatcher));
-    device->dispatcher = dispatcher;
-
-    dispatcher->qid[0] = epicsMessageQueueCreate(maxEntries, sizeof(struct regDevWorkMsg));
-    dispatcher->qid[1] = epicsMessageQueueCreate(maxEntries, sizeof(struct regDevWorkMsg));
-    dispatcher->qid[2] = epicsMessageQueueCreate(maxEntries, sizeof(struct regDevWorkMsg));
-
-    dispatcher->tid[0] = epicsThreadCreate(device->name, epicsThreadPriorityLow,
-        epicsThreadGetStackSize(epicsThreadStackSmall),
-        (EPICSTHREADFUNC) regDevWorkThread, device);
-
-    dispatcher->tid[1] = epicsThreadCreate(device->name, epicsThreadPriorityMedium,
-        epicsThreadGetStackSize(epicsThreadStackSmall),
-        (EPICSTHREADFUNC) regDevWorkThread, device);
-
-    dispatcher->tid[2] = epicsThreadCreate(device->name, epicsThreadPriorityHigh,
-        epicsThreadGetStackSize(epicsThreadStackSmall),
-        (EPICSTHREADFUNC) regDevWorkThread, device);
+    device->dispatcher = mallocMustSucceed(sizeof(regDevDispatcher), "regDevInstallWorkQueue");
+    device->dispatcher->maxEntries = maxEntries;
+    
+    /* actual work queues and threads are created when needed */
 
     epicsAtExit((void(*)(void*))regDevWorkExit, device);
-
-    if (!dispatcher->qid[0] || !dispatcher->qid[1] || !dispatcher->qid[2] ||
-        !dispatcher->tid[0] || !dispatcher->tid[1] || !dispatcher->tid[2])
-    {
-        errlogPrintf("%s: out of memory\n",
-            __FUNCTION__);
-        return S_dev_noMemory;
-    }
     return S_dev_success;
 }
 
@@ -1296,6 +1318,11 @@ int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer
                 msg.buffer = buffer;
                 msg.callback = regDevCallback;
                 msg.record = record;
+                if (!device->dispatcher->qid[record->prio])
+                {
+                    if (regDevStartWorkQueue(device, record->prio) != S_dev_success)
+                        return S_dev_badRequest;
+                }
                 if (epicsMessageQueueTrySend(device->dispatcher->qid[record->prio], (char*)&msg, sizeof(msg)) != 0)
                 {
                     recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
@@ -1481,6 +1508,11 @@ int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* buffe
             msg.mask = mask;
             msg.callback = regDevCallback;
             msg.record = record;
+            if (!device->dispatcher->qid[record->prio])
+            {
+                if (regDevStartWorkQueue(device, record->prio) != S_dev_success)
+                    return S_dev_badRequest;
+            }
             if (epicsMessageQueueTrySend(device->dispatcher->qid[record->prio], (char*)&msg, sizeof(msg)) != 0)
             {
                 recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
