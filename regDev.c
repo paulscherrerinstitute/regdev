@@ -30,7 +30,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.54 2015/04/08 13:32:18 zimoch Exp $";
+    "$Id: regDev.c,v 1.55 2015/04/08 13:37:12 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -308,7 +308,7 @@ int regDevIoParse2(
             while (!isspace((unsigned char)*p) && !(q && *p == q)) recName[i++] = *p++;
             if (q && *p == q) p++;
             recName[i] = 0;
-            priv->offsetRecord = (struct dbAddr*) malloc(sizeof (struct dbAddr));
+            priv->offsetRecord = (struct dbAddr*) mallocMustSucceed(sizeof (struct dbAddr), "regDevIoParse");
             if (dbNameToAddr(recName, priv->offsetRecord) != S_dev_success)
             {
                 free(priv->offsetRecord);
@@ -358,7 +358,7 @@ int regDevIoParse2(
     if (separator == ':' || separator == '/' || separator == '!')
     {
         char* p1;
-        ptrdiff_t initoffset;
+        regDevSignedOffset_t initoffset;
 
         while (isspace((unsigned char)*p)) p++;
         p1 = p;
@@ -588,25 +588,13 @@ int regDevRegisterDevice(const char* name,
             return S_dev_multDevice;
         }
     }
-    *pdevice = (regDeviceNode*) calloc(1, sizeof(regDeviceNode));
-    if (*pdevice == NULL)
-    {
-        errlogPrintf("%s %s: out of memory\n",
-            __FUNCTION__, name);
-        return S_dev_noMemory;
-    }
+    *pdevice = (regDeviceNode*) callocMustSucceed(1, sizeof(regDeviceNode), "regDevRegisterDevice");
     (*pdevice)->magic = MAGIC_NODE;
     (*pdevice)->name = strdup(name);
     (*pdevice)->size = size;
     (*pdevice)->support = support;
     (*pdevice)->driver = driver;
-    (*pdevice)->accesslock = epicsMutexCreate();
-    if ((*pdevice)->accesslock == NULL)
-    {
-        errlogPrintf("%s %s: out of memory\n",
-            __FUNCTION__, name);
-        return S_dev_noMemory;
-    }
+    (*pdevice)->accesslock = epicsMutexMustCreate();
     return S_dev_success;
 }
 
@@ -819,12 +807,7 @@ regDevPrivate* regDevAllocPriv(dbCommon *record)
     regDevPrivate* priv;
 
     regDevDebugLog(DBG_INIT, "regDevAllocPriv(%s)\n", record->name);
-    priv = calloc(1, sizeof(regDevPrivate));
-    if (priv == NULL)
-    {
-        regDevPrintErr("out of memory");
-        return NULL;
-    }
+    priv = callocMustSucceed(1, sizeof(regDevPrivate),"regDevAllocPriv");
     priv->magic = MAGIC_PRIV;
     priv->dtype = epicsInt16T;
     priv->dlen = 2;
@@ -1301,7 +1284,7 @@ int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer
         if (device->support->read)
         {
             if (!interruptAccept && priv->initDone == NULL)
-                priv->initDone = epicsEventCreate(epicsEventEmpty);
+                priv->initDone = epicsEventMustCreate(epicsEventEmpty);
             if (device->dispatcher)
             {
                 struct regDevWorkMsg msg;
@@ -1485,7 +1468,7 @@ int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* buffe
     if (device->support->write)
     {
         if (!interruptAccept && priv->initDone == NULL)
-            priv->initDone = epicsEventCreate(epicsEventEmpty);
+            priv->initDone = epicsEventMustCreate(epicsEventEmpty);
         if (device->dispatcher)
         {
             struct regDevWorkMsg msg;
@@ -2379,7 +2362,7 @@ int regDevDisplay(const char* devName, size_t start, unsigned int dlen, size_t b
     if (device->support->read)
     {
         if (!regDevDisplayEvent)
-            regDevDisplayEvent = epicsEventCreate(epicsEventEmpty);
+            regDevDisplayEvent = epicsEventMustCreate(epicsEventEmpty);
         epicsMutexLock(device->accesslock);
         epicsTimeGetCurrent(&startTime);
         status = device->support->read(device->driver,
@@ -2475,7 +2458,7 @@ int regDevPut(const char* devName, int offset, unsigned short dlen, int value)
     if (device->support->write)
     {
         if (!regDevDisplayEvent)
-            regDevDisplayEvent = epicsEventCreate(epicsEventEmpty);
+            regDevDisplayEvent = epicsEventMustCreate(epicsEventEmpty);
         epicsMutexLock(device->accesslock);
         status = device->support->write(device->driver,
             offset, dlen, 1, &buffer, NULL, 0, regDevDisplayCallback, "regDevPut");
