@@ -30,7 +30,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.56 2015/04/08 13:41:00 zimoch Exp $";
+    "$Id: regDev.c,v 1.57 2015/04/08 13:48:55 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -604,20 +604,15 @@ int regDevAsyncRegisterDevice(const char* name,
 {
     return regDevRegisterDevice(name, support, driver, 0);
 }
-#ifndef _WIN32
-#define regDevGetDeviceNode(driver) ({ \
-    regDeviceNode* device; \
-    for (device = registeredDevices; device; device = device->next) \
-        if (device->driver == driver) break; \
-    assert(device != NULL);\
-    assert(device->magic == MAGIC_NODE);\
-    device;\
-})
-#else
-regDeviceNode* device;
-#define regDevGetDeviceNode(driver) (device)
-#endif
 
+regDeviceNode* regDevGetDeviceNode(regDevice* driver) {
+    regDeviceNode* device;
+    for (device = registeredDevices; device; device = device->next)
+        if (device->driver == driver) break;
+    assert(device != NULL);
+    assert(device->magic == MAGIC_NODE);
+    return device;
+}
 
 int regDevRegisterDmaAlloc(regDevice* driver,
     void* (*dmaAlloc) (regDevice *, void* ptr, size_t))
@@ -625,8 +620,6 @@ int regDevRegisterDmaAlloc(regDevice* driver,
     regDevGetDeviceNode(driver)->dmaAlloc = dmaAlloc;
     return S_dev_success;
 }
-
-
 
 int regDevLock(regDevice* driver)
 {
