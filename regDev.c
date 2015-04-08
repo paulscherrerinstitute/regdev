@@ -30,11 +30,11 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.58 2015/04/08 15:03:19 zimoch Exp $";
+    "$Id: regDev.c,v 1.59 2015/04/08 15:12:12 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
-int regDevDebug = 0;
+epicsShareDef int regDevDebug = 0;
 epicsExportAddress(int, regDevDebug);
 
 #define regDevGetPriv() \
@@ -56,7 +56,7 @@ static int startswith(const char *s, const char *key)
     return n;
 }
 
-static void regDevCallback(char* user, int status)
+void regDevCallback(char* user, int status)
 {
     dbCommon* record = (dbCommon*)(user - offsetof(dbCommon, name));
     regDevPrivate* priv;
