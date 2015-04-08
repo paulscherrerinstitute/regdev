@@ -6,12 +6,17 @@
 #include <stdio.h>
 #include <errno.h>
 
+#include "regDevSup.h"
 #define epicsTypesGLOBAL
+#include <callback.h>
 #include <dbAccess.h>
 #include <recSup.h>
+#include <epicsTime.h>
 #include <epicsMessageQueue.h>
 #include <epicsThread.h>
-#include "regDevSup.h"
+#include <cantProceed.h>
+#include <epicsExit.h>
+#include <epicsExport.h>
 
 #ifndef __GNUC__
 #define __attribute__(a)
@@ -25,7 +30,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.53 2014/06/20 16:28:16 brands Exp $";
+    "$Id: regDev.c,v 1.54 2015/04/08 13:32:18 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -178,9 +183,9 @@ const char* regDevTypeName(unsigned short dtype)
         regDevTypeNames[dtype-regDevFirstType];
 }
 
-long regDevParseExpr(char** pp);
+regDevSignedOffset_t regDevParseExpr(char** pp);
 
-long regDevParseValue(char** pp)
+regDevSignedOffset_t regDevParseValue(char** pp)
 {
     long val;
     char *p = *pp;
@@ -200,7 +205,7 @@ long regDevParseValue(char** pp)
     return neg ? -val : val;
 }
 
-long regDevParseProd(char** pp)
+regDevSignedOffset_t regDevParseProd(char** pp)
 {
     long val = 1;
     char *p = *pp;
@@ -215,10 +220,10 @@ long regDevParseProd(char** pp)
     return val;
 }
 
-long regDevParseExpr(char** pp)
+regDevSignedOffset_t regDevParseExpr(char** pp)
 {
-    long sum = 0;
-    long val;
+    regDevSignedOffset_t sum = 0;
+    regDevSignedOffset_t val;
     char *p = *pp;
 
     do {
@@ -282,7 +287,7 @@ int regDevIoParse2(
     /* Check device offset (for backward compatibility allow '/') */
     if (separator == ':' || separator == '/')
     {
-        long offset = 0;
+        regDevSignedOffset_t offset = 0;
         while (isspace((unsigned char)*p)) p++;
 
         if (!isdigit((unsigned char)*p))
@@ -315,7 +320,7 @@ int regDevIoParse2(
             priv->offsetScale = regDevParseProd(&p);
             if (b == '(')
             {
-                long scale;
+                regDevSignedOffset_t scale;
                 offset = regDevParseExpr(&p);
                 if (*p == ')')
                 {
@@ -330,7 +335,7 @@ int regDevIoParse2(
         offset += regDevParseExpr(&p);
         if (offset < 0 && !priv->offsetRecord)
         {
-            errlogPrintf("regDevIoParse %s: offset %ld<0\n",
+            errlogPrintf("regDevIoParse %s: offset %"Z"d<0\n",
                 recordName, offset);
             return S_dev_badArgument;
         }
@@ -353,7 +358,7 @@ int regDevIoParse2(
     if (separator == ':' || separator == '/' || separator == '!')
     {
         char* p1;
-        long initoffset;
+        ptrdiff_t initoffset;
 
         while (isspace((unsigned char)*p)) p++;
         p1 = p;
@@ -366,7 +371,7 @@ int regDevIoParse2(
         {
             if (initoffset < 0)
             {
-                errlogPrintf("regDevIoParse %s: init offset %ld < 0\n",
+                errlogPrintf("regDevIoParse %s: init offset %"Z"d < 0\n",
                     recordName, initoffset);
                 return S_dev_badArgument;
             }
@@ -1039,8 +1044,8 @@ struct regDevWorkMsg {
 };
 
 struct regDevDispatcher {
-    epicsThreadId tid[3];
-    epicsMessageQueueId qid[3];
+    epicsThreadId tid[NUM_CALLBACK_PRIORITIES];
+    epicsMessageQueueId qid[NUM_CALLBACK_PRIORITIES];
 };
 
 
@@ -1198,7 +1203,7 @@ int regDevMemAlloc(dbCommon* record, void** bptr, size_t size)
 int regDevGetOffset(dbCommon* record, int read, unsigned short dlen, size_t nelem, size_t *poffset)
 {
     int status;
-    ssize_t offset;
+    regDevSignedOffset_t offset;
     regDevPrivate* priv = record->dpvt;
     regDeviceNode* device = priv->device;
 
@@ -1215,7 +1220,7 @@ int regDevGetOffset(dbCommon* record, int read, unsigned short dlen, size_t nele
                 epicsInt32 i;
             } buffer;
             long options = DBR_STATUS;
-            ssize_t off = offset;
+            regDevSignedOffset_t off = offset;
 
             status = dbGetField(priv->offsetRecord, DBR_LONG, &buffer, &options, NULL, NULL);
             if (status == S_dev_success && buffer.severity == INVALID_ALARM) status = S_dev_badArgument;
