@@ -8,29 +8,14 @@
 #include <drvSup.h>
 #include <devLib.h>
 #include <dbCommon.h>
-#include <callback.h>
-#include <dbAccess.h>
 #include <alarm.h>
+#include <errlog.h>
 #include <recGbl.h>
-#include <assert.h>
 
-#ifdef _WIN32
- #include <BaseTsd.h>
- #define ssize_t SSIZE_T
-#endif
-
-
-#include <epicsExport.h>
 #include <epicsMutex.h>
 #include <epicsEvent.h>
-#include <epicsThread.h>
 #include <epicsTimer.h>
-#include <epicsTime.h>
-#include <epicsExit.h>
-
-/*
-#define epicsMutexUnlock(m) do { printf("epicsMutexUnlock(" #m ") in " __FILE__ " line %d\n", __LINE__); epicsMutexUnlock(m); } while (0)
-*/
+#include <epicsExport.h>
 
 #ifndef S_dev_badArgument
 #define S_dev_badArgument (M_devLib| 33)
@@ -82,30 +67,32 @@ typedef union {
     void* buffer;
 } regDevAnytype;
 
-typedef struct regDevPrivate{    /* per record data structure */
+typedef ptrdiff_t regDevSignedOffset_t; /* WIN has no ssize_t */
+
+typedef struct regDevPrivate{          /* per record data structure */
     epicsInt32 magic;
     regDeviceNode* device;
-    size_t offset;               /* Offset (in bytes) within device memory */
-    size_t initoffset;           /* Offset to initialize output records */
-    struct dbAddr* offsetRecord; /* record to read offset from */
-    ssize_t offsetScale;         /* scaling of value from offsetRecord */
-    unsigned short bit;          /* Bit number (0-15) for bi/bo */
-    unsigned short dtype;        /* Data type */
-    unsigned short dlen;         /* Data length (in bytes) */
-    short fifopacking;           /* Fifo: elelents in one register */
-    short arraypacking;          /* Array: elelents in one register */
-    epicsInt32 hwLow;            /* Hardware Low limit */
-    epicsInt32 hwHigh;           /* Hardware High limit */
-    epicsUInt32 invert;          /* Invert bits for bi,bo,mbbi,... */
-    epicsUInt32 update;          /* Periodic update of output records (msec) */
-    DEVSUPFUN updater;           /* Update function */
-    epicsTimerId updateTimer;    /* Update timer */
-    int updateActive;            /* Update processing active */
-    int status;                  /* For asynchonous drivers */
-    epicsEventId initDone;       /* For asynchonous drivers */
-    size_t asyncOffset;          /* For asynchonous drivers */
-    regDevAnytype data;          /* For asynchonous drivers and arrays */
-    regDevAnytype mask;          /* For asynchonous drivers */
+    size_t offset;                     /* Offset (in bytes) within device memory */
+    size_t initoffset;                 /* Offset to initialize output records */
+    struct dbAddr* offsetRecord;       /* record to read offset from */
+    regDevSignedOffset_t offsetScale;  /* scaling of value from offsetRecord */
+    unsigned short bit;                /* Bit number (0-15) for bi/bo */
+    unsigned short dtype;              /* Data type */
+    unsigned short dlen;               /* Data length (in bytes) */
+    short fifopacking;                 /* Fifo: elelents in one register */
+    short arraypacking;                /* Array: elelents in one register */
+    epicsInt32 hwLow;                  /* Hardware Low limit */
+    epicsInt32 hwHigh;                 /* Hardware High limit */
+    epicsUInt32 invert;                /* Invert bits for bi,bo,mbbi,... */
+    epicsUInt32 update;                /* Periodic update of output records (msec) */
+    DEVSUPFUN updater;                 /* Update function */
+    epicsTimerId updateTimer;          /* Update timer */
+    int updateActive;                  /* Update processing active */
+    int status;                        /* For asynchonous drivers */
+    epicsEventId initDone;             /* For asynchonous drivers */
+    size_t asyncOffset;                /* For asynchonous drivers */
+    regDevAnytype data;                /* For asynchonous drivers and arrays */
+    regDevAnytype mask;                /* For asynchonous drivers */
 } regDevPrivate;
 
 struct devsup {

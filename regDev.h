@@ -1,18 +1,16 @@
 /* header for low-level drivers */
 
 /* $Author: zimoch $ */
-/* $Date: 2014/07/15 12:01:02 $ */
-/* $Id: regDev.h,v 1.25 2014/07/15 12:01:02 zimoch Exp $ */
+/* $Date: 2015/04/08 13:21:42 $ */
+/* $Id: regDev.h,v 1.26 2015/04/08 13:21:42 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.25 $ */
+/* $Revision: 1.26 $ */
 
 #ifndef regDev_h
 #define regDev_h
 
 #include <dbScan.h>
-#include <callback.h>
 #include <epicsVersion.h>
-#include <errlog.h>
 
 #ifdef BASE_VERSION
 #define EPICS_3_13
@@ -175,9 +173,11 @@ extern int regDevDebug;
 #define DBG_OUT  4
 
 #if defined __GNUC__ && __GNUC__ < 3
+/* old GCC varargs style */
 #define regDevDebugLog(level, fmt, args...) \
     do {if ((level) & regDevDebug) printf(fmt, ## args);} while(0)
 #else
+/* new posix varargs style */
 #define regDevDebugLog(level, fmt, ...) \
     do {if ((level) & regDevDebug) printf(fmt, ## __VA_ARGS__);} while(0)
 #endif

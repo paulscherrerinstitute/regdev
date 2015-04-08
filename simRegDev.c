@@ -7,6 +7,8 @@
 #include <errno.h>
 #include <devLib.h>
 #include <regDev.h>
+#include <errlog.h>
+#include <callback.h>
 #include <epicsExit.h>
 #include <epicsTimer.h>
 #include <epicsMutex.h>
@@ -25,7 +27,7 @@
 #endif
 
 static char cvsid_simRegDev[] __attribute__((unused)) =
-    "$Id: simRegDev.c,v 1.14 2015/04/08 12:17:50 zimoch Exp $";
+    "$Id: simRegDev.c,v 1.15 2015/04/08 13:21:54 zimoch Exp $";
 
 typedef struct simRegDevMessage {
     struct simRegDevMessage* next;

@@ -4,8 +4,6 @@
 
 /* bi for status bit ************************************************/
 
-#include "dbEvent.h"
-
 #include <biRecord.h>
 
 long regDevInitRecordStat(biRecord *);
