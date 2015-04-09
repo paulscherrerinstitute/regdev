@@ -14,6 +14,7 @@
 #include <epicsMessageQueue.h>
 #include <epicsThread.h>
 #include <cantProceed.h>
+#include <epicsAssert.h>
 #include <epicsExit.h>
 
 #include "regDevSup.h"
@@ -30,7 +31,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.59 2015/04/08 15:12:12 zimoch Exp $";
+    "$Id: regDev.c,v 1.60 2015/04/09 15:55:55 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
