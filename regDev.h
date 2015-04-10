@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: zimoch $ */
-/* $Date: 2015/04/08 15:03:19 $ */
-/* $Id: regDev.h,v 1.27 2015/04/08 15:03:19 zimoch Exp $ */
+/* $Date: 2015/04/10 08:53:19 $ */
+/* $Id: regDev.h,v 1.28 2015/04/10 08:53:19 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.27 $ */
+/* $Revision: 1.28 $ */
 
 #ifndef regDev_h
 #define regDev_h
@@ -173,13 +173,32 @@ epicsShareExtern int regDevDebug;
 #define DBG_OUT  4
 
 #if defined __GNUC__ && __GNUC__ < 3
-/* old GCC varargs style */
+/* old GCC style */
 #define regDevDebugLog(level, fmt, args...) \
-    do {if ((level) & regDevDebug) printf(fmt, ## args);} while(0)
+    do {if ((level) & regDevDebug) printf("%s " fmt, __FUNCTION__ , ## args);} while(0)
 #else
-/* new posix varargs style */
+/* new posix style */
+#if defined(__GNUC__) || (defined(__MWERKS__) && (__MWERKS__ >= 0x3000)) || (defined(__ICC) && (__ICC >= 600)) || defined(__ghs__)
+#define _CURRENT_FUNCTION_ __PRETTY_FUNCTION__
+#elif defined(__DMC__) && (__DMC__ >= 0x810)
+#define _CURRENT_FUNCTION_ __PRETTY_FUNCTION__
+#elif defined(__FUNCSIG__)
+#define _CURRENT_FUNCTION_ __FUNCSIG__
+#elif (defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= 600)) || (defined(__IBMCPP__) && (__IBMCPP__ >= 500))
+#define _CURRENT_FUNCTION_ __FUNCTION__
+#elif defined(__BORLANDC__) && (__BORLANDC__ >= 0x550)
+#define _CURRENT_FUNCTION_ __FUNC__
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901)
+#define _CURRENT_FUNCTION_ __func__
+#elif defined(__cplusplus) && (__cplusplus >= 201103)
+#define _CURRENT_FUNCTION_ __func__
+#else
+#define LINETOSTR(L) LINETOSTR2(L)
+#define LINETOSTR2(L) #L
+#define _CURRENT_FUNCTION_ __FILE__ ":" LINETOSTR(__LINE__)
+#endif
 #define regDevDebugLog(level, fmt, ...) \
-    do {if ((level) & regDevDebug) printf(fmt, ## __VA_ARGS__);} while(0)
+    do {if ((level) & regDevDebug) printf("%s " fmt, _CURRENT_FUNCTION_ , ## __VA_ARGS__);} while(0)
 #endif
 
 /* utility function for drivers to copy buffers */

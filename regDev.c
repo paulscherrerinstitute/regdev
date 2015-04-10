@@ -31,7 +31,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.60 2015/04/09 15:55:55 zimoch Exp $";
+    "$Id: regDev.c,v 1.61 2015/04/10 08:53:19 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -43,7 +43,7 @@ epicsExportAddress(int, regDevDebug);
     if (!priv) { \
         regDevPrintErr("uninitialized record"); \
         return S_dev_badInit; } \
-    assert (priv->magic == MAGIC_PRIV)
+    assert(priv->magic == MAGIC_PRIV)
 
 static int startswith(const char *s, const char *key)
 {
@@ -62,10 +62,10 @@ void regDevCallback(char* user, int status)
     dbCommon* record = (dbCommon*)(user - offsetof(dbCommon, name));
     regDevPrivate* priv;
 
-    assert (user != NULL);
+    assert(user != NULL);
     priv = record->dpvt;
-    assert (priv != NULL);
-    assert (priv->magic == MAGIC_PRIV);
+    assert(priv != NULL);
+    assert(priv->magic == MAGIC_PRIV);
 
     priv->status = status;
 
@@ -254,7 +254,7 @@ int regDevIoParse2(
     long hwHigh = 0;
     long hwLow = 0;
 
-    regDevDebugLog(DBG_INIT, "regDevIoParse %s: \"%s\"\n", recordName, parameterstring);
+    regDevDebugLog(DBG_INIT, "%s: \"%s\"\n", recordName, parameterstring);
 
     /* Get rid of leading whitespace and non-alphanumeric chars */
     while (!isalnum((unsigned char)*p)) if (*p++ == '\0')
@@ -270,7 +270,7 @@ int regDevIoParse2(
     devName[nchar] = '\0';
     p += nchar;
     separator = *p++;
-    regDevDebugLog(DBG_INIT, "regDevIoParse %s: device=%s\n",
+    regDevDebugLog(DBG_INIT, "%s: device=%s\n",
         recordName, devName);
 
     for (device = registeredDevices; device; device = device->next)
@@ -343,11 +343,11 @@ int regDevIoParse2(
         priv->offset = offset;
         if (priv->offsetRecord)
             regDevDebugLog(DBG_INIT,
-                "regDevIoParse %s: offset='%s'*%"Z"u+%"Z"u\n",
+                "%s: offset='%s'*%"Z"u+%"Z"u\n",
                 recordName, priv->offsetRecord->precord->name, priv->offsetScale, priv->offset);
         else
             regDevDebugLog(DBG_INIT,
-                "regDevIoParse %s: offset=%"Z"u\n", recordName, priv->offset);
+                "%s: offset=%"Z"u\n", recordName, priv->offset);
         separator = *p++;
     }
     else
@@ -379,7 +379,7 @@ int regDevIoParse2(
             priv->initoffset = initoffset;
         }
         regDevDebugLog(DBG_INIT,
-            "regDevIoParse %s: init offset=%"Z"u\n", recordName, priv->initoffset);
+            "%s: init offset=%"Z"u\n", recordName, priv->initoffset);
         separator = *p++;
     }
     else
@@ -540,11 +540,11 @@ int regDevIoParse2(
     }
     priv->hwLow = hwLow;
     priv->hwHigh = hwHigh;
-    regDevDebugLog(DBG_INIT, "regDevIoParse %s: dlen=%d\n",recordName, priv->dlen);
-    regDevDebugLog(DBG_INIT, "regDevIoParse %s: L=%#x\n",  recordName, priv->hwLow);
-    regDevDebugLog(DBG_INIT, "regDevIoParse %s: H=%#x\n",  recordName, priv->hwHigh);
-    regDevDebugLog(DBG_INIT, "regDevIoParse %s: B=%d\n",   recordName, priv->bit);
-    regDevDebugLog(DBG_INIT, "regDevIoParse %s: X=%#x\n",  recordName, priv->invert);
+    regDevDebugLog(DBG_INIT, "%s: dlen=%d\n",recordName, priv->dlen);
+    regDevDebugLog(DBG_INIT, "%s: L=%#x\n",  recordName, priv->hwLow);
+    regDevDebugLog(DBG_INIT, "%s: H=%#x\n",  recordName, priv->hwHigh);
+    regDevDebugLog(DBG_INIT, "%s: B=%d\n",   recordName, priv->bit);
+    regDevDebugLog(DBG_INIT, "%s: X=%#x\n",  recordName, priv->invert);
 
     return S_dev_success;
 }
@@ -578,14 +578,14 @@ int regDevRegisterDevice(const char* name,
 {
     regDeviceNode **pdevice;
 
-    regDevDebugLog(DBG_INIT, "%s %s: support=%p, driver=%p\n",
-        __FUNCTION__, name, support, driver);
+    regDevDebugLog(DBG_INIT, "%s: support=%p, driver=%p\n",
+        name, support, driver);
     for (pdevice = &registeredDevices; *pdevice; pdevice = &(*pdevice)->next)
     {
         if (strcmp((*pdevice)->name, name) == 0)
         {
-            errlogPrintf("%s %s: device already exists\n",
-                __FUNCTION__, name);
+            errlogPrintf("regDevRegisterDevice %s: device already exists\n",
+                name);
             return S_dev_multDevice;
         }
     }
@@ -641,7 +641,7 @@ long regDevGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
 
     regDevGetPriv();
     device = priv->device;
-    assert (device);
+    assert(device != NULL);
 
     if (device->support->getInScanPvt)
     {
@@ -673,7 +673,7 @@ long regDevGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
 
     regDevGetPriv();
     device = priv->device;
-    assert (device);
+    assert(device != NULL);
 
     if (device->support->getOutScanPvt)
     {
@@ -800,7 +800,7 @@ regDevPrivate* regDevAllocPriv(dbCommon *record)
 {
     regDevPrivate* priv;
 
-    regDevDebugLog(DBG_INIT, "regDevAllocPriv(%s)\n", record->name);
+    regDevDebugLog(DBG_INIT, "%s\n", record->name);
     priv = callocMustSucceed(1, sizeof(regDevPrivate),"regDevAllocPriv");
     priv->magic = MAGIC_PRIV;
     priv->dtype = epicsInt16T;
@@ -817,7 +817,7 @@ int regDevAssertType(dbCommon *record, int allowedTypes)
     regDevGetPriv();
     dtype = priv->dtype;
 
-    regDevDebugLog(DBG_INIT, "regDevAssertType(%s,%s%s%s%s) %s\n",
+    regDevDebugLog(DBG_INIT, "%s: allows %s%s%s%s uses %s\n",
         record->name,
         allowedTypes && TYPE_INT ? " INT" : "",
         allowedTypes && TYPE_FLOAT ? " FLOAT" : "",
@@ -860,7 +860,7 @@ int regDevAssertType(dbCommon *record, int allowedTypes)
 int regDevCheckFTVL(dbCommon* record, int ftvl)
 {
     regDevGetPriv();
-    regDevDebugLog(DBG_INIT, "regDevCheckFTVL(%s, %s)\n",
+    regDevDebugLog(DBG_INIT, "%s FTVL=%s\n",
         record->name,
         pamapdbfType[ftvl].strvalue);
     switch (ftvl)
@@ -911,10 +911,10 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
     int status = S_dev_badArgument;
 
     regDevGetPriv();
+    assert(priv != NULL);
     device = priv->device;
-    assert (device);
+    assert(device != NULL);
 
-    assert(priv);
     switch (priv->dtype)
     {
         case epicsFloat64T:
@@ -992,7 +992,7 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
                 status = ARRAY_CONVERT;
             break;
     }
-    regDevDebugLog(DBG_INIT, "regDevCheckType(%s, %s, %i): dtyp=%s dlen=%d arraypacking=%d status=%d\n",
+    regDevDebugLog(DBG_INIT, "%s: %s[%i] dtyp=%s dlen=%d arraypacking=%d status=%d\n",
         record->name,
         pamapdbfType[ftvl].strvalue+4,
         nelm,
@@ -1036,7 +1036,8 @@ void regDevWorkThread(regDeviceNode* device)
     int status;
     int prio;
 
-    regDevDebugLog(DBG_INIT, "%s %s starting\n", __FUNCTION__, epicsThreadGetNameSelf());
+    regDevDebugLog(DBG_INIT, "%s: starting %s\n",
+        device->name, epicsThreadGetNameSelf());
 
     prio = epicsThreadGetPrioritySelf();
     if (prio == epicsThreadPriorityLow) prio = 0;
@@ -1046,11 +1047,12 @@ void regDevWorkThread(regDeviceNode* device)
     if (prio == epicsThreadPriorityHigh) prio = 2;
     else
     {
-        errlogPrintf("%s %s: illegal priority %d\n",
-            __FUNCTION__, epicsThreadGetNameSelf(), prio);
+        errlogPrintf("regDevWorkThread %s: illegal priority %d\n",
+            epicsThreadGetNameSelf(), prio);
         return;
     }
-    regDevDebugLog(DBG_INIT, "%s prio %d qid=%p\n", __FUNCTION__, prio, dispatcher->qid[prio]);
+    regDevDebugLog(DBG_INIT, "%s: prio %d qid=%p\n",
+        epicsThreadGetNameSelf(), prio, dispatcher->qid[prio]);
 
     while (1)
     {
@@ -1058,24 +1060,28 @@ void regDevWorkThread(regDeviceNode* device)
         switch (msg.cmd)
         {
             case CMD_WRITE:
-                regDevDebugLog(DBG_OUT, "%s %s-%d %s: doing dispatched write\n", __FUNCTION__, device->name, prio, msg.record->name);
+                regDevDebugLog(DBG_OUT, "%s %s: doing dispatched write\n",
+                    epicsThreadGetNameSelf(), msg.record->name);
                 epicsMutexLock(device->accesslock);
                 status = support->write(driver, msg.offset, msg.dlen, msg.nelem,
                     msg.buffer, msg.mask, msg.record->prio, NULL, msg.record->name);
                 epicsMutexUnlock(device->accesslock);
                 break;
             case CMD_READ:
-                regDevDebugLog(DBG_IN, "%s %s-%d %s: doing dispatched read\n", __FUNCTION__, device->name, prio, msg.record->name);
+                regDevDebugLog(DBG_IN, "%s %s: doing dispatched read\n",
+                    epicsThreadGetNameSelf(), msg.record->name);
                 epicsMutexLock(device->accesslock);
                 status = support->read(driver, msg.offset, msg.dlen, msg.nelem,
                     msg.buffer, msg.record->prio, NULL, msg.record->name);
                 epicsMutexUnlock(device->accesslock);
                 break;
             case CMD_EXIT:
-                regDevDebugLog(DBG_INIT, "%s %s-%d exiting\n", __FUNCTION__, device->name, prio);
+                regDevDebugLog(DBG_INIT, "%s: exiting\n",
+                    epicsThreadGetNameSelf());
                 return;
             default:
-                errlogPrintf("%s %s-%d: illegal command 0x%x\n", __FUNCTION__, device->name, prio, msg.cmd);
+                errlogPrintf("%s: illegal command 0x%x\n",
+                    epicsThreadGetNameSelf(), msg.cmd);
                 continue;
         }
         msg.callback(msg.record->name, status);
@@ -1088,7 +1094,7 @@ void regDevWorkExit(regDeviceNode* device)
     regDevDispatcher *dispatcher = device->dispatcher;
     int prio;
 
-    regDevDebugLog(DBG_INIT, "regDevWorkExit %s terminating work threads\n", device->name);
+    regDevDebugLog(DBG_INIT, "%s: sending terminate message to work threads\n", device->name);
     /* destroying the queue cancels all pending requests and terminates the work threads [not true] */
     msg.cmd = CMD_EXIT;
     for (prio = 0; prio < NUM_CALLBACK_PRIORITIES; prio++)
@@ -1097,13 +1103,14 @@ void regDevWorkExit(regDeviceNode* device)
             epicsMessageQueueSend(dispatcher->qid[prio], &msg, sizeof(msg));
     }
 
+    regDevDebugLog(DBG_INIT, "%s: waiting for threads to terminate\n", device->name);
     /* wait until work threads have terminated */
     for (prio = 0; prio < NUM_CALLBACK_PRIORITIES; prio++)
     {
         while (!epicsThreadIsSuspended(dispatcher->tid[prio]))
             epicsThreadSleep(0.1);
     }
-    regDevDebugLog(DBG_INIT, "regDevWorkExit %s done\n", device->name);
+    regDevDebugLog(DBG_INIT, "%s: done\n", device->name);
 }
 
 int regDevStartWorkQueue(regDeviceNode* device, unsigned int prio)
@@ -1117,7 +1124,7 @@ int regDevStartWorkQueue(regDeviceNode* device, unsigned int prio)
     if (prio >= NUM_CALLBACK_PRIORITIES) prio = NUM_CALLBACK_PRIORITIES-1;
 
     dispatcher->qid[prio] = epicsMessageQueueCreate(dispatcher->maxEntries, sizeof(struct regDevWorkMsg));
-    threadName=mallocMustSucceed(strlen(device->name)+9, "regDevInstallWorkQueue");
+    threadName=mallocMustSucceed(strlen(device->name)+9, "regDevStartWorkQueue");
 
     switch (prio)
 
@@ -1134,8 +1141,8 @@ int regDevStartWorkQueue(regDeviceNode* device, unsigned int prio)
             sprintf(threadName, "regDevH %s", device->name);
             threadPrio = epicsThreadPriorityHigh;
         default:
-            errlogPrintf("%s: illegal priority\n",
-            __FUNCTION__);
+            errlogPrintf("regDevStartWorkQueue %s: illegal priority %d\n",
+                device->name, prio);
             return S_dev_badRequest;
     }          
     dispatcher->tid[prio] = epicsThreadCreate(threadName, threadPrio,
@@ -1150,7 +1157,7 @@ int regDevInstallWorkQueue(regDevice* driver, size_t maxEntries)
 {
     regDeviceNode* device = regDevGetDeviceNode(driver);
 
-    regDevDebugLog(DBG_INIT, "regDevInstallWorkQueue %s, maxEntries=%"Z"d\n", device->name, maxEntries);
+    regDevDebugLog(DBG_INIT, "%s: maxEntries=%"Z"d\n", device->name, maxEntries);
 
     device->dispatcher = mallocMustSucceed(sizeof(regDevDispatcher), "regDevInstallWorkQueue");
     device->dispatcher->maxEntries = maxEntries;
@@ -1170,7 +1177,7 @@ int regDevMemAlloc(dbCommon* record, void** bptr, size_t size)
 
     regDevGetPriv();
     device = priv->device;
-    assert (device);
+    assert(device != NULL);
 
     if (device->dmaAlloc)
     {
@@ -1273,7 +1280,7 @@ int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer
 
     regDevGetPriv();
     device = priv->device;
-    assert(device);
+    assert(device != NULL);
     assert(buffer != NULL || nelem == 0 || dlen == 0);
 
     if (record->pact)
@@ -1406,7 +1413,7 @@ int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* buffe
 
     regDevGetPriv();
     device = priv->device;
-    assert(device);
+    assert(device != NULL);
     assert(buffer != NULL);
 
     if (record->pact)
@@ -1626,7 +1633,7 @@ int regDevReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
 int regDevWriteNumber(dbCommon* record, epicsInt32 rval, double fval)
 {
     regDevGetPriv();
-    regDevDebugLog(DBG_OUT, "regDevWriteNumber(record=%s, rval=%d (0x%08x), fval=%#g)\n",
+    regDevDebugLog(DBG_OUT, "%s: rval=%d (0x%08x), fval=%#g\n",
         record->name, rval, rval, fval);
 
     /* enforce bounds */
@@ -1758,7 +1765,7 @@ int regDevReadBits(dbCommon* record, epicsInt32* rval)
 int regDevWriteBits(dbCommon* record, epicsInt32 rval, epicsUInt32 mask)
 {
     regDevGetPriv();
-    regDevDebugLog(DBG_OUT, "regDevWriteBits record=%s, rval=0x%08x, mask=0x%08x)\n",
+    regDevDebugLog(DBG_OUT, "%s: rval=0x%08x, mask=0x%08x)\n",
         record->name, rval, mask);
 
     rval ^= priv->invert;
@@ -2278,9 +2285,9 @@ int regDevInstallUpdateFunction(dbCommon* record, DEVSUPFUN updater)
 
     regDevGetPriv();
     device = priv->device;
-    assert (device);
+    assert(device != NULL);
 
-    regDevDebugLog(DBG_INIT, "%s: regDevInstallUpdateFunction\n", record->name);
+    regDevDebugLog(DBG_INIT, "%s\n", record->name);
 
     if (priv->update)
     {
@@ -2294,7 +2301,7 @@ int regDevInstallUpdateFunction(dbCommon* record, DEVSUPFUN updater)
             }
         }
         /* install periodic update function */
-        regDevDebugLog(DBG_INIT,  "%s: install update %f seconds\n", record->name, priv->update * 0.001);
+        regDevDebugLog(DBG_INIT, "%s: install update every %f seconds\n", record->name, priv->update * 0.001);
         priv->updater = updater;
         priv->updateTimer = epicsTimerQueueCreateTimer(device->updateTimerQueue,
             (epicsTimerCallback)regDevUpdateCallback, record);
