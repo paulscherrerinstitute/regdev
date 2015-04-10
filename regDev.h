@@ -1,10 +1,10 @@
 /* header for low-level drivers */
 
 /* $Author: zimoch $ */
-/* $Date: 2015/04/10 08:53:19 $ */
-/* $Id: regDev.h,v 1.28 2015/04/10 08:53:19 zimoch Exp $ */
+/* $Date: 2015/04/10 14:00:12 $ */
+/* $Id: regDev.h,v 1.29 2015/04/10 14:00:12 zimoch Exp $ */
 /* $Name:  $ */
-/* $Revision: 1.28 $ */
+/* $Revision: 1.29 $ */
 
 #ifndef regDev_h
 #define regDev_h
@@ -168,44 +168,58 @@ epicsShareFunc int regDevRegisterDmaAlloc(
 /* Use this variable to control debugging messages */
 epicsShareExtern int regDevDebug;
 
-#define DBG_INIT 1
-#define DBG_IN   2
-#define DBG_OUT  4
+#define REGDEV_DBG_INIT 1
+#define REGDEV_DBG_IN   2
+#define REGDEV_DBG_OUT  4
+
+/* for backward compatibility: */
+#define DBG_INIT REGDEV_DBG_INIT
+#define DBG_IN   REGDEV_DBG_IN
+#define DBG_OUT  REGDEV_DBG_OUT
 
 #if defined __GNUC__ && __GNUC__ < 3
 /* old GCC style */
-#define regDevDebugLog(level, fmt, args...) \
+ #define regDevDebugLog(level, fmt, args...) \
     do {if ((level) & regDevDebug) printf("%s " fmt, __FUNCTION__ , ## args);} while(0)
 #else
 /* new posix style */
-#if defined(__GNUC__) || (defined(__MWERKS__) && (__MWERKS__ >= 0x3000)) || (defined(__ICC) && (__ICC >= 600)) || defined(__ghs__)
-#define _CURRENT_FUNCTION_ __PRETTY_FUNCTION__
-#elif defined(__DMC__) && (__DMC__ >= 0x810)
-#define _CURRENT_FUNCTION_ __PRETTY_FUNCTION__
-#elif defined(__FUNCSIG__)
-#define _CURRENT_FUNCTION_ __FUNCSIG__
-#elif (defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= 600)) || (defined(__IBMCPP__) && (__IBMCPP__ >= 500))
-#define _CURRENT_FUNCTION_ __FUNCTION__
-#elif defined(__BORLANDC__) && (__BORLANDC__ >= 0x550)
-#define _CURRENT_FUNCTION_ __FUNC__
-#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901)
-#define _CURRENT_FUNCTION_ __func__
-#elif defined(__cplusplus) && (__cplusplus >= 201103)
-#define _CURRENT_FUNCTION_ __func__
-#else
-#define LINETOSTR(L) LINETOSTR2(L)
-#define LINETOSTR2(L) #L
-#define _CURRENT_FUNCTION_ __FILE__ ":" LINETOSTR(__LINE__)
-#endif
-#define regDevDebugLog(level, fmt, ...) \
+ #if defined(__GNUC__) || (defined(__MWERKS__) && (__MWERKS__ >= 0x3000)) || (defined(__ICC) && (__ICC >= 600)) || defined(__ghs__)
+  #define _CURRENT_FUNCTION_ __PRETTY_FUNCTION__
+ #elif defined(__DMC__) && (__DMC__ >= 0x810)
+  #define _CURRENT_FUNCTION_ __PRETTY_FUNCTION__
+ #elif defined(__FUNCSIG__)
+  #define _CURRENT_FUNCTION_ __FUNCSIG__
+ #elif (defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= 600)) || (defined(__IBMCPP__) && (__IBMCPP__ >= 500))
+  #define _CURRENT_FUNCTION_ __FUNCTION__
+ #elif defined(__BORLANDC__) && (__BORLANDC__ >= 0x550)
+  #define _CURRENT_FUNCTION_ __FUNC__
+ #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901)
+  #define _CURRENT_FUNCTION_ __func__
+ #elif defined(__cplusplus) && (__cplusplus >= 201103)
+  #define _CURRENT_FUNCTION_ __func__
+ #else
+  #define LINETOSTR(L) LINETOSTR2(L)
+  #define LINETOSTR2(L) #L
+  #define _CURRENT_FUNCTION_ __FILE__ ":" LINETOSTR(__LINE__)
+ #endif
+ #define regDevDebugLog(level, fmt, ...) \
     do {if ((level) & regDevDebug) printf("%s " fmt, _CURRENT_FUNCTION_ , ## __VA_ARGS__);} while(0)
 #endif
 
-/* utility function for drivers to copy buffers */
-#define NO_SWAP 0 /* never swap */
-#define DO_SWAP 1 /* always swap */
-#define BE_SWAP 2 /* swap only on big endian systems */
-#define LE_SWAP 3 /* swap only on little endian systems */
+/* utility function for drivers to copy buffers with correct data size, swapping support, and optional bit mask */
+#define REGDEV_NO_SWAP      0              /* never swap */
+#define REGDEV_DO_SWAP      1              /* always swap */
+#define REGDEV_BE_SWAP      2              /* swap only on big endian systems */
+#define REGDEV_LE_SWAP      3              /* swap only on little endian systems */
+#define REGDEV_SWAP_TO_LE   REGDEV_BE_SWAP /* swap host byte order to little endian if necessary */  
+#define REGDEV_SWAP_TO_BE   REGDEV_LE_SWAP /* swap host byte order to big endian if necessary */     
+#define REGDEV_SWAP_FROM_LE REGDEV_BE_SWAP /* swap from little endian to host byte order if necessary */
+#define REGDEV_SWAP_FROM_BE REGDEV_LE_SWAP /* swap from big endian to host byte order if necessary */
+/* for backward compatibility: */
+#define NO_SWAP REGDEV_NO_SWAP
+#define DO_SWAP REGDEV_DO_SWAP
+#define BE_SWAP REGDEV_BE_SWAP
+#define LE_SWAP REGDEV_LE_SWAP
 epicsShareFunc  void regDevCopy(unsigned int dlen, size_t nelem, const volatile void* src, volatile void* dest, const void* pmask, int swap);
 #endif /* regDev_h */
 
