@@ -31,7 +31,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.61 2015/04/10 08:53:19 zimoch Exp $";
+    "$Id: regDev.c,v 1.62 2015/04/10 13:59:14 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -817,7 +817,7 @@ int regDevAssertType(dbCommon *record, int allowedTypes)
     regDevGetPriv();
     dtype = priv->dtype;
 
-    regDevDebugLog(DBG_INIT, "%s: allows %s%s%s%s uses %s\n",
+    regDevDebugLog(DBG_INIT, "%s: allows%s%s%s%s uses %s\n",
         record->name,
         allowedTypes && TYPE_INT ? " INT" : "",
         allowedTypes && TYPE_FLOAT ? " FLOAT" : "",
@@ -1036,7 +1036,7 @@ void regDevWorkThread(regDeviceNode* device)
     int status;
     int prio;
 
-    regDevDebugLog(DBG_INIT, "%s: starting %s\n",
+    regDevDebugLog(DBG_INIT, "%s: thread \"%s\" starting\n",
         device->name, epicsThreadGetNameSelf());
 
     prio = epicsThreadGetPrioritySelf();
@@ -1076,8 +1076,11 @@ void regDevWorkThread(regDeviceNode* device)
                 epicsMutexUnlock(device->accesslock);
                 break;
             case CMD_EXIT:
-                regDevDebugLog(DBG_INIT, "%s: exiting\n",
+                regDevDebugLog(DBG_INIT, "%s: stopped\n",
                     epicsThreadGetNameSelf());
+#ifdef EPICS_3_14
+                epicsThreadSuspendSelf();
+#endif
                 return;
             default:
                 errlogPrintf("%s: illegal command 0x%x\n",
@@ -1094,23 +1097,30 @@ void regDevWorkExit(regDeviceNode* device)
     regDevDispatcher *dispatcher = device->dispatcher;
     int prio;
 
-    regDevDebugLog(DBG_INIT, "%s: sending terminate message to work threads\n", device->name);
     /* destroying the queue cancels all pending requests and terminates the work threads [not true] */
     msg.cmd = CMD_EXIT;
     for (prio = 0; prio < NUM_CALLBACK_PRIORITIES; prio++)
     {
-        if (dispatcher->qid[prio]) 
+        if (dispatcher->qid[prio])
+        {
+            regDevDebugLog(DBG_INIT, "%s: sending stop message to prio %d thread\n",
+                device->name, prio);
             epicsMessageQueueSend(dispatcher->qid[prio], &msg, sizeof(msg));
+        }
     }
 
-    regDevDebugLog(DBG_INIT, "%s: waiting for threads to terminate\n", device->name);
     /* wait until work threads have terminated */
     for (prio = 0; prio < NUM_CALLBACK_PRIORITIES; prio++)
     {
-        while (!epicsThreadIsSuspended(dispatcher->tid[prio]))
-            epicsThreadSleep(0.1);
+        if (dispatcher->tid[prio])
+        {
+            regDevDebugLog(DBG_INIT, "%s: waiting for prio %d thread to stop\n",
+                device->name, prio);
+            while (!epicsThreadIsSuspended(dispatcher->tid[prio]))
+                epicsThreadSleep(0.1);
+            regDevDebugLog(DBG_INIT, "%s: done\n", device->name);
+        }
     }
-    regDevDebugLog(DBG_INIT, "%s: done\n", device->name);
 }
 
 int regDevStartWorkQueue(regDeviceNode* device, unsigned int prio)
@@ -1140,6 +1150,7 @@ int regDevStartWorkQueue(regDeviceNode* device, unsigned int prio)
         case 2:
             sprintf(threadName, "regDevH %s", device->name);
             threadPrio = epicsThreadPriorityHigh;
+            break;
         default:
             errlogPrintf("regDevStartWorkQueue %s: illegal priority %d\n",
                 device->name, prio);
@@ -1159,7 +1170,7 @@ int regDevInstallWorkQueue(regDevice* driver, size_t maxEntries)
 
     regDevDebugLog(DBG_INIT, "%s: maxEntries=%"Z"d\n", device->name, maxEntries);
 
-    device->dispatcher = mallocMustSucceed(sizeof(regDevDispatcher), "regDevInstallWorkQueue");
+    device->dispatcher = callocMustSucceed(1, sizeof(regDevDispatcher), "regDevInstallWorkQueue");
     device->dispatcher->maxEntries = maxEntries;
     
     /* actual work queues and threads are created when needed */
