@@ -173,5 +173,5 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* rval, size_t nelm, double
 #if defined(__GNUC__) && __GNUC__ < 3
  #define regDevPrintErr(f, args...) errlogPrintf("%s %s: " f "\n", __FUNCTION__, record->name , ## args)
 #else
- #define regDevPrintErr(f, ...) errlogPrintf("%s %s: " f "\n", __FUNCTION__, record->name , ## __VA_ARGS__)
+ #define regDevPrintErr(f, ...) errlogPrintf("%s %s: " f "\n", _CURRENT_FUNCTION_, record->name , ## __VA_ARGS__)
 #endif
