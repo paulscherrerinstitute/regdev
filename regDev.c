@@ -31,7 +31,7 @@
 
 
 static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.62 2015/04/10 13:59:14 zimoch Exp $";
+    "$Id: regDev.c,v 1.63 2015/04/28 14:33:09 zimoch Exp $";
 
 static regDeviceNode* registeredDevices = NULL;
 
@@ -115,7 +115,7 @@ void regDevCallback(char* user, int status)
 #define regDevFirstType regDevBCD8T
 #define regDevLastType  regDev64T
 
-const static struct {char* name; unsigned short dlen; epicsType type;} datatypes [] =
+static const struct {char* name; unsigned short dlen; epicsType type;} datatypes [] =
 {
 /* Important for order:
     * The default type must be the first entry.
@@ -642,6 +642,8 @@ long regDevGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     regDevGetPriv();
     device = priv->device;
     assert(device != NULL);
+    
+    (void)cmd; /* unused */
 
     if (device->support->getInScanPvt)
     {
@@ -674,6 +676,8 @@ long regDevGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     regDevGetPriv();
     device = priv->device;
     assert(device != NULL);
+
+    (void)cmd; /* unused */
 
     if (device->support->getOutScanPvt)
     {
@@ -1129,8 +1133,6 @@ int regDevStartWorkQueue(regDeviceNode* device, unsigned int prio)
     regDevDispatcher *dispatcher = device->dispatcher;
     unsigned int threadPrio;
 
-    if (prio < 0) prio = 0;
-
     if (prio >= NUM_CALLBACK_PRIORITIES) prio = NUM_CALLBACK_PRIORITIES-1;
 
     dispatcher->qid[prio] = epicsMessageQueueCreate(dispatcher->maxEntries, sizeof(struct regDevWorkMsg));
@@ -1220,7 +1222,7 @@ int regDevMemAlloc(dbCommon* record, void** bptr, size_t size)
 int regDevGetOffset(dbCommon* record, int read, unsigned short dlen, size_t nelem, size_t *poffset)
 {
     int status;
-    regDevSignedOffset_t offset;
+    size_t offset;
     regDevPrivate* priv = record->dpvt;
     regDeviceNode* device = priv->device;
 
@@ -1721,7 +1723,7 @@ int regDevWriteNumber(dbCommon* record, epicsInt32 rval, double fval)
     return regDevWrite(record, priv->dlen, 1, &priv->data, NULL);
 }
 
-int regDevReadBits(dbCommon* record, epicsInt32* rval)
+int regDevReadBits(dbCommon* record, epicsUInt32* rval)
 {
     int status = S_dev_success;
     epicsInt32 rv = 0;
@@ -1773,7 +1775,7 @@ int regDevReadBits(dbCommon* record, epicsInt32* rval)
     return S_dev_success;
 }
 
-int regDevWriteBits(dbCommon* record, epicsInt32 rval, epicsUInt32 mask)
+int regDevWriteBits(dbCommon* record, epicsUInt32 rval, epicsUInt32 mask)
 {
     regDevGetPriv();
     regDevDebugLog(DBG_OUT, "%s: rval=0x%08x, mask=0x%08x)\n",
@@ -1814,7 +1816,7 @@ int regDevWriteBits(dbCommon* record, epicsInt32 rval, epicsUInt32 mask)
 int regDevReadArray(dbCommon* record, size_t nelm)
 {
     int status = S_dev_success;
-    int i;
+    unsigned int i;
     unsigned short dlen;
     int packing;
 
@@ -1883,7 +1885,7 @@ int regDevReadArray(dbCommon* record, size_t nelm)
 int regDevWriteArray(dbCommon* record, size_t nelm)
 {
     int status = 0;
-    int i;
+    unsigned int i;
     unsigned short dlen;
     int packing;
 
@@ -2327,6 +2329,7 @@ static int regDevDisplayStatus;
 
 static void regDevDisplayCallback(char* user, int status)
 {
+    (void) user; /* unused */
     regDevDebugLog(DBG_IN, "DMA complete, status=0x%x\n", status);
     regDevDisplayStatus = status;
     epicsEventSignal(regDevDisplayEvent);
@@ -2427,8 +2430,8 @@ int regDevDisplay(const char* devName, size_t start, unsigned int dlen, size_t b
     }
     if (status == S_dev_success)
     {
-        int i, j, k;
-        int bytesPerLine = dlen <= 16 ? 16 / dlen * dlen : dlen;
+        unsigned int i, j, k;
+        unsigned int bytesPerLine = dlen <= 16 ? 16 / dlen * dlen : dlen;
 
         for (i = 0; i < bytes; i += bytesPerLine)
         {

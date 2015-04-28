@@ -73,7 +73,7 @@ long regDevInitRecordBi(biRecord* record)
 long regDevReadBi(biRecord* record)
 {
     int status;
-    epicsInt32 rval;
+    epicsUInt32 rval;
     
     status = regDevReadBits((dbCommon*)record, &rval);
     if (status == ASYNC_COMPLETION) return S_dev_success;
@@ -105,7 +105,7 @@ epicsExportAddress(dset, regDevBo);
 
 long regDevInitRecordBo(boRecord* record)
 {
-    epicsInt32 rval;
+    epicsUInt32 rval;
 
     regDevCommonInit(record, out, TYPE_INT);
     if (!record->mask) record->mask = 1 << priv->bit;
@@ -123,7 +123,7 @@ long regDevInitRecordBo(boRecord* record)
 long regDevUpdateBo(boRecord *record)
 {
     int status;
-    epicsInt32 rval;
+    epicsUInt32 rval;
 
     status = regDevReadBits((dbCommon*)record, &rval);
     if (status == ASYNC_COMPLETION) return S_dev_success;
@@ -174,7 +174,7 @@ long regDevInitRecordMbbi(mbbiRecord* record)
 long regDevReadMbbi(mbbiRecord* record)
 {
     int status;
-    epicsInt32 rval;
+    epicsUInt32 rval;
     int i;
     
     status = regDevReadBits((dbCommon*)record, &rval);
@@ -218,7 +218,7 @@ epicsExportAddress(dset, regDevMbbo);
 
 long regDevInitRecordMbbo(mbboRecord* record)
 {
-    epicsInt32 rval;
+    epicsUInt32 rval;
     int i;
 
     regDevCommonInit(record, out, TYPE_INT);
@@ -248,7 +248,7 @@ long regDevInitRecordMbbo(mbboRecord* record)
 long regDevUpdateMbbo(mbboRecord* record)
 {
     int status;
-    epicsInt32 rval;
+    epicsUInt32 rval;
     int i;
 
     status = regDevReadBits((dbCommon*)record, &rval);
@@ -283,7 +283,7 @@ long regDevUpdateMbbo(mbboRecord* record)
 long regDevWriteMbbo(mbboRecord* record)
 {
     int status;
-    epicsInt32 rval;
+    epicsUInt32 rval;
     int i;
     
     regDevCheckAsyncWriteResult(record);
@@ -332,7 +332,7 @@ long regDevInitRecordMbbiDirect(mbbiDirectRecord* record)
 long regDevReadMbbiDirect(mbbiDirectRecord* record)
 {
     int status;
-    epicsInt32 rval;
+    epicsUInt32 rval;
     
     status = regDevReadBits((dbCommon*)record, &rval);
     if (status == ASYNC_COMPLETION) return S_dev_success;
@@ -364,7 +364,7 @@ epicsExportAddress(dset, regDevMbboDirect);
 
 long regDevInitRecordMbboDirect(mbboDirectRecord* record)
 {
-    epicsInt32 rval;
+    epicsUInt32 rval;
     int i;
 
     regDevCommonInit(record, out, TYPE_INT);
@@ -389,7 +389,7 @@ long regDevInitRecordMbboDirect(mbboDirectRecord* record)
 long regDevUpdateMbboDirect(mbboDirectRecord* record)
 {
     int status;
-    epicsInt32 rval;
+    epicsUInt32 rval;
     int i;
 
     status = regDevReadBits((dbCommon*)record, &rval);
@@ -445,7 +445,7 @@ long regDevInitRecordLongin(longinRecord* record)
 long regDevReadLongin(longinRecord* record)
 {
     int status;
-    epicsInt32 val;
+    epicsUInt32 val;
     
     status = regDevReadBits((dbCommon*)record, &val);
     if (status == ASYNC_COMPLETION) return S_dev_success;
@@ -476,7 +476,7 @@ epicsExportAddress(dset, regDevLongout);
 
 long regDevInitRecordLongout(longoutRecord* record)
 {
-    epicsInt32 val;
+    epicsUInt32 val;
 
     regDevCommonInit(record, out, TYPE_INT|TYPE_BCD);
     status = regDevInstallUpdateFunction((dbCommon*)record, regDevUpdateLongout);
@@ -491,7 +491,7 @@ long regDevInitRecordLongout(longoutRecord* record)
 long regDevUpdateLongout(longoutRecord* record)
 {
     int status;
-    epicsInt32 val;
+    epicsUInt32 val;
 
     status = regDevReadBits((dbCommon*)record, &val);
     if (status == ASYNC_COMPLETION) return S_dev_success;

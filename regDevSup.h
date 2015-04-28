@@ -42,7 +42,7 @@ typedef unsigned long long epicsUInt64;
 typedef struct regDevDispatcher regDevDispatcher;
 
 typedef struct regDeviceNode {                     /* per device data structure */
-    epicsInt32 magic;
+    epicsUInt32 magic;
     struct regDeviceNode* next;                    /* Next registered device */
     const char* name;                              /* Device name */
     size_t size;                                   /* Device size in bytes */
@@ -71,7 +71,7 @@ typedef union {
 typedef ptrdiff_t regDevSignedOffset_t; /* WIN has no ssize_t */
 
 typedef struct regDevPrivate{          /* per record data structure */
-    epicsInt32 magic;
+    epicsUInt32 magic;
     regDeviceNode* device;
     size_t offset;                     /* Offset (in bytes) within device memory */
     size_t initoffset;                 /* Offset to initialize output records */
@@ -124,8 +124,8 @@ int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* buffe
 int regDevReadNumber(dbCommon* record, epicsInt32* rval, double* fval);
 int regDevWriteNumber(dbCommon* record, epicsInt32 rval, double fval);
 
-int regDevReadBits(dbCommon* record, epicsInt32* rval);
-int regDevWriteBits(dbCommon* record, epicsInt32 rval, epicsUInt32 mask);
+int regDevReadBits(dbCommon* record, epicsUInt32* rval);
+int regDevWriteBits(dbCommon* record, epicsUInt32 rval, epicsUInt32 mask);
 
 /* returns OK or ERROR, or ASYNC_COMPLETION */
 int regDevReadArray(dbCommon* record, size_t nelm);

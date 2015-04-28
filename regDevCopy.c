@@ -48,7 +48,7 @@
 { \
     const volatile epicsUInt##N* s = src;\
     volatile epicsUInt##N* d = dest;\
-    int i = nelem * dlen; \
+    unsigned int i = nelem * dlen; \
     while (i--) \
     { \
         *d++ = *s++; \
@@ -72,7 +72,7 @@
     const volatile epicsUInt##N* s = src;\
     volatile epicsUInt##N* d = dest;\
     epicsUInt##N x; \
-    int i; \
+    unsigned int i; \
     while (nelem--) \
     { \
         s+=dlen; \
@@ -104,7 +104,7 @@
     volatile epicsUInt##N* d = dest;\
     const epicsUInt##N *m = pmask;\
     epicsUInt##N x; \
-    int i; \
+    unsigned int i; \
     while (nelem--) \
     { \
         m = pmask; \
@@ -137,7 +137,7 @@
     volatile epicsUInt##N* d = dest;\
     const epicsUInt##N* m = pmask;\
     epicsUInt##N x; \
-    int i; \
+    unsigned int i; \
     while (nelem--) \
     { \
         m = pmask; \

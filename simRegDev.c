@@ -27,7 +27,7 @@
 #endif
 
 static char cvsid_simRegDev[] __attribute__((unused)) =
-    "$Id: simRegDev.c,v 1.15 2015/04/08 13:21:54 zimoch Exp $";
+    "$Id: simRegDev.c,v 1.16 2015/04/28 14:33:09 zimoch Exp $";
 
 typedef struct simRegDevMessage {
     struct simRegDevMessage* next;
@@ -164,7 +164,7 @@ void simRegDevReport(
             device->connected ? "connected" : "disconnected");
         if (level > 0)
         {
-            int i;
+            unsigned int i;
             for (i=0; i<device->size; i++)
             {
                 if ((i&0xf) == 0)
@@ -186,6 +186,7 @@ IOSCANPVT simRegDevGetInScanPvt(
     regDevice *device,
     size_t offset)
 {
+    (void)offset; /* unused */
     if (!device || device->magic != MAGIC)
     {
         errlogSevPrintf(errlogMajor,
