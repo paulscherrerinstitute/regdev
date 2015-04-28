@@ -10,7 +10,7 @@ SOURCES += simRegDev.c
 
 SOURCES_3.14 = regDevCalcout.c
 DBDS_3.14 += regDevCalcout.dbd simRegDev.dbd
-DBDS += regDev.dbd regDevAaiAao.dbd 
+DBDS += regDevBase.dbd regDevAaiAao.dbd 
 HEADERS = regDev.h
 
 test:
