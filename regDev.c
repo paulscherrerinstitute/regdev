@@ -188,7 +188,7 @@ regDevSignedOffset_t regDevParseExpr(char** pp);
 
 regDevSignedOffset_t regDevParseValue(char** pp)
 {
-    long val;
+    regDevSignedOffset_t val;
     char *p = *pp;
     int neg = 0;
 
@@ -208,7 +208,7 @@ regDevSignedOffset_t regDevParseValue(char** pp)
 
 regDevSignedOffset_t regDevParseProd(char** pp)
 {
-    long val = 1;
+    regDevSignedOffset_t val = 1;
     char *p = *pp;
 
     while (isspace((unsigned char)*p)) p++;
@@ -245,7 +245,7 @@ int regDevIoParse2(
     regDeviceNode* device;
     char* p = parameterstring;
     char separator;
-    int nchar;
+    size_t nchar;
 
     static const int maxtype = sizeof(datatypes)/sizeof(*datatypes);
     int type = 0;
@@ -404,6 +404,7 @@ int regDevIoParse2(
     /* parse parameters */
     while (p && *p)
     {
+        regDevSignedOffset_t val;
         switch (toupper((unsigned char)*p))
         {
             case ' ':
@@ -432,29 +433,36 @@ int regDevIoParse2(
                 break;
             case 'B': /* B=<bitnumber> */
                 p += 2;
-                priv->bit = regDevParseExpr(&p);
+                val = regDevParseExpr(&p);
+                if (val < 0 || val >= 64)
+                {
+                    errlogPrintf("regDevIoParse %s: invalid bit number %"Z"d\n",
+                        recordName, val);
+                    return S_dev_badArgument;
+                }
+                priv->bit = (epicsUInt8)val;
                 break;
             case 'I': /* I=<invert> */
                 p += 2;
-                priv->invert = regDevParseExpr(&p);
+                priv->invert = (epicsUInt32)regDevParseExpr(&p);
                 break;
             case 'L': /* L=<low raw value> (converts to EGUL) */
                 p += 2;
-                hwLow = regDevParseExpr(&p);
+                hwLow = (epicsInt32)regDevParseExpr(&p);
                 lset = 1;
                 break;
             case 'H': /* L=<high raw value> (converts to EGUF) */
                 p += 2;
-                hwHigh = regDevParseExpr(&p);
+                hwHigh = (epicsInt32)regDevParseExpr(&p);
                 hset = 1;
                 break;
             case 'P': /* P=<packing> (for fifo) */
                 p += 2;
-                priv->fifopacking = regDevParseExpr(&p);
+                priv->fifopacking = (size_t)regDevParseExpr(&p);
                 break;
             case 'U': /* U=<update period [ms]> */
                 p += 2;
-                priv->update = regDevParseExpr(&p);
+                priv->update = (epicsInt32)regDevParseExpr(&p);
                 break;
             case '\'':
                 if (separator == '\'')

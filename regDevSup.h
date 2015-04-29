@@ -77,14 +77,14 @@ typedef struct regDevPrivate{          /* per record data structure */
     size_t initoffset;                 /* Offset to initialize output records */
     struct dbAddr* offsetRecord;       /* record to read offset from */
     regDevSignedOffset_t offsetScale;  /* scaling of value from offsetRecord */
-    unsigned short bit;                /* Bit number (0-15) for bi/bo */
-    unsigned short dtype;              /* Data type */
-    unsigned short dlen;               /* Data length (in bytes) */
-    short fifopacking;                 /* Fifo: elelents in one register */
-    short arraypacking;                /* Array: elelents in one register */
+    epicsUInt8 bit;                    /* Bit number (0-15) for bi/bo */
+    epicsUInt8 dtype;                  /* Data type */
+    epicsUInt8 dlen;                   /* Data length (in bytes) */
+    epicsUInt8 arraypacking;           /* Array: elelents in one register */
     epicsInt32 hwLow;                  /* Hardware Low limit */
     epicsInt32 hwHigh;                 /* Hardware High limit */
     epicsUInt32 invert;                /* Invert bits for bi,bo,mbbi,... */
+    size_t fifopacking;                /* Fifo: elelents in one register */
     epicsUInt32 update;                /* Periodic update of output records (msec) */
     DEVSUPFUN updater;                 /* Update function */
     epicsTimerId updateTimer;          /* Update timer */
