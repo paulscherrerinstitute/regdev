@@ -115,7 +115,7 @@ void regDevCallback(char* user, int status)
 #define regDevFirstType regDevBCD8T
 #define regDevLastType  regDev64T
 
-static const struct {char* name; unsigned short dlen; epicsType type;} datatypes [] =
+static const struct {char* name; epicsUInt8 dlen; epicsType type;} datatypes [] =
 {
 /* Important for order:
     * The default type must be the first entry.
@@ -458,7 +458,7 @@ int regDevIoParse2(
                 break;
             case 'P': /* P=<packing> (for fifo) */
                 p += 2;
-                priv->fifopacking = (size_t)regDevParseExpr(&p);
+                priv->fifopacking = (epicsUInt8)regDevParseExpr(&p);
                 break;
             case 'U': /* U=<update period [ms]> */
                 p += 2;
@@ -1024,7 +1024,7 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
 struct regDevWorkMsg {
     unsigned int cmd;
     size_t offset;
-    unsigned short dlen;
+    epicsUInt8 dlen;
     size_t nelem;
     void* buffer;
     void* mask;
@@ -1227,7 +1227,7 @@ int regDevMemAlloc(dbCommon* record, void** bptr, size_t size)
 }
 
 
-int regDevGetOffset(dbCommon* record, int read, unsigned short dlen, size_t nelem, size_t *poffset)
+int regDevGetOffset(dbCommon* record, int read, epicsUInt8 dlen, size_t nelem, size_t *poffset)
 {
     int status;
     size_t offset;
@@ -1292,7 +1292,7 @@ int regDevGetOffset(dbCommon* record, int read, unsigned short dlen, size_t nele
 
 /*********  I/O functions ****************************/
 
-int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer)
+int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
 {
     /* buffer must not point to local variable: not suitable for async processing */
 
@@ -1424,7 +1424,7 @@ int regDevRead(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer
     return status;
 }
 
-int regDevWrite(dbCommon* record, unsigned short dlen, size_t nelem, void* buffer, void* mask)
+int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, void* mask)
 {
     /* buffer must not point to local variable: not suitable for async processing */
 
@@ -1610,7 +1610,7 @@ int regDevReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
             rv = priv->data.uval32;
             break;
         case regDev64T:
-            rv = priv->data.uval64; /* cut off high bits */
+            rv = (epicsInt32)priv->data.uval64; /* cut off high bits */
             break;
         case epicsFloat32T:
             fv = priv->data.fval32;
@@ -1717,7 +1717,7 @@ int regDevWriteNumber(dbCommon* record, epicsInt32 rval, double fval)
             priv->data.uval64 = rval;
             break;
         case epicsFloat32T:
-            priv->data.fval32 = fval;
+            priv->data.fval32 = (float)fval;
             break;
         case epicsFloat64T:
             priv->data.fval64 = fval;
@@ -1734,7 +1734,7 @@ int regDevWriteNumber(dbCommon* record, epicsInt32 rval, double fval)
 int regDevReadBits(dbCommon* record, epicsUInt32* rval)
 {
     int status = S_dev_success;
-    epicsInt32 rv = 0;
+    epicsUInt32 rv = 0;
 
     regDevGetPriv();
     status = regDevRead(record, priv->dlen, 1, &priv->data);
@@ -1762,7 +1762,7 @@ int regDevReadBits(dbCommon* record, epicsUInt32* rval)
             rv = priv->data.uval32;
             break;
         case regDev64T:
-            rv = priv->data.uval64; /* cut off high bits */
+            rv = (epicsUInt32)priv->data.uval64; /* cut off high bits */
             break;
         default:
             recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
@@ -1825,8 +1825,8 @@ int regDevReadArray(dbCommon* record, size_t nelm)
 {
     int status = S_dev_success;
     unsigned int i;
-    unsigned short dlen;
-    int packing;
+    epicsUInt8 dlen;
+    epicsUInt8 packing;
 
     regDevGetPriv();
 
@@ -1869,21 +1869,21 @@ int regDevReadArray(dbCommon* record, size_t nelm)
         {
             epicsUInt8* buffer = priv->data.buffer;
             for (i = 0; i < nelm; i++)
-                buffer[i] = bcd2i(buffer[i]);
+                buffer[i] = (epicsUInt8)bcd2i(buffer[i]);
             break;
         }
         case regDevBCD16T:
         {
             epicsUInt16* buffer = priv->data.buffer;
             for (i = 0; i < nelm; i++)
-                buffer[i] = bcd2i(buffer[i]);
+                buffer[i] = (epicsUInt16)bcd2i(buffer[i]);
             break;
         }
         case regDevBCD32T:
         {
             epicsUInt32* buffer = priv->data.buffer;
             for (i = 0; i < nelm; i++)
-                buffer[i] = bcd2i(buffer[i]);
+                buffer[i] = (epicsUInt32)bcd2i(buffer[i]);
             break;
         }
     }
@@ -1894,7 +1894,7 @@ int regDevWriteArray(dbCommon* record, size_t nelm)
 {
     int status = 0;
     unsigned int i;
-    unsigned short dlen;
+    epicsUInt8 dlen;
     int packing;
 
     regDevGetPriv();
@@ -1917,21 +1917,21 @@ int regDevWriteArray(dbCommon* record, size_t nelm)
         {
             epicsUInt8* buffer = priv->data.buffer;
             for (i = 0; i < nelm; i++)
-                buffer[i] = i2bcd(buffer[i]);
+                buffer[i] = (epicsUInt8)i2bcd(buffer[i]);
             break;
         }
         case regDevBCD16T:
         {
             epicsUInt16* buffer = priv->data.buffer;
             for (i = 0; i < nelm; i++)
-                buffer[i] = i2bcd(buffer[i]);
+                buffer[i] = (epicsUInt16)i2bcd(buffer[i]);
             break;
         }
         case regDevBCD32T:
         {
             epicsUInt32* buffer = priv->data.buffer;
             for (i = 0; i < nelm; i++)
-                buffer[i] = i2bcd(buffer[i]);
+                buffer[i] = (epicsUInt32)i2bcd(buffer[i]);
             break;
         }
     }
@@ -1981,7 +1981,7 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
+                for (i = 0; i < nelm; i++) v[i] = (float)(r[i]*s+o);
             }
             else break;
             return S_dev_success;
@@ -1998,7 +1998,7 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
+                for (i = 0; i < nelm; i++) v[i] = (float)(r[i]*s+o);
             }
             else break;
             return S_dev_success;
@@ -2014,7 +2014,7 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
+                for (i = 0; i < nelm; i++) v[i] = (float)(r[i]*s+o);
             }
             else break;
             return S_dev_success;
@@ -2031,7 +2031,7 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
+                for (i = 0; i < nelm; i++) v[i] = (float)(r[i]*s+o);
             }
             else break;
             return S_dev_success;
@@ -2047,7 +2047,7 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
+                for (i = 0; i < nelm; i++) v[i] = (float)(r[i]*s+o);
             }
             else break;
             return S_dev_success;
@@ -2070,7 +2070,7 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
             else if (ftvl == DBF_FLOAT)
             {
                 float *v = val;
-                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
+                for (i = 0; i < nelm; i++) v[i] = (float)(r[i]*s+o);
             }
             else break;
             return S_dev_success;
@@ -2105,7 +2105,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                     x = (v[i]+o)*s;
                     if (x < priv->hwLow) x = priv->hwLow;
                     if (x > priv->hwHigh) x = priv->hwHigh;
-                    r[i] = x;
+                    r[i] = (epicsInt8)x;
                 }
             }
             else if (ftvl == DBF_FLOAT)
@@ -2115,7 +2115,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                     x = (v[i]+o)*s;
                     if (x < priv->hwLow) x = priv->hwLow;
                     if (x > priv->hwHigh) x = priv->hwHigh;
-                    r[i] = x;
+                    r[i] = (epicsInt8)x;
                 }
             }
             else break;
@@ -2132,7 +2132,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                     x = (v[i]+o)*s;
                     if (x < priv->hwLow) x = priv->hwLow;
                     if (x > priv->hwHigh) x = priv->hwHigh;
-                    r[i] = x;
+                    r[i] = (epicsUInt8)x;
                 }
             }
             else if (ftvl == DBF_FLOAT)
@@ -2142,7 +2142,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                     x = (v[i]+o)*s;
                     if (x < priv->hwLow) x = priv->hwLow;
                     if (x > priv->hwHigh) x = priv->hwHigh;
-                    r[i] = x;
+                    r[i] = (epicsUInt8)x;
                 }
             }
             else break;
@@ -2158,7 +2158,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                     x = (v[i]+o)*s;
                     if (x < priv->hwLow) x = priv->hwLow;
                     if (x > priv->hwHigh) x = priv->hwHigh;
-                    r[i] = x;
+                    r[i] = (epicsInt16)x;
                 }
             }
             else if (ftvl == DBF_FLOAT)
@@ -2168,7 +2168,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                     x = (v[i]+o)*s;
                     if (x < priv->hwLow) x = priv->hwLow;
                     if (x > priv->hwHigh) x = priv->hwHigh;
-                    r[i] = x;
+                    r[i] = (epicsInt16)x;
                 }
             }
             else break;
@@ -2185,7 +2185,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                     x = (v[i]+o)*s;
                     if (x < priv->hwLow) x = priv->hwLow;
                     if (x > priv->hwHigh) x = priv->hwHigh;
-                    r[i] = x;
+                    r[i] = (epicsUInt16)x;
                 }
             }
             else if (ftvl == DBF_FLOAT)
@@ -2195,7 +2195,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                     x = (v[i]+o)*s;
                     if (x < priv->hwLow) x = priv->hwLow;
                     if (x > priv->hwHigh) x = priv->hwHigh;
-                    r[i] = x;
+                    r[i] = (epicsUInt16)x;
                 }
             }
             else break;
@@ -2211,7 +2211,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                     x = (v[i]+o)*s;
                     if (x < priv->hwLow) x = priv->hwLow;
                     if (x > priv->hwHigh) x = priv->hwHigh;
-                    r[i] = x;
+                    r[i] = (epicsInt32)x;
                 }
             }
             else if (ftvl == DBF_FLOAT)
@@ -2221,7 +2221,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                     x = (v[i]+o)*s;
                     if (x < priv->hwLow) x = priv->hwLow;
                     if (x > priv->hwHigh) x = priv->hwHigh;
-                    r[i] = x;
+                    r[i] = (epicsInt32)x;
                 }
             }
             else break;
@@ -2244,7 +2244,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                     x = (v[i]+o)*s;
                     if (x < (epicsUInt32)priv->hwLow) x = (epicsUInt32)priv->hwLow;
                     if (x > (epicsUInt32)priv->hwHigh) x = (epicsUInt32)priv->hwHigh;
-                    r[i] = x;
+                    r[i] = (epicsUInt32)x;
                 }
             }
             else if (ftvl == DBF_FLOAT)
@@ -2254,7 +2254,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                     x = (v[i]+o)*s;
                     if (x < (epicsUInt32)priv->hwLow) x = (epicsUInt32)priv->hwLow;
                     if (x > (epicsUInt32)priv->hwHigh) x = (epicsUInt32)priv->hwHigh;
-                    r[i] = x;
+                    r[i] = (epicsUInt32)x;
                 }
             }
             else break;
@@ -2477,7 +2477,7 @@ int regDevDisplay(const char* devName, size_t start, unsigned int dlen, size_t b
     return status;
 }
 
-int regDevPut(const char* devName, int offset, unsigned short dlen, int value)
+int regDevPut(const char* devName, int offset, epicsUInt8 dlen, int value)
 {
     regDeviceNode* device = NULL;
     int status;

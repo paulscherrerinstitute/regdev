@@ -25,13 +25,15 @@
 #define strdup(s) ({ char* __r=(char*)malloc(strlen(s)+1); __r ? strcpy(__r, s) : NULL; })
 #endif
 
-/* utility: size_t modifier for printf. Example usage: printf("%"Z"x", s) */
-#if defined(vxWorks) && !defined(_WRS_VXWORKS_MAJOR)
-/* vxWorks 5 does not know the z modifier */
-#define Z ""
-#else
+/* utility: size_t modifier for printf. Example usage: printf("%"Z"x", size) */
+#if defined __GNUC__ && __GNUC__ >= 3
 #define Z "z"
+#elif defined _WIN32
+#define Z "I"
+#else
+#define Z
 #endif
+
 
 /* Every device driver may define struct regDevice as needed
  * It's a handle to the device instance

@@ -48,7 +48,7 @@
 { \
     const volatile epicsUInt##N* s = src;\
     volatile epicsUInt##N* d = dest;\
-    unsigned int i = nelem * dlen; \
+    size_t i = nelem * dlen; \
     while (i--) \
     { \
         *d++ = *s++; \
