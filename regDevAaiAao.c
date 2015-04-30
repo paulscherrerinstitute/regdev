@@ -27,7 +27,6 @@ long regDevInitRecordAai(aaiRecord* record)
     regDevPrivate* priv;
     int status;
     
-    regDevDebugLog(DBG_INIT, "regDevInitRecordAai(%s) link type %d\n", record->name, record->inp.type);
     priv = regDevAllocPriv((dbCommon*)record);
     if (!priv) return S_dev_noMemory;
     status = regDevCheckFTVL((dbCommon*)record, record->ftvl);
@@ -94,7 +93,6 @@ long regDevInitRecordAao(aaoRecord* record)
     regDevPrivate* priv;
     int status;
     
-    regDevDebugLog(DBG_INIT, "regDevInitRecordAao(%s) link type %d\n", record->name, record->out.type);
     priv = regDevAllocPriv((dbCommon*)record);
     if (!priv) return S_dev_noMemory;
     status = regDevCheckFTVL((dbCommon*)record, record->ftvl);

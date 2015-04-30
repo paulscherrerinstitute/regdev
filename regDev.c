@@ -1161,7 +1161,7 @@ int regDevStartWorkQueue(regDeviceNode* device, unsigned int prio)
 
     if (prio >= NUM_CALLBACK_PRIORITIES) prio = NUM_CALLBACK_PRIORITIES-1;
 
-    dispatcher->qid[prio] = epicsMessageQueueCreate(dispatcher->maxEntries, sizeof(struct regDevWorkMsg));
+    dispatcher->qid[prio] = epicsMessageQueueCreate(dispatcher->maxEntries, (unsigned int)sizeof(struct regDevWorkMsg));
     threadName=mallocMustSucceed(strlen(device->name)+9, "regDevStartWorkQueue");
 
     switch (prio)
