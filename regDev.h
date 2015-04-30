@@ -153,7 +153,7 @@ epicsShareFunc const char* regDevUnock(
  */
 epicsShareFunc int regDevInstallWorkQueue(
     regDevice* device,
-    size_t maxEntries);
+    unsigned int maxEntries);
 
 /*
 A driver can call regDevRegisterDmaAlloc to register an allocator for DMA enabled memory.

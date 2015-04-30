@@ -1053,7 +1053,7 @@ struct regDevWorkMsg {
 struct regDevDispatcher {
     epicsThreadId tid[NUM_CALLBACK_PRIORITIES];
     epicsMessageQueueId qid[NUM_CALLBACK_PRIORITIES];
-    size_t maxEntries;
+    unsigned int maxEntries;
 };
 
 
@@ -1192,7 +1192,7 @@ int regDevStartWorkQueue(regDeviceNode* device, unsigned int prio)
     return S_dev_success;
 }
 
-int regDevInstallWorkQueue(regDevice* driver, size_t maxEntries)
+int regDevInstallWorkQueue(regDevice* driver, unsigned int maxEntries)
 {
     regDeviceNode* device = regDevGetDeviceNode(driver);
 
