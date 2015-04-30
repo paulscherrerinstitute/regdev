@@ -167,7 +167,7 @@ void regDevCopy(unsigned int dlen, size_t nelem, const volatile void* src, volat
     if (swap == REGDEV_BE_SWAP) swap = (endianess.b[0] == 0x12);
     else if (swap == REGDEV_LE_SWAP) swap = (endianess.b[0] == 0x78);
 
-    regDevDebugLog(DBG_IN|DBG_OUT, "regDevCopy(dlen=%d, nelem=%"Z"d, src=%p, dest=%p, pmask=%p, swap=%d)\n",
+    regDevDebugLog(DBG_IN|DBG_OUT, "dlen=%d, nelem=%"Z"d, src=%p, dest=%p, pmask=%p, swap=%d\n",
         dlen, nelem, src, dest, pmask, swap);
 
     if (((size_t)src  & alignment) == 0 &&

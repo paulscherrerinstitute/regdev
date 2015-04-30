@@ -33,7 +33,7 @@ typedef struct simRegDevMessage {
     struct simRegDevMessage* next;
     regDevice* device;
     epicsTimerId timer;
-    size_t dlen;
+    unsigned int dlen;
     size_t nelem;
     volatile void* src;
     volatile void* dest;
@@ -66,7 +66,7 @@ void simRegDevCallback(void* arg);
 
 int simRegDevAsynTransfer(
     regDevice *device,
-    size_t dlen,
+    unsigned int dlen,
     size_t nelem,
     void* src,
     void* dest,
@@ -79,8 +79,8 @@ int simRegDevAsynTransfer(
     simRegDevMessage* msg;
 
     if (simRegDevDebug & (isOutput ? DBG_OUT : DBG_IN))
-        printf ("simRegDevAsynTransfer %s: copy %s %"Z"u bytes * %"Z"u elements\n",
-        device->name, isOutput ? "out" : "in", dlen, nelem);
+        printf ("simRegDevAsynTransfer %s %s: copy %s %u bytes * %"Z"u elements\n",
+        user, device->name, isOutput ? "out" : "in", dlen, nelem);
 
     epicsMutexLock(device->lock);
     if (device->msgFreelist[prio] == NULL)
@@ -91,7 +91,7 @@ int simRegDevAsynTransfer(
         if (msg == NULL || msg->timer == NULL)
         {
             errlogSevPrintf(errlogMajor,
-                "simRegDevAllocMessage %s: out of memory\n", device->name);
+                "simRegDevAllocMessage %s %s: out of memory\n", user, device->name);
             if (msg) free(msg);
             epicsMutexUnlock(device->lock);
             return S_dev_noMemory;
@@ -114,6 +114,9 @@ int simRegDevAsynTransfer(
     msg->user = user;
     msg->isOutput = isOutput;
     epicsMutexUnlock(device->lock);
+    if (simRegDevDebug & (isOutput ? DBG_OUT : DBG_IN))
+        printf ("simRegDevAsynTransfer %s %s: starting timer %g seconds\n",
+        user, device->name, nelem*0.01);
     epicsTimerStartDelay(msg->timer, nelem*0.01);
     return ASYNC_COMPLETION;
 }
@@ -126,8 +129,8 @@ void simRegDevCallback(void* arg)
     int status;
 
     if (simRegDevDebug & (msg->isOutput ? DBG_OUT : DBG_IN))
-        printf ("simRegDevCallback %s: copy %"Z"u bytes * %"Z"u elements\n",
-        device->name, msg->dlen, msg->nelem);
+        printf ("simRegDevCallback %s %s: copy %u bytes * %"Z"u elements\n",
+        msg->user, device->name, msg->dlen, msg->nelem);
     epicsMutexLock(device->lock);
     if (device->connected == 0)
     {
@@ -144,10 +147,12 @@ void simRegDevCallback(void* arg)
     {
         /* We got new data: trigger all interested input records */
         if (simRegDevDebug & DBG_OUT)
-            printf ("simRegDevCallback %s: trigger input records\n", device->name);
+            printf ("simRegDevCallback %s %s: trigger input records\n", msg->user, device->name);
         scanIoRequest(device->ioscanpvt);
     }
     epicsMutexUnlock(device->lock);
+    if (simRegDevDebug & (msg->isOutput ? DBG_OUT : DBG_IN))
+        printf ("simRegDevCallback %s %s: call back status=%d\n", msg->user, device->name, status);
     callback(msg->user, status);
 }
 
@@ -164,21 +169,29 @@ void simRegDevReport(
             device->connected ? "connected" : "disconnected");
         if (level > 0)
         {
-            unsigned int i;
-            for (i=0; i<device->size; i++)
+            unsigned int r, c;
+            for (r=0; r<device->size; r+=16)
             {
-                if ((i&0xf) == 0)
+                printf ("0x%04x:", r);
+
+                for (c=0; c<16; c++)
                 {
-                    printf ("0x%04x:", i);
+                    if (r+c < device->size)
+                        printf (" %02x", device->buffer[r+c]);
+                    else
+                        printf ("   ");
                 }
-                printf (" %02x",
-                    device->buffer[i]);
-                if ((i&0xf) == 0xf || i == device->size-1)
+                printf (" | ");
+                for (c=0; c<16 && r+c < device->size; c++)
                 {
-                    printf ("\n");
+                    if ((device->buffer[r+c] & 0x7f) >= 0x20)
+                        printf ("%c", device->buffer[r+c]);
+                    else
+                        printf (".");
                 }
+                printf ("\n");
             }
-        }
+        }                    
     }
 }
 
@@ -209,7 +222,7 @@ int simRegDevRead(
     if (!device || device->magic != MAGIC)
     {
         errlogSevPrintf(errlogMajor,
-            "simRegDevRead: illegal device handle\n");
+            "simRegDevRead %s: illegal device handle\n", user);
         return S_dev_wrongDevice;
     }
     if (device->connected == 0)

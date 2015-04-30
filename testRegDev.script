@@ -1,1 +1,1 @@
-iocsh -r regDev,zimoch -c 'simRegDevAsyncConfigure test,128' testRegDev.db DEV=DZ "$@"
+iocsh -r regDev,$(whoami) -c 'simRegDevConfigure test,128' testRegDev.db DEV=DZ "$@"

@@ -15,13 +15,7 @@
 #include <epicsEvent.h>
 #include <epicsTimer.h>
 
-#include <epicsExport.h>
-#include "regDev.h"
-
-#ifndef S_dev_badArgument
-#define S_dev_badArgument (M_devLib| 33)
-#endif
-
+#include <math.h>
 #include <sys/types.h>
 #include <epicsTypes.h>
 #if (EPICS_REVISION<15)
@@ -29,7 +23,14 @@ typedef long long epicsInt64;
 typedef unsigned long long epicsUInt64;
 #endif
 
-#define DONT_INIT (0xFFFFFFFFUL)
+#include <epicsExport.h>
+#include "regDev.h"
+
+#ifndef S_dev_badArgument
+#define S_dev_badArgument (M_devLib| 33)
+#endif
+
+#define DONT_INIT ((size_t)-1)
 
 #define TYPE_INT    1
 #define TYPE_FLOAT  2
@@ -74,7 +75,7 @@ typedef struct regDevPrivate{          /* per record data structure */
     epicsUInt32 magic;
     regDeviceNode* device;
     size_t offset;                     /* Offset (in bytes) within device memory */
-    size_t initoffset;                 /* Offset to initialize output records */
+    size_t initoffset;                 /* Offset to initialize output records (or DONT_INIT) */
     struct dbAddr* offsetRecord;       /* record to read offset from */
     regDevSignedOffset_t offsetScale;  /* scaling of value from offsetRecord */
     epicsUInt8 bit;                    /* Bit number (0-15) for bi/bo */
@@ -82,8 +83,8 @@ typedef struct regDevPrivate{          /* per record data structure */
     epicsUInt8 dlen;                   /* Data length (in bytes) */
     epicsUInt8 arraypacking;           /* Array: elelents in one register */
     epicsUInt8 fifopacking;            /* Fifo: elelents in one register */
-    epicsInt32 hwLow;                  /* Hardware Low limit */
-    epicsInt32 hwHigh;                 /* Hardware High limit */
+    epicsInt32 L;                      /* Hardware Low limit */
+    epicsInt32 H;                      /* Hardware High limit */
     epicsUInt32 invert;                /* Invert bits for bi,bo,mbbi,... */
     epicsUInt32 update;                /* Periodic update of output records (msec) */
     DEVSUPFUN updater;                 /* Update function */
@@ -147,31 +148,34 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* rval, size_t nelm, double
 
 #define regDevCheckAsyncWriteResult(record) \
     regDevPrivate* priv = (regDevPrivate*)(record->dpvt); \
+    if (priv == NULL) \
+    { \
+        recGblSetSevr(record, UDF_ALARM, INVALID_ALARM); \
+        regDevPrintErr("record not initialized"); \
+        return S_dev_badInit;\
+    } \
+    regDevDebugLog(DBG_OUT, "%s: status=%x pact=%d updateActive=%d\n", record->name, priv->status, record->pact, priv->updateActive); \
+    if (priv->updateActive) \
+    { \
+        regDevDebugLog(DBG_IN, "%s: running updater\n", record->name); \
+        recGblResetAlarms(record); \
+        return priv->updater(record); \
+    } \
     if (record->pact) \
     { \
-        if (priv == NULL) \
-        { \
-            recGblSetSevr(record, UDF_ALARM, INVALID_ALARM); \
-            regDevDebugLog(DBG_OUT, "%s: record not initialized\n", record->name); \
-        } \
         if (priv->status != S_dev_success) \
         { \
             recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM); \
             regDevDebugLog(DBG_OUT, "%s: asynchronous write error\n", record->name); \
         } \
-        regDevDebugLog(DBG_OUT, "regDevCheckAsyncWriteResult %s: status=%x\n", record->name, priv->status); \
+        regDevDebugLog(DBG_OUT, "%s: status=%x\n", record->name, priv->status); \
         return priv->status; \
-    } \
-    if (priv->updateActive) \
-    { \
-        regDevDebugLog(DBG_IN, "%s: running updater\n", record->name); \
-        return priv->updater(record); \
     }
 
-#endif
-
 #if defined(__GNUC__) && __GNUC__ < 3
- #define regDevPrintErr(f, args...) errlogPrintf("%s %s: " f "\n", __FUNCTION__, record->name , ## args)
+ #define regDevPrintErr(f, args...) errlogPrintf("%s %s: " f "\n", _CURRENT_FUNCTION_, record->name , ## args)
 #else
  #define regDevPrintErr(f, ...) errlogPrintf("%s %s: " f "\n", _CURRENT_FUNCTION_, record->name , ## __VA_ARGS__)
+#endif
+
 #endif

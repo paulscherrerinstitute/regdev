@@ -181,8 +181,9 @@ epicsShareExtern int regDevDebug;
 
 #if defined __GNUC__ && __GNUC__ < 3
 /* old GCC style */
+ #define _CURRENT_FUNCTION_ __FUNCTION__
  #define regDevDebugLog(level, fmt, args...) \
-    do {if ((level) & regDevDebug) printf("%s " fmt, __FUNCTION__ , ## args);} while(0)
+    do {if ((level) & regDevDebug) printf("%s " fmt, _CURRENT_FUNCTION_ , ## args);} while(0)
 #else
 /* new posix style */
  #if defined(__GNUC__) || (defined(__MWERKS__) && (__MWERKS__ >= 0x3000)) || (defined(__ICC) && (__ICC >= 600)) || defined(__ghs__)

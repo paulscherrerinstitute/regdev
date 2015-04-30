@@ -529,7 +529,7 @@ record (aao, "$(DEV):AAOF2UL")
 record (ao, "$(DEV):AOD")
 {
     field (DTYP, "regDev")
-    field (OUT,  "@test:0 T=double U=3000")
+    field (OUT,  "@test:0 T=double")
     field (PREC, "6")
     field (LOPR, "-20")
     field (HOPR, "20")
@@ -539,7 +539,7 @@ record (ao, "$(DEV):AOD")
 record (ao, "$(DEV):AOD2")
 {
     field (DTYP, "regDev")
-    field (OUT,  "@test:0 T=double U=3000")
+    field (OUT,  "@test:0 T=double")
     field (PREC, "6")
     field (LOPR, "-20")
     field (HOPR, "20")
@@ -900,6 +900,32 @@ record (mbbo, "$(DEV):MBBO2")
     field (DTYP, "regDev")
     field (NOBT, "32")
     field (OUT,  "@test:16 T=uint32")
+}
+
+record (stringin, "$(DEV):SI1")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:0x20")
+    field (SCAN, "I/O Intr")
+}
+
+record (stringin, "$(DEV):SI2")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:0x20 L=10")
+    field (SCAN, "I/O Intr")
+}
+
+record (stringout, "$(DEV):SO1")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0x20 U=5000")
+}
+
+record (stringout, "$(DEV):SO2")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0x20 L=10")
 }
 
 record (longout, "$(DEV):INDEX")

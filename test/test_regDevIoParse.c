@@ -72,9 +72,9 @@ parameters[] = {
 { "dev1/0x30!0x40 T=real64 P=2",
     S_dev_success,        0x30,    0x40,  epicsFloat64T,  8,           0,          0,    0,     2  },
 { "dev1/1+20-4-0x3 T=STRING",
-    S_dev_success,          14,      -1,  epicsStringT,   0,           0,          0,    0,     0  },
+    S_dev_success,          14,      -1,  epicsStringT,   1,          40,          0,    0,     0  },
 { "dev1 T=string L=13",
-    S_dev_success,           0,      -1,  epicsStringT,  13,           0,          0,    0,     0  },
+    S_dev_success,           0,      -1,  epicsStringT,   1,          13,          0,    0,     0  },
 { "dev1 T=BCD",
     S_dev_success,           0,      -1,  regDevBCD8T,    1,           0,         99,    0,     0  },
 { "dev1 T=BCD8",
@@ -173,17 +173,17 @@ int test_regDevIoParse()
             errorcount++;
             continue;
         }
-        if (priv->hwLow !=  parameters[i].l)
+        if (priv->L !=  parameters[i].l)
         {
             printf (FAILED ": wrong low limit %#x (%d) instead of %#x (%d) \n",
-                priv->hwLow, priv->hwLow, parameters[i].l, parameters[i].l);
+                priv->L, priv->L, parameters[i].l, parameters[i].l);
             errorcount++;
             continue;
         }
-        if (priv->hwHigh !=  parameters[i].h)
+        if (priv->H !=  parameters[i].h)
         {
             printf (FAILED ": wrong high limit %#x (%d) instead of %#x (%d) \n",
-                priv->hwHigh, priv->hwHigh, parameters[i].h, parameters[i].h);
+                priv->H, priv->H, parameters[i].h, parameters[i].h);
             errorcount++;
             continue;
         }

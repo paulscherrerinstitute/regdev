@@ -31,7 +31,7 @@ int test_regDevWriteNumber()
 
     parsestatus = regDevIoParse(&record, &link);
     assert(parsestatus==0);
-    printf ("low=%x hight=%x\n", priv->hwLow, priv->hwHigh);
+    printf ("low=%x hight=%x\n", priv->L, priv->H);
     for (i=-300; i<=300; i++)
     {
         simRegDevSetData("test", 0, 0);
@@ -39,8 +39,8 @@ int test_regDevWriteNumber()
         simRegDevGetData("test", 0, &r);
         
         e = i;
-        if (e > priv->hwHigh) e = priv->hwHigh;
-        if (e < priv->hwLow)  e = priv->hwLow;
+        if (e > priv->H) e = priv->H;
+        if (e < priv->L)  e = priv->L;
         e &= 0xff;
         
         if (r != e)

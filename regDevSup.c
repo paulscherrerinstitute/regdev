@@ -30,14 +30,7 @@ long regDevInitRecordStat(biRecord* record)
 long regDevReadStat(biRecord* record)
 {
     int status;
-    regDevPrivate* priv = (regDevPrivate*)record->dpvt;
 
-    if (!priv)
-    {
-        recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
-        regDevPrintErr("not initialized");
-        return -1;
-    }
     /* psudo-read (0 bytes) just to get the connection status */
     status = regDevRead((dbCommon*)record, 0, 0, NULL);
     if (status == ASYNC_COMPLETION) return S_dev_success;
@@ -192,7 +185,6 @@ long regDevReadMbbi(mbbiRecord* record)
     }
     rval >>= record->shft;
     record->val = rval;
-    record->udf = FALSE;
     return DONT_CONVERT;
 }
 
@@ -241,7 +233,6 @@ long regDevInitRecordMbbo(mbboRecord* record)
     }
     rval >>= record->shft;
     record->val = rval;
-    record->udf = FALSE;
     return DONT_CONVERT; 
 }
 
@@ -276,7 +267,6 @@ long regDevUpdateMbbo(mbboRecord* record)
     }
     /* write VAL directly */
     record->val = rval;
-    record->udf = FALSE;
     return S_dev_success;
 }
 
@@ -551,7 +541,9 @@ long regDevReadAi(aiRecord* record)
     int status;
     double val;
     epicsInt32 rval;
+    int udf;
     
+    udf = record->udf;
     status = regDevReadNumber((dbCommon*)record, &rval, &val);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status == S_dev_success)
@@ -563,20 +555,13 @@ long regDevReadAi(aiRecord* record)
         /* emulate scaling */
         if (record->aslo != 0.0) val *= record->aslo;
         val += record->aoff;
-        if (!record->udf &&
-            record->smoo != 0.0 &&
-            record->val == record->val) /* don't smooth NAN */
-        {
-            /* emulate smoothing */
-            record->val = record->val * record->smoo +
-                val * (1.0 - record->smoo);
-        }
-        else
-        {
-            /* don't smooth with invalid value */
-            record->val = val;
-            record->udf = 0;
-        }
+
+	if (record->smoo != 0.0) {
+	    if (udf) record->val = val;	/* initial condition */
+	    record->val = val * (1.00 - record->smoo) + (record->val * record->smoo);
+	} else 
+	    record->val = val;
+	record->udf = (record->val != record->val); /* isnan */
     }
     return status;
 }
@@ -587,10 +572,10 @@ long regDevSpecialLinconvAi(aiRecord* record, int after)
     regDevPrivate* priv = (regDevPrivate*)record->dpvt;
 
     if (after && priv) {
-        hwSpan = priv->hwHigh - priv->hwLow;
+        hwSpan = priv->H - priv->L;
         record->eslo = (record->eguf - record->egul) / hwSpan;
         record->eoff =
-            (priv->hwHigh * record->egul - priv->hwLow * record->eguf)
+            (priv->H * record->egul - priv->L * record->eguf)
             / hwSpan;
         switch (priv->dtype)
         {
@@ -598,16 +583,16 @@ long regDevSpecialLinconvAi(aiRecord* record, int after)
             case epicsInt16T:
             case epicsInt32T:
                 record->eoff = 
-                    ((epicsInt32)priv->hwHigh * record->egul - (epicsInt32)priv->hwLow * record->eguf)
+                    ((epicsInt32)priv->H * record->egul - (epicsInt32)priv->L * record->eguf)
                     / hwSpan;
                 break;
             default:
                 record->eoff = 
-                    ((epicsUInt32)priv->hwHigh * record->egul - (epicsUInt32)priv->hwLow * record->eguf)
+                    ((epicsUInt32)priv->H * record->egul - (epicsUInt32)priv->L * record->eguf)
                     / hwSpan;
         }                   
-        regDevDebugLog(DBG_INIT, "regDevSpecialLinconvAi(%s, 1): hwHigh=0x%08x=%d, hwLow=0x%08x=%d, hwSpan=%u, ESLO=%g, EOFF=%g\n",
-            record->name, priv->hwHigh, priv->hwHigh, priv->hwLow, priv->hwLow, hwSpan, record->eslo, record->eoff);
+        regDevDebugLog(DBG_INIT, "regDevSpecialLinconvAi(%s, 1): H=0x%08x=%d, L=0x%08x=%d, hwSpan=%u, ESLO=%g, EOFF=%g\n",
+            record->name, priv->H, priv->H, priv->L, priv->L, hwSpan, record->eslo, record->eoff);
     }
     return S_dev_success;
 }
@@ -726,7 +711,7 @@ long regDevSpecialLinconvAo(aoRecord* record, int after)
     regDevPrivate* priv = (regDevPrivate*) record->dpvt;
 
     if (after) {
-        hwSpan = priv->hwHigh - priv->hwLow;
+        hwSpan = priv->H - priv->L;
         record->eslo = (record->eguf - record->egul) / hwSpan;
         switch (priv->dtype)
         {
@@ -734,12 +719,12 @@ long regDevSpecialLinconvAo(aoRecord* record, int after)
             case epicsInt16T:
             case epicsInt32T:
                 record->eoff = 
-                    ((epicsInt32)priv->hwHigh * record->egul - (epicsInt32)priv->hwLow * record->eguf)
+                    ((epicsInt32)priv->H * record->egul - (epicsInt32)priv->L * record->eguf)
                     / hwSpan;
                 break;
             default:
                 record->eoff = 
-                    ((epicsUInt32)priv->hwHigh * record->egul - (epicsUInt32)priv->hwLow * record->eguf)
+                    ((epicsUInt32)priv->H * record->egul - (epicsUInt32)priv->L * record->eguf)
                     / hwSpan;
         }                   
 
@@ -763,8 +748,8 @@ long regDevSpecialLinconvAo(aoRecord* record, int after)
                 = H            
 */        
 
-        regDevDebugLog(DBG_INIT, "regDevSpecialLinconvAo(%s, 1): hwHigh=0x%08x=%d, hwLow=0x%08x=%d, hwSpan=%u, ESLO=%g, EOFF=%g\n",
-            record->name, priv->hwHigh, priv->hwHigh, priv->hwLow, priv->hwLow, hwSpan, record->eslo, record->eoff);
+        regDevDebugLog(DBG_INIT, "regDevSpecialLinconvAo(%s, 1): H=0x%08x=%d, L=0x%08x=%d, hwSpan=%u, ESLO=%g, EOFF=%g\n",
+            record->name, priv->H, priv->H, priv->L, priv->L, hwSpan, record->eslo, record->eoff);
     }
     return S_dev_success;
 }
@@ -796,17 +781,11 @@ long regDevInitRecordStringin(stringinRecord* record)
     priv = regDevAllocPriv((dbCommon*)record);
     if (!priv) return S_dev_noMemory;
     priv->dtype = epicsStringT;
-    priv->dlen = sizeof(record->val);
+    priv->L = sizeof(record->val);
     status = regDevIoParse((dbCommon*)record, &record->inp);
     if (status) return status;
     status = regDevAssertType((dbCommon*)record, TYPE_STRING);
     if (status) return status;
-    if (priv->dlen >= sizeof(record->val))
-    {
-        regDevPrintErr("string size reduced from %d to %d",
-            priv->dlen, (int)sizeof(record->val)-1);
-        priv->dlen = (int)sizeof(record->val)-1;
-    }
     priv->data.buffer = record->val;
     return S_dev_success;
 }
@@ -816,6 +795,7 @@ long regDevReadStringin(stringinRecord* record)
     int status;
     
     status = regDevReadArray((dbCommon*) record, sizeof(record->val));
+    record->val[sizeof(record->val)-1] = 0;
     if (status == ASYNC_COMPLETION) return S_dev_success;
     return status;
 
@@ -850,22 +830,19 @@ long regDevInitRecordStringout(stringoutRecord* record)
     priv = regDevAllocPriv((dbCommon*)record);
     if (!priv) return S_dev_noMemory;
     priv->dtype = epicsStringT;
-    priv->dlen = sizeof(record->val);
+    priv->L = sizeof(record->val);
     status = regDevIoParse((dbCommon*)record, &record->out);
     if (status) return status;
     status = regDevAssertType((dbCommon*)record, TYPE_STRING);
     if (status) return status;
-    if (priv->dlen >= sizeof(record->val))
-    {
-        regDevPrintErr("string size reduced from %d to %d",
-            priv->dlen, (int)sizeof(record->val)-1);
-        priv->dlen = sizeof(record->val)-1;
-    }
     priv->data.buffer = record->val;
     status = regDevInstallUpdateFunction((dbCommon*)record, regDevUpdateStringout);
     if (status) return status;
     if (priv->initoffset == DONT_INIT) return S_dev_success;
-    return regDevReadArray((dbCommon*) record, sizeof(record->val));
+    status =  regDevReadArray((dbCommon*) record, sizeof(record->val));
+    if (status) return status;
+    record->val[sizeof(record->val)-1] = 0;
+    return S_dev_success;
 }
 
 long regDevUpdateStringout(stringoutRecord* record)
@@ -874,7 +851,9 @@ long regDevUpdateStringout(stringoutRecord* record)
 
     status = regDevReadArray((dbCommon*) record, sizeof(record->val));
     if (status == ASYNC_COMPLETION) return S_dev_success;
-    return status;
+    if (status) return status;
+    record->val[sizeof(record->val)-1] = 0;
+    return S_dev_success;
 }
 
 long regDevWriteStringout(stringoutRecord* record)
@@ -882,7 +861,7 @@ long regDevWriteStringout(stringoutRecord* record)
     int status;
 
     regDevCheckAsyncWriteResult(record);
-    status = regDevWriteArray((dbCommon*) record, 0);
+    status = regDevWriteArray((dbCommon*) record, sizeof(record->val));
     if (status == ASYNC_COMPLETION) return S_dev_success;
     return status;
 }
