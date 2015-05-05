@@ -93,19 +93,20 @@ void regDevCallback(char* user, int status)
  * Routine to parse IO arguments
  * IO address line format:
  *
- * <name>:<a>[:[i]] [T=<type>] [B=<bit>] [L=<low|strLen>] [H=<high>]
+ * <name>:<addr>[:[init]] [T=<type>] [B=<bit>] [I=<invert>] [L=<low|strLen>] [H=<high>] [P=<packing>] [U=<update>]
  *
  * where: <name>    - symbolic device name
- *        <a>       - address (byte number) within memory block
+ *        <addr>    - address (byte number) within memory block
  *                    (expressions containing +-*() allowed, no spaces!)
- *        <i>       - optional init read address ( for output records )
- *        <type>    - INT8, INT16, INT32,
- *                    UINT16 (or UNSIGN16), UINT32 (or UNSIGN32),
- *                    REAL32 (or FLOAT), REAL64 (or DOUBLE),
- *                    STRING,BCD
- *        <bit>     - least significant bit is 0
+ *        <init>    - optional init read address ( for output records )
+ *        <type>    - data type, see table below
+ *        <bit>     - bit number (least significant bit is 0)
+ *        <invert>  - mask of inverted bits
+ *        <strLen>  - string length
  *        <low>     - raw value that mapps to EGUL
  *        <high>    - raw value that mapps to EGUF
+ *        <packing> - number of array values in one fifo register
+ *        <update>  - milliseconds for periodic update of output records
  **********************************************************************/
 
 #define regDevBCD8T  (100)
