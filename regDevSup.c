@@ -1,17 +1,9 @@
-#include <stdlib.h>
-#include "regDevSup.h"
+/* Device Support for all standard records */
 
-#include <math.h>
-#ifdef vxWorks
-#include <private/mathP.h>
-#define finite(x) (!isNan(x) && !isInf(x))
-#define isnan(x) isNan(x)
-#endif
-#ifdef _WIN32
-#include <float.h>
-#define finite(x) _finite(x) 
-#define isnan(x) isnan(x) 
-#endif
+#include <stdlib.h>
+#include <epicsMath.h>
+
+#include "regDevSup.h"
 
 /* bi for status bit ************************************************/
 
@@ -567,7 +559,7 @@ long regDevReadAi(aiRecord* record)
         if (record->aslo != 0.0) val *= record->aslo;
         val += record->aoff;
 
-	if (record->smoo != 0.0 && finite(record->val) && !udf) {
+	if (record->smoo != 0.0 && !isnan(record->val) && !isinf(record->val) && !udf) {
             /* do not smooth with invalid values, infinity or NaN */
             record->val = val * (1.00 - record->smoo) + (record->val * record->smoo);
 	} else 
