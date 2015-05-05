@@ -1196,7 +1196,7 @@ int regDevInstallWorkQueue(regDevice* driver, unsigned int maxEntries)
 {
     regDeviceNode* device = regDevGetDeviceNode(driver);
 
-    regDevDebugLog(DBG_INIT, "%s: maxEntries=%"Z"d\n", device->name, maxEntries);
+    regDevDebugLog(DBG_INIT, "%s: maxEntries=%u\n", device->name, maxEntries);
 
     device->dispatcher = callocMustSucceed(1, sizeof(regDevDispatcher), "regDevInstallWorkQueue");
     device->dispatcher->maxEntries = maxEntries;
