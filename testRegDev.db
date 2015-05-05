@@ -536,10 +536,10 @@ record (ao, "$(DEV):AOD")
     field (PINI, "YES")
 }
 
-record (ao, "$(DEV):AOD2")
+record (ao, "$(DEV):AOD-U")
 {
     field (DTYP, "regDev")
-    field (OUT,  "@test:0 T=double")
+    field (OUT,  "@test:0 T=double U=2000")
     field (PREC, "6")
     field (LOPR, "-20")
     field (HOPR, "20")
@@ -554,6 +554,17 @@ record (ai, "$(DEV):AID")
     field (LOPR, "-20")
     field (HOPR, "20")
     field (SCAN, "I/O Intr")
+}
+
+record (ai, "$(DEV):AID-SMOOTH")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 T=double")
+    field (PREC, "6")
+    field (LOPR, "-20")
+    field (HOPR, "20")
+    field (SCAN, "1 second")
+    field (SMOO, "0.5")
 }
 
 record (ao, "$(DEV):AOF")
