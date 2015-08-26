@@ -30,9 +30,6 @@
 #define __attribute__(a)
 #endif
 
-static char cvsid_regDev[] __attribute__((unused)) =
-    "$Id: regDev.c,v 1.63 2015/04/28 14:33:09 zimoch Exp $";
-
 static regDeviceNode* registeredDevices = NULL;
 
 epicsShareDef int regDevDebug = 0;
@@ -69,24 +66,25 @@ void regDevCallback(char* user, int status)
 
     priv->status = status;
 
-    if (!interruptAccept)
+    if (priv->initDone)
     {
         epicsEventSignal(priv->initDone);
+        return;
     }
-    else
+    if (!interruptAccept)
     {
-        if (priv->status != S_dev_success)
-        {
-            if (priv->updateActive)
-            {
-                regDevPrintErr("async record update failed");
-            }
-        }
-        dbScanLock(record);
-        (*record->rset->process)(record);
-        priv->updateActive = 0;
-        dbScanUnlock(record);
+        regDevPrintErr("callback came before iocInit finished");
+        return;
     }
+    if (priv->status != S_dev_success)
+    {
+        if (priv->updateActive)
+            regDevPrintErr("async record update failed");
+    }
+    dbScanLock(record);
+    (*record->rset->process)(record);
+    priv->updateActive = 0;
+    dbScanUnlock(record);
 }
 
 /***********************************************************************
@@ -727,18 +725,17 @@ long regDevReport(int level)
 {
     regDeviceNode* device;
 
-    printf(" regDev version: %s\n", cvsid_regDev);
     if (!registeredDevices)
     {
-        printf("  no registered devices\n");
+        printf("no registered devices\n");
         return S_dev_success;
     }
-    printf("  registered devices:\n");
+    printf("registered devices:\n");
     for (device = registeredDevices; device; device = device->next)
     {
         if (device->support)
         {
-            printf ("   \"%s\" size ", device->name);
+            printf (" \"%s\" size ", device->name);
             if (device->size)
             {
                 printf ("0x%"Z"x = %"Z"d ", device->size, device->size);
@@ -1384,10 +1381,17 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         else status = S_dev_badRequest;
 
         /* At init wait for completition of asynchronous device */
-        if (!interruptAccept && status == ASYNC_COMPLETION)
+        if (priv->initDone)
         {
             epicsEventWait(priv->initDone);
             status = priv->status;
+            if (status == ASYNC_COMPLETION)
+            {
+                epicsEventWait(priv->initDone);
+                status = priv->status;
+            }
+            epicsEventDestroy(priv->initDone);
+            priv->initDone = NULL;
         }
     }
 
@@ -2441,7 +2445,7 @@ int regDevDisplay(const char* devName, size_t start, unsigned int dlen, size_t b
         epicsMutexLock(device->accesslock);
         epicsTimeGetCurrent(&startTime);
         status = device->support->read(device->driver,
-            offset, dlen, nelem, buffer, 0, regDevDisplayCallback, "regDevDisplay");
+            offset, dlen, nelem, buffer, 2, regDevDisplayCallback, "regDevDisplay");
         epicsMutexUnlock(device->accesslock);
         if (status == ASYNC_COMPLETION)
         {
