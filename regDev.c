@@ -61,13 +61,15 @@ void regDevCallback(char* user, int status)
 
     priv->status = status;
 
-    regDevDebugLog(DBG_INIT, "%s: callback: booting:%d init:%d update:%d\n",
-        record->name, !interruptAccept, !!priv->initDone, priv->updateActive);
     if (priv->initDone)
     {
         regDevDebugLog(DBG_INIT, "%s: init callback\n", record->name);
         epicsEventSignal(priv->initDone);
         return;
+    }
+    if (priv->updateActive)
+    {
+        regDevDebugLog(DBG_IN, "%s: update callback\n", record->name);
     }
     if (!interruptAccept)
     {
