@@ -1,11 +1,5 @@
 /* header for low-level drivers */
 
-/* $Author: zimoch $ */
-/* $Date: 2015/04/10 14:00:12 $ */
-/* $Id: regDev.h,v 1.29 2015/04/10 14:00:12 zimoch Exp $ */
-/* $Name:  $ */
-/* $Revision: 1.29 $ */
-
 #ifndef regDev_h
 #define regDev_h
 

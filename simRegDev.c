@@ -26,9 +26,6 @@
 #define S_dev_badArgument (M_devLib| 33)
 #endif
 
-static char cvsid_simRegDev[] __attribute__((unused)) =
-    "$Id: simRegDev.c,v 1.16 2015/04/28 14:33:09 zimoch Exp $";
-
 typedef struct simRegDevMessage {
     struct simRegDevMessage* next;
     regDevice* device;
