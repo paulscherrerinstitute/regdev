@@ -25,11 +25,6 @@
 #define CMD_WRITE 2
 #define CMD_EXIT 4
 
-
-#ifndef __GNUC__
-#define __attribute__(a)
-#endif
-
 static regDeviceNode* registeredDevices = NULL;
 
 epicsShareDef int regDevDebug = 0;
@@ -66,8 +61,11 @@ void regDevCallback(char* user, int status)
 
     priv->status = status;
 
+    regDevDebugLog(DBG_INIT, "%s: callback: booting:%d init:%d update:%d\n",
+        record->name, !interruptAccept, !!priv->initDone, priv->updateActive);
     if (priv->initDone)
     {
+        regDevDebugLog(DBG_INIT, "%s: init callback\n", record->name);
         epicsEventSignal(priv->initDone);
         return;
     }
@@ -75,11 +73,6 @@ void regDevCallback(char* user, int status)
     {
         regDevPrintErr("callback came before iocInit finished");
         return;
-    }
-    if (priv->status != S_dev_success)
-    {
-        if (priv->updateActive)
-            regDevPrintErr("async record update failed");
     }
     dbScanLock(record);
     (*record->rset->process)(record);
@@ -1344,7 +1337,10 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         if (device->support->read)
         {
             if (!interruptAccept && priv->initDone == NULL)
+            {
+                regDevDebugLog(DBG_INIT, "%s: setup init read\n", record->name);
                 priv->initDone = epicsEventMustCreate(epicsEventEmpty);
+            }
             if (device->dispatcher)
             {
                 struct regDevWorkMsg msg;
@@ -1361,6 +1357,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
                     if (regDevStartWorkQueue(device, record->prio) != S_dev_success)
                         return S_dev_badRequest;
                 }
+                regDevDebugLog(DBG_IN, "%s: sending read to dispatcher\n", record->name);
                 if (epicsMessageQueueTrySend(device->dispatcher->qid[record->prio], (char*)&msg, sizeof(msg)) != 0)
                 {
                     recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
@@ -1371,11 +1368,13 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
             }
             else
             {
+                regDevDebugLog(DBG_IN, "%s: reading\n", record->name);
                 epicsMutexLock(device->accesslock);
                 status = device->support->read(device->driver,
                     offset, dlen, nelem, buffer,
                     record->prio, regDevCallback, record->name);
                 epicsMutexUnlock(device->accesslock);
+                regDevDebugLog(DBG_IN, "%s: read returned status 0x%0x\n", record->name, status);
             }
         }
         else status = S_dev_badRequest;
@@ -1383,15 +1382,15 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         /* At init wait for completition of asynchronous device */
         if (priv->initDone)
         {
-            status = priv->status;
             if (status == ASYNC_COMPLETION)
             {
-                regDevDebugLog(DBG_IN, "%s: wait for asynchronous init read\n", record->name);
+                regDevDebugLog(DBG_INIT, "%s: wait for asynchronous init read\n", record->name);
                 epicsEventWait(priv->initDone);
                 status = priv->status;
             }
             epicsEventDestroy(priv->initDone);
             priv->initDone = NULL;
+            regDevDebugLog(DBG_INIT, "%s: init read done\n", record->name);
         }
     }
 
@@ -1400,35 +1399,35 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
     {
         if (status == ASYNC_COMPLETION)
         {
-            printf("%s: async read %"Z"d * %d bit from %s:%"Z"u\n",
-                record->name, nelem, dlen*8,
+            printf("%s %s: async read %"Z"d * %d bit from %s:%"Z"u\n",
+                _CURRENT_FUNCTION_, record->name, nelem, dlen*8,
                 device->name, priv->asyncOffset);
         }
         else switch (dlen)
         {
             case 1:
-                printf("%s: read %"Z"u * 8 bit 0x%02x from %s:%"Z"u (status=%x)\n",
-                    record->name, nelem, *(epicsUInt8*)buffer,
+                printf("%s %s: read %"Z"u * 8 bit 0x%02x from %s:%"Z"u (status=%x)\n",
+                    _CURRENT_FUNCTION_, record->name, nelem, *(epicsUInt8*)buffer,
                     device->name, priv->asyncOffset, status);
                 break;
             case 2:
-                printf("%s: read %"Z"u * 16 bit 0x%04x from %s:%"Z"u (status=%x)\n",
-                    record->name, nelem, *(epicsUInt16*)buffer,
+                printf("%s %s: read %"Z"u * 16 bit 0x%04x from %s:%"Z"u (status=%x)\n",
+                    _CURRENT_FUNCTION_, record->name, nelem, *(epicsUInt16*)buffer,
                     device->name, priv->asyncOffset, status);
                 break;
             case 4:
-                printf("%s: read %"Z"u * 32 bit 0x%08x from %s:%"Z"u (status=%x)\n",
-                    record->name, nelem, *(epicsUInt32*)buffer,
+                printf("%s %s: read %"Z"u * 32 bit 0x%08x from %s:%"Z"u (status=%x)\n",
+                    _CURRENT_FUNCTION_, record->name, nelem, *(epicsUInt32*)buffer,
                     device->name, priv->asyncOffset, status);
                 break;
             case 8:
-                printf("%s: read %"Z"u * 64 bit 0x%016llx from %s:%"Z"u (status=%x)\n",
-                    record->name, nelem, *(epicsUInt64*)buffer,
+                printf("%s %s: read %"Z"u * 64 bit 0x%016llx from %s:%"Z"u (status=%x)\n",
+                    _CURRENT_FUNCTION_, record->name, nelem, *(epicsUInt64*)buffer,
                     device->name, priv->asyncOffset, status);
                 break;
             default:
-                printf("%s: read %"Z"u * %d bit from %s:%"Z"u (status=%x)\n",
-                    record->name, nelem, dlen*8,
+                printf("%s %s: read %"Z"u * %d bit from %s:%"Z"u (status=%x)\n",
+                    _CURRENT_FUNCTION_, record->name, nelem, dlen*8,
                     device->name, priv->asyncOffset, status);
         }
     }
@@ -1582,11 +1581,17 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
     else status = S_dev_badRequest;
 
     /* At init wait for completition of asynchronous device */
-    if (!interruptAccept && status == ASYNC_COMPLETION)
+    if (priv->initDone)
     {
-        regDevDebugLog(DBG_OUT, "%s: wait for asynchronous init write\n", record->name);
-        epicsEventWait(priv->initDone);
-        status = priv->status;
+        if (status == ASYNC_COMPLETION)
+        {
+            regDevDebugLog(DBG_INIT, "%s: wait for asynchronous init write\n", record->name);
+            epicsEventWait(priv->initDone);
+            status = priv->status;
+        }
+        epicsEventDestroy(priv->initDone);
+        priv->initDone = NULL;
+        regDevDebugLog(DBG_INIT, "%s: init write done\n", record->name);
     }
 
     if (status == ASYNC_COMPLETION)
