@@ -1383,10 +1383,10 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         /* At init wait for completition of asynchronous device */
         if (priv->initDone)
         {
-            epicsEventWait(priv->initDone);
             status = priv->status;
             if (status == ASYNC_COMPLETION)
             {
+                regDevDebugLog(DBG_IN, "%s: wait for asynchronous init read\n", record->name);
                 epicsEventWait(priv->initDone);
                 status = priv->status;
             }
@@ -1584,6 +1584,7 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
     /* At init wait for completition of asynchronous device */
     if (!interruptAccept && status == ASYNC_COMPLETION)
     {
+        regDevDebugLog(DBG_OUT, "%s: wait for asynchronous init write\n", record->name);
         epicsEventWait(priv->initDone);
         status = priv->status;
     }
