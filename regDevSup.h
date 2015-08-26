@@ -151,7 +151,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* rval, size_t nelm, double
     if (priv == NULL) \
     { \
         recGblSetSevr(record, UDF_ALARM, INVALID_ALARM); \
-        regDevPrintErr("record not initialized"); \
+        regDevDebugLog(DBG_OUT, "record %s not initialized\n", record->name); \
         return S_dev_badInit;\
     } \
     regDevDebugLog(DBG_OUT, "%s: status=%x pact=%d updateActive=%d\n", record->name, priv->status, record->pact, priv->updateActive); \
