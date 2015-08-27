@@ -89,7 +89,7 @@ typedef struct regDevPrivate{          /* per record data structure */
     epicsUInt32 update;                /* Periodic update of output records (msec) */
     DEVSUPFUN updater;                 /* Update function */
     epicsTimerId updateTimer;          /* Update timer */
-    int updateActive;                  /* Update processing active */
+    enum {init, normal, update} state; /* Processing type */
     int status;                        /* For asynchonous drivers */
     epicsEventId initDone;             /* For asynchonous drivers */
     size_t asyncOffset;                /* For asynchonous drivers */
@@ -145,7 +145,6 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* rval, size_t nelm, double
     status = regDevAssertType((dbCommon*)record, types); \
     if (status) return status
 
-
 #define regDevCheckAsyncWriteResult(record) \
     regDevPrivate* priv = (regDevPrivate*)(record->dpvt); \
     if (priv == NULL) \
@@ -154,23 +153,32 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* rval, size_t nelm, double
         regDevDebugLog(DBG_OUT, "record %s not initialized\n", record->name); \
         return S_dev_badInit;\
     } \
-    regDevDebugLog(DBG_OUT, "%s: status=%x pact=%d updateActive=%d\n", record->name, priv->status, record->pact, priv->updateActive); \
-    if (priv->updateActive) \
+    regDevDebugLog(DBG_OUT, "%s: status=%x pact=%d states=%s\n", \
+        record->name, priv->status, record->pact, ((char*[]){"init","normal","update"})[priv->state]); \
+    if (record->pact) \
+    { \
+        if (priv->status != S_dev_success) \
+        { \
+            if (priv->state == update) \
+            { \
+                recGblSetSevr(record, READ_ALARM, INVALID_ALARM); \
+                regDevDebugLog(DBG_IN, "%s: asynchronous update error\n", record->name); \
+            } \
+            else \
+            { \
+                recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM); \
+                regDevDebugLog(DBG_OUT, "%s: asynchronous write error\n", record->name); \
+            } \
+        } \
+        regDevDebugLog(DBG_OUT, "%s: status=%x\n", record->name, priv->status); \
+        return priv->status; \
+    } \
+    if (priv->state == update) \
     { \
         regDevDebugLog(DBG_IN, "%s: running updater\n", record->name); \
         recGblResetAlarms(record); \
         return priv->updater(record); \
     } \
-    if (record->pact) \
-    { \
-        if (priv->status != S_dev_success) \
-        { \
-            recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM); \
-            regDevDebugLog(DBG_OUT, "%s: asynchronous write error\n", record->name); \
-        } \
-        regDevDebugLog(DBG_OUT, "%s: status=%x\n", record->name, priv->status); \
-        return priv->status; \
-    }
 
 #if defined(__GNUC__) && __GNUC__ < 3
  #define regDevPrintErr(f, args...) errlogPrintf("%s %s: " f "\n", _CURRENT_FUNCTION_, record->name , ## args)

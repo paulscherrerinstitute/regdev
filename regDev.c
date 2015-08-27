@@ -49,39 +49,6 @@ static int startswith(const char *s, const char *key)
     return n;
 }
 
-void regDevCallback(char* user, int status)
-{
-    dbCommon* record = (dbCommon*)(user - offsetof(dbCommon, name));
-    regDevPrivate* priv;
-
-    assert(user != NULL);
-    priv = record->dpvt;
-    assert(priv != NULL);
-    assert(priv->magic == MAGIC_PRIV);
-
-    priv->status = status;
-
-    if (priv->initDone)
-    {
-        regDevDebugLog(DBG_INIT, "%s: init callback\n", record->name);
-        epicsEventSignal(priv->initDone);
-        return;
-    }
-    if (priv->updateActive)
-    {
-        regDevDebugLog(DBG_IN, "%s: update callback\n", record->name);
-    }
-    if (!interruptAccept)
-    {
-        regDevPrintErr("callback came before iocInit finished");
-        return;
-    }
-    dbScanLock(record);
-    (*record->rset->process)(record);
-    priv->updateActive = 0;
-    dbScanUnlock(record);
-}
-
 /***********************************************************************
  * Routine to parse IO arguments
  * IO address line format:
@@ -1246,7 +1213,7 @@ int regDevGetOffset(dbCommon* record, int read, epicsUInt8 dlen, size_t nelem, s
     regDeviceNode* device = priv->device;
 
     /* At init read we may use a different offset */
-    if (read && !interruptAccept && priv->initoffset != DONT_INIT)
+    if (read && priv->state == init && priv->initoffset != DONT_INIT)
         offset = priv->initoffset;
     else
     {
@@ -1303,6 +1270,35 @@ int regDevGetOffset(dbCommon* record, int read, epicsUInt8 dlen, size_t nelem, s
 
 /*********  I/O functions ****************************/
 
+void regDevCallback(char* user, int status)
+{
+    dbCommon* record = (dbCommon*)(user - offsetof(dbCommon, name));
+    regDevPrivate* priv;
+
+    assert(user != NULL);
+    priv = record->dpvt;
+    assert(priv != NULL);
+    assert(priv->magic == MAGIC_PRIV);
+
+    priv->status = status;
+
+    if (priv->state == init)
+    {
+        regDevDebugLog(DBG_INIT, "%s: init callback\n", record->name);
+        epicsEventSignal(priv->initDone);
+        return;
+    }
+    if (priv->state == update)
+    {
+        regDevDebugLog(DBG_IN, "%s: update callback\n", record->name);
+    }
+    dbScanLock(record);
+    if (!record->pact) regDevPrintErr("callback for non-active record!");
+    (*record->rset->process)(record);
+    dbScanUnlock(record);
+    priv->state = normal;
+}
+
 int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
 {
     /* buffer must not point to local variable: not suitable for async processing */
@@ -1331,6 +1327,15 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         size_t offset;
         /* First call of (probably asynchronous) device */
 
+        if (priv->state == init)
+        {
+            if (interruptAccept) priv->state = normal; /* first call after init */
+            else
+            {
+                regDevDebugLog(DBG_INIT, "%s: setup init read\n", record->name);
+                priv->initDone = epicsEventMustCreate(epicsEventEmpty);
+            }
+        }
         status = regDevGetOffset(record, TRUE, dlen, nelem, &offset);
         if (status != S_dev_success) return status;
 
@@ -1338,11 +1343,6 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         priv->status = S_dev_success;
         if (device->support->read)
         {
-            if (!interruptAccept && priv->initDone == NULL)
-            {
-                regDevDebugLog(DBG_INIT, "%s: setup init read\n", record->name);
-                priv->initDone = epicsEventMustCreate(epicsEventEmpty);
-            }
             if (device->dispatcher)
             {
                 struct regDevWorkMsg msg;
@@ -1544,8 +1544,15 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
     priv->status = S_dev_success;
     if (device->support->write)
     {
-        if (!interruptAccept && priv->initDone == NULL)
-            priv->initDone = epicsEventMustCreate(epicsEventEmpty);
+        if (priv->state == init)
+        {
+            if (interruptAccept) priv->state = normal; /* first call after init */
+            else
+            {
+                regDevDebugLog(DBG_INIT, "%s: setup init write\n", record->name);
+                priv->initDone = epicsEventMustCreate(epicsEventEmpty);
+            }
+        }
         if (device->dispatcher)
         {
             struct regDevWorkMsg msg;
@@ -1660,7 +1667,7 @@ int regDevReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
             return S_dev_badArgument;
     }
 
-    if (!interruptAccept)
+    if (priv->state == init)
     {
         /* initialize output record to valid state */
         record->sevr = NO_ALARM;
@@ -1806,7 +1813,7 @@ int regDevReadBits(dbCommon* record, epicsUInt32* rval)
             return S_dev_badArgument;
     }
 
-    if (!interruptAccept)
+    if (priv->state == init)
     {
         /* initialize output record to valid state */
         record->sevr = NO_ALARM;
@@ -2306,19 +2313,18 @@ void regDevUpdateCallback(dbCommon* record)
     int status;
     regDevPrivate* priv = record->dpvt;
 
-    if (interruptAccept)
+    if (interruptAccept) /* scanning allowed? */
     {
-        regDevDebugLog(DBG_IN, "%s: updating record\n",
-            record->name);
-
         dbScanLock(record);
         if (!record->pact)
         {
-            priv->updateActive = 1;
+            regDevDebugLog(DBG_IN, "%s: updating record\n",
+                record->name);
+            priv->state = update;
             status = (*record->rset->process)(record);
             if (!record->pact)
             {
-                priv->updateActive = 0;
+                priv->state = normal;
                 if (status != S_dev_success)
                 {
                     regDevPrintErr("record update failed. status = 0x%x",
