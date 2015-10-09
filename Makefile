@@ -8,6 +8,8 @@ regDev_DBD += base.dbd
 LIBRARY = regDev
 LIB_SRCS += regDev_registerRecordDeviceDriver.cpp
 
+INC += regDev.h
+
 LIB_SRCS += regDev.c
 LIB_SRCS += regDevCopy.c
 LIB_SRCS += regDevSup.c
