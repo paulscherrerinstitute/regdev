@@ -136,7 +136,7 @@ epicsShareFunc regDevice* regDevFind(
 epicsShareFunc int regDevLock(
     regDevice* device);
 
-epicsShareFunc const char* regDevUnock(
+epicsShareFunc const char* regDevUnlock(
     regDevice* device);
 
 /* A driver can call regDevInstallWorkQueue to serialize all read/write requests.
