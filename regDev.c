@@ -702,9 +702,9 @@ long regDevReport(int level)
             {
                 printf ("0x%"Z"x = %"Z"d ", device->size, device->size);
                 if (device->size > 1024*1024)
-                    printf ("= %"Z"dMB ", device->size >> 20);
+                    printf ("= %"Z"dMiB ", device->size >> 20);
                 else if (device->size > 1024)
-                    printf ("= %"Z"dkB ", device->size >> 10);
+                    printf ("= %"Z"dKiB ", device->size >> 10);
             }
             else
                 printf("unknown ");
@@ -2369,19 +2369,7 @@ int regDevInstallUpdateFunction(dbCommon* record, DEVSUPFUN updater)
     return S_dev_success;
 }
 
-
-static epicsEventId regDevDisplayEvent;
-static int regDevDisplayStatus;
-
-static void regDevDisplayCallback(char* user, int status)
-{
-    (void) user; /* unused */
-    regDevDebugLog(DBG_IN, "DMA complete, status=0x%x\n", status);
-    regDevDisplayStatus = status;
-    epicsEventSignal(regDevDisplayEvent);
-}
-
-int regDevDisplay(const char* devName, size_t start, unsigned int dlen, size_t bytes)
+int regDevDisplay(const char* devName, int start, unsigned int dlen, size_t bytes)
 {
     static size_t offset = 0;
     static size_t save_bytes = 128;
@@ -2389,7 +2377,6 @@ int regDevDisplay(const char* devName, size_t start, unsigned int dlen, size_t b
     static regDeviceNode* save_device = NULL;
     static char* buffer = NULL;
     static size_t bufferSize = 0;
-    epicsTimeStamp startTime, endTime;
 
     regDeviceNode* device;
     int status;
@@ -2412,7 +2399,7 @@ int regDevDisplay(const char* devName, size_t start, unsigned int dlen, size_t b
         errlogPrintf("device %s not found\n", devName);
         return S_dev_noDevice;
     }
-    if (start > 0 || dlen || bytes) offset = start;
+    if (start >= 0 || dlen || bytes) offset = start;
     if (dlen) save_dlen = dlen; else dlen = save_dlen;
     if (bytes) save_bytes = bytes; else bytes = save_bytes;
 
@@ -2454,20 +2441,10 @@ int regDevDisplay(const char* devName, size_t start, unsigned int dlen, size_t b
 
     if (device->support->read)
     {
-        if (!regDevDisplayEvent)
-            regDevDisplayEvent = epicsEventMustCreate(epicsEventEmpty);
         epicsMutexLock(device->accesslock);
-        epicsTimeGetCurrent(&startTime);
         status = device->support->read(device->driver,
-            offset, dlen, nelem, buffer, 2, regDevDisplayCallback, "regDevDisplay");
+            offset, dlen, nelem, buffer, 2, NULL, "regDevDisplay");
         epicsMutexUnlock(device->accesslock);
-        if (status == ASYNC_COMPLETION)
-        {
-            regDevDebugLog(DBG_IN, "Wait for DMA completion\n");
-            epicsEventWait(regDevDisplayEvent);
-        }
-        epicsTimeGetCurrent(&endTime);
-        status = regDevDisplayStatus;
     }
     else
     {
@@ -2505,11 +2482,6 @@ int regDevDisplay(const char* devName, size_t start, unsigned int dlen, size_t b
             }
             printf ("\n");
         }
-    }
-    if (regDevDebug & DBG_IN)
-    {
-        printf ("read took %g milliseconds\n",
-            epicsTimeDiffInSeconds(&endTime, &startTime)*1000);
     }
     offset += dlen * nelem;
     return status;
@@ -2550,15 +2522,10 @@ int regDevPut(const char* devName, int offset, unsigned int dlen, int value)
     }
     if (device->support->write)
     {
-        if (!regDevDisplayEvent)
-            regDevDisplayEvent = epicsEventMustCreate(epicsEventEmpty);
         epicsMutexLock(device->accesslock);
         status = device->support->write(device->driver,
-            offset, dlen, 1, &buffer, NULL, 0, regDevDisplayCallback, "regDevPut");
+            offset, dlen, 1, &buffer, NULL, 0, NULL, "regDevPut");
         epicsMutexUnlock(device->accesslock);
-        if (status == ASYNC_COMPLETION)
-            epicsEventWait(regDevDisplayEvent);
-        status = regDevDisplayStatus;
     }
     else
     {
@@ -2571,7 +2538,7 @@ int regDevPut(const char* devName, int offset, unsigned int dlen, int value)
 #ifdef EPICS_3_14
 #include <iocsh.h>
 static const iocshArg regDevDisplayArg0 = { "devName", iocshArgString };
-static const iocshArg regDevDisplayArg1 = { "start", iocshArgInt };
+static const iocshArg regDevDisplayArg1 = { "start", iocshArgString };
 static const iocshArg regDevDisplayArg2 = { "dlen", iocshArgInt };
 static const iocshArg regDevDisplayArg3 = { "bytes", iocshArgInt };
 static const iocshArg * const regDevDisplayArgs[] = {
@@ -2587,7 +2554,7 @@ static const iocshFuncDef regDevDisplayDef =
 static void regDevDisplayFunc (const iocshArgBuf *args)
 {
     regDevDisplay(
-        args[0].sval, args[1].ival, args[2].ival, args[3].ival);
+        args[0].sval, args[1].sval ? atoi(args[1].sval) : -1, args[2].ival, args[3].ival);
 }
 
 static const iocshArg regDevPutArg0 = { "devName", iocshArgString };
