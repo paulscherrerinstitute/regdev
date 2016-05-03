@@ -4,13 +4,12 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
-#include <errno.h>
 
 #define epicsTypesGLOBAL
 #include <callback.h>
 #include <dbAccess.h>
 #include <recSup.h>
-#include <epicsTime.h>
+#include <epicsTimer.h>
 #include <epicsMessageQueue.h>
 #include <epicsThread.h>
 #include <cantProceed.h>
@@ -2554,7 +2553,7 @@ static const iocshFuncDef regDevDisplayDef =
 static void regDevDisplayFunc (const iocshArgBuf *args)
 {
     regDevDisplay(
-        args[0].sval, args[1].sval ? atoi(args[1].sval) : -1, args[2].ival, args[3].ival);
+        args[0].sval, args[1].sval ? strtol(args[1].sval, NULL, 0) : -1, args[2].ival, args[3].ival);
 }
 
 static const iocshArg regDevPutArg0 = { "devName", iocshArgString };
