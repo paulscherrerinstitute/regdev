@@ -2374,7 +2374,7 @@ int regDevDisplay(const char* devName, int start, unsigned int dlen, size_t byte
     static size_t save_bytes = 128;
     static unsigned int save_dlen = 2;
     static regDeviceNode* save_device = NULL;
-    static char* buffer = NULL;
+    static unsigned char* buffer = NULL;
     static size_t bufferSize = 0;
 
     regDeviceNode* device;
