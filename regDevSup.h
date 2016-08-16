@@ -95,6 +95,7 @@ typedef struct regDevPrivate{          /* per record data structure */
     size_t asyncOffset;                /* For asynchonous drivers */
     regDevAnytype data;                /* For asynchonous drivers and arrays */
     regDevAnytype mask;                /* For asynchonous drivers */
+    int irqvec;                        /* Interrupt vector for I/O Intr */
 } regDevPrivate;
 
 struct devsup {

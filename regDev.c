@@ -423,6 +423,10 @@ int regDevIoParse2(
                 p += 2;
                 priv->update = (epicsInt32)regDevParseExpr(&p);
                 break;
+            case 'V': /* V=<irq vector> */
+                p += 2;
+                priv->irqvec = (epicsInt32)regDevParseExpr(&p);
+                break;
             case '\'':
                 if (separator == '\'')
                 {
@@ -628,19 +632,19 @@ long regDevGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     {
         epicsMutexLock(device->accesslock);
         *ppvt = device->support->getInScanPvt(
-            device->driver, priv->offset);
+            device->driver, priv->irqvec);
         epicsMutexUnlock(device->accesslock);
     }
     else
     {
-        regDevPrintErr("input I/O Intr unsupported for bus %s",
+        regDevPrintErr("input I/O Intr unsupported for device %s",
             device->name);
         return S_dev_badRequest;
     }
     if (*ppvt == NULL)
     {
-        regDevPrintErr("no I/O Intr for bus %s offset %#"Z"x",
-            device->name, priv->offset);
+        regDevPrintErr("no I/O Intr for device %s interrupt vector %#"Z"x",
+            device->name, priv->irqvec);
         return S_dev_badArgument;
     }
     return S_dev_success;
@@ -662,18 +666,18 @@ long regDevGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     {
         epicsMutexLock(device->accesslock);
         *ppvt = device->support->getOutScanPvt(
-            device->driver, priv->offset);
+            device->driver, priv->irqvec);
         epicsMutexUnlock(device->accesslock);
     }
     else
     {
-        regDevPrintErr("output I/O Intr unsupported for bus %s",
+        regDevPrintErr("output I/O Intr unsupported for device %s",
             device->name);
         return S_dev_badRequest;
     }
     if (*ppvt == NULL)
     {
-        regDevPrintErr("no I/O Intr for bus %s offset %#"Z"x",
+        regDevPrintErr("no I/O Intr for device %s offset %#"Z"x",
             device->name, priv->offset);
         return S_dev_badArgument;
     }

@@ -90,11 +90,11 @@ typedef struct regDevSupport {
 
     IOSCANPVT (*getInScanPvt)(
         regDevice *device,
-        size_t offset);
+        size_t intvec);
 
     IOSCANPVT (*getOutScanPvt)(
         regDevice *device,
-        size_t offset);
+        size_t intvec);
 
     int (*read)(
         regDevice *device,
