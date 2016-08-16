@@ -643,8 +643,12 @@ long regDevGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     }
     if (*ppvt == NULL)
     {
-        regDevPrintErr("no I/O Intr for device %s interrupt vector %#"Z"x",
-            device->name, priv->irqvec);
+        if (priv->irqvec)
+            regDevPrintErr("no input I/O Intr for device %s interrupt vector %#"Z"x",
+                device->name, priv->irqvec);
+        else
+            regDevPrintErr("no input I/O Intr for device %s",
+                device->name);
         return S_dev_badArgument;
     }
     return S_dev_success;
@@ -677,8 +681,12 @@ long regDevGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     }
     if (*ppvt == NULL)
     {
-        regDevPrintErr("no I/O Intr for device %s interrupt vector %#"Z"x",
-            device->name, priv->offset);
+        if (priv->irqvec)
+            regDevPrintErr("no output I/O Intr for device %s interrupt vector %#"Z"x",
+                device->name, priv->irqvec);
+        else
+            regDevPrintErr("no output I/O Intr for device %s",
+                device->name);
         return S_dev_badArgument;
     }
     return S_dev_success;
