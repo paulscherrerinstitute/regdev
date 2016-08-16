@@ -677,7 +677,7 @@ long regDevGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     }
     if (*ppvt == NULL)
     {
-        regDevPrintErr("no I/O Intr for device %s offset %#"Z"x",
+        regDevPrintErr("no I/O Intr for device %s interrupt vector %#"Z"x",
             device->name, priv->offset);
         return S_dev_badArgument;
     }
