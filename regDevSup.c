@@ -361,6 +361,7 @@ long regDevInitRecordMbboDirect(mbboDirectRecord* record)
     int i;
 
     regDevCommonInit(record, out, TYPE_INT);
+    record->udf = 0;                   /* workaround for mbboDirect bug */
     record->mask <<= record->shft;
     priv->invert <<= record->shft;
     regDevInstallUpdateFunction((dbCommon*)record, regDevUpdateMbboDirect);
