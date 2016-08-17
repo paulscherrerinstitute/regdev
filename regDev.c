@@ -632,7 +632,7 @@ long regDevGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     {
         epicsMutexLock(device->accesslock);
         *ppvt = device->support->getInScanPvt(
-            device->driver, priv->irqvec);
+            device->driver, (size_t)priv->irqvec);
         epicsMutexUnlock(device->accesslock);
     }
     else
@@ -643,8 +643,8 @@ long regDevGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     }
     if (*ppvt == NULL)
     {
-        if (priv->irqvec)
-            regDevPrintErr("no input I/O Intr for device %s interrupt vector %#"Z"x",
+        if (priv->irqvec != -1)
+            regDevPrintErr("no input I/O Intr for device %s interrupt vector %#x",
                 device->name, priv->irqvec);
         else
             regDevPrintErr("no input I/O Intr for device %s",
@@ -670,7 +670,7 @@ long regDevGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     {
         epicsMutexLock(device->accesslock);
         *ppvt = device->support->getOutScanPvt(
-            device->driver, priv->irqvec);
+            device->driver, (size_t)priv->irqvec);
         epicsMutexUnlock(device->accesslock);
     }
     else
@@ -681,8 +681,8 @@ long regDevGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     }
     if (*ppvt == NULL)
     {
-        if (priv->irqvec)
-            regDevPrintErr("no output I/O Intr for device %s interrupt vector %#"Z"x",
+        if (priv->irqvec != -1)
+            regDevPrintErr("no output I/O Intr for device %s interrupt vector %#x",
                 device->name, priv->irqvec);
         else
             regDevPrintErr("no output I/O Intr for device %s",
@@ -807,6 +807,7 @@ regDevPrivate* regDevAllocPriv(dbCommon *record)
     priv->magic = MAGIC_PRIV;
     priv->dtype = epicsInt16T;
     priv->arraypacking = 1;
+    priv->irqvec=-1;
     record->dpvt = priv;
     return priv;
 }
