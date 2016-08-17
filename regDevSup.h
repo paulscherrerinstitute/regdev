@@ -18,7 +18,7 @@
 #include <math.h>
 #include <sys/types.h>
 #include <epicsTypes.h>
-#if (EPICS_REVISION<15)
+#if __STDC_VERSION__ < 199901L
 typedef long long epicsInt64;
 typedef unsigned long long epicsUInt64;
 #endif

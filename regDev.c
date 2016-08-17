@@ -1436,7 +1436,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
                 break;
             case 8:
                 printf("%s %s: read %"Z"u * 64 bit 0x%016llx from %s:%"Z"u (status=%x)\n",
-                    _CURRENT_FUNCTION_, record->name, nelem, *(epicsUInt64*)buffer,
+                    _CURRENT_FUNCTION_, record->name, nelem, (unsigned long long)*(epicsUInt64*)buffer,
                     device->name, priv->asyncOffset, status);
                 break;
             default:
@@ -1519,7 +1519,7 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
             case 8:
                 regDevDebugLog(DBG_OUT,
                     "%s: write %"Z"u * 64 bit 0x%016llx to %s:%"Z"u\n",
-                    record->name, nelem, *(epicsUInt64*)buffer,
+                    record->name, nelem, (unsigned long long)*(epicsUInt64*)buffer,
                     device->name, offset);
                 break;
             case 11:
@@ -1542,7 +1542,7 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
             case 18:
                 regDevDebugLog(DBG_OUT,
                     "%s: write %"Z"u * 64 bit 0x%016llx mask 0x%016llx to %s:%"Z"u\n",
-                    record->name, nelem, *(epicsUInt64*)buffer, *(epicsUInt64*)mask,
+                    record->name, nelem, (unsigned long long)*(epicsUInt64*)buffer, (unsigned long long)*(epicsUInt64*)mask,
                     device->name, offset);
                 break;
             default:
