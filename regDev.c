@@ -1196,7 +1196,7 @@ int regDevMemAlloc(dbCommon* record, void** bptr, size_t size)
         if (ptr == NULL)
         {
             fprintf (stderr,
-                "regDevMemAlloc %s: allocating device memory failed.",
+                "regDevMemAlloc %s: allocating device memory failed.\n",
                 record->name);
             return S_dev_noMemory;
         }
@@ -1208,7 +1208,7 @@ int regDevMemAlloc(dbCommon* record, void** bptr, size_t size)
     if (ptr == NULL)
     {
         fprintf (stderr,
-            "regDevMemAlloc %s: out of memory.",
+            "regDevMemAlloc %s: out of memory.\n",
             record->name);
         return S_dev_noMemory;
     }
