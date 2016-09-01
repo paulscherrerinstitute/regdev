@@ -81,7 +81,7 @@ typedef struct regDevice regDevice;
 extern "C" {
 #endif
 
-typedef void (*regDevTransferComplete) (char* user, int status);
+typedef void (*regDevTransferComplete) (const char* user, int status);
 
 typedef struct regDevSupport {
     void (*report)(
@@ -104,7 +104,7 @@ typedef struct regDevSupport {
         void* pdata,
         int priority,
         regDevTransferComplete callback,
-        char* user);
+        const char* user);
 
     int (*write)(
         regDevice *device,
@@ -115,7 +115,7 @@ typedef struct regDevSupport {
         void* pmask,
         int priority,
         regDevTransferComplete callback,
-        char* user);
+        const char* user);
 
 } regDevSupport;
 

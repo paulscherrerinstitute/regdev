@@ -1316,7 +1316,7 @@ int regDevGetOffset(dbCommon* record, int read, epicsUInt8 dlen, size_t nelem, s
 
 /*********  I/O functions ****************************/
 
-void regDevCallback(char* user, int status)
+void regDevCallback(const char* user, int status)
 {
     dbCommon* record = (dbCommon*)(user - offsetof(dbCommon, name));
     regDevPrivate* priv;

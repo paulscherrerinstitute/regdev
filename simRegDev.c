@@ -37,7 +37,7 @@ typedef struct simRegDevMessage {
     void* pmask;
     int prio;
     regDevTransferComplete callback;
-    char* user;
+    const char* user;
     int isOutput;
 } simRegDevMessage;
 
@@ -70,7 +70,7 @@ int simRegDevAsynTransfer(
     void* pmask,
     int prio,
     regDevTransferComplete callback,
-    char* user,
+    const char* user,
     int isOutput)
 {
     simRegDevMessage* msg;
@@ -196,7 +196,6 @@ IOSCANPVT simRegDevGetInScanPvt(
     regDevice *device,
     size_t offset)
 {
-    (void)offset; /* unused */
     if (!device || device->magic != MAGIC)
     {
         errlogSevPrintf(errlogMajor,
@@ -214,7 +213,7 @@ int simRegDevRead(
     void* pdata,
     int prio,
     regDevTransferComplete callback,
-    char* user)
+    const char* user)
 {
     if (!device || device->magic != MAGIC)
     {
@@ -247,7 +246,7 @@ int simRegDevWrite(
     void* pmask,
     int prio,
     regDevTransferComplete callback,
-    char* user)
+    const char* user)
 {
     if (!device || device->magic != MAGIC)
     {
