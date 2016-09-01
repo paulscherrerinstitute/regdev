@@ -194,12 +194,14 @@ void simRegDevReport(
 
 IOSCANPVT simRegDevGetInScanPvt(
     regDevice *device,
-    size_t offset)
+    size_t offset,
+    int ivec,
+    const char* name)
 {
     if (!device || device->magic != MAGIC)
     {
         errlogSevPrintf(errlogMajor,
-            "simRegDevGetInScanPvt: illegal device handle\n");
+            "simRegDevGetInScanPvt %s: illegal device handle\n", name);
         return NULL;
     }
     return device->ioscanpvt;

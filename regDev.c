@@ -668,7 +668,7 @@ long regDevGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     {
         epicsMutexLock(device->accesslock);
         *ppvt = device->support->getInScanPvt(
-            device->driver, (size_t)priv->irqvec);
+            device->driver, priv->offset, priv->irqvec, record->name);
         epicsMutexUnlock(device->accesslock);
     }
     else
@@ -706,7 +706,7 @@ long regDevGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     {
         epicsMutexLock(device->accesslock);
         *ppvt = device->support->getOutScanPvt(
-            device->driver, (size_t)priv->irqvec);
+            device->driver, priv->offset, priv->irqvec, record->name);
         epicsMutexUnlock(device->accesslock);
     }
     else
