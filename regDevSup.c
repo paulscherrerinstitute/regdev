@@ -932,3 +932,38 @@ long regDevReadWaveform(waveformRecord* record)
     }
     return S_dev_success;
 }
+
+/* event ************************************************************/
+
+#include <eventRecord.h>
+
+long regDevInitRecordEvent(eventRecord *);
+long regDevReadEvent(eventRecord *);
+
+struct devsup regDevEvent =
+{
+    5,
+    NULL,
+    NULL,
+    regDevInitRecordEvent,
+    regDevGetInIntInfo,
+    regDevReadEvent
+};
+
+epicsExportAddress(dset, regDevEvent);
+
+long regDevInitRecordEvent(eventRecord* record)
+{
+    if (!regDevAllocPriv((dbCommon*)record)) return S_dev_noMemory;
+    return regDevIoParse((dbCommon*)record, &record->inp);
+}
+
+long regDevReadEvent(eventRecord* record)
+{
+    int status;
+
+    /* psudo-read (0 bytes) just to get the connection status */
+    status = regDevRead((dbCommon*)record, 0, 0, NULL);
+    if (status == ASYNC_COMPLETION) return S_dev_success;
+    return status;
+}
