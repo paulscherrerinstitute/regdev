@@ -598,6 +598,30 @@ regDeviceNode* regDevGetDeviceNode(regDevice* driver) {
     return device;
 }
 
+regDevice* regDevFind(const char* name)
+{
+    regDeviceNode* device;
+
+    if (!name || !*name) return NULL;
+    for (device = registeredDevices; device; device = device->next)
+    {
+        if (strcmp(name, device->name) == 0)
+            return device->driver;
+    }
+    return NULL;
+}
+
+/* Only for backward compatibility. Don't use! */
+regDevice* regDevAsynFind(const char* name)
+{
+    return regDevFind(name);
+}
+
+const char* regDevName(regDevice* driver)
+{
+    return regDevGetDeviceNode(driver)->name;
+}
+
 int regDevRegisterDmaAlloc(regDevice* driver,
     void* (*dmaAlloc) (regDevice *, void* ptr, size_t))
 {
@@ -731,25 +755,6 @@ long regDevReport(int level)
         }
     }
     return S_dev_success;
-}
-
-regDevice* regDevFind(const char* name)
-{
-    regDeviceNode* device;
-
-    if (!name || !*name) return NULL;
-    for (device = registeredDevices; device; device = device->next)
-    {
-        if (strcmp(name, device->name) == 0)
-            return device->driver;
-    }
-    return NULL;
-}
-
-/* Only for backward compatibility. Don't use! */
-regDevice* regDevAsynFind(const char* name)
-{
-    return regDevFind(name);
 }
 
 struct drvsup {

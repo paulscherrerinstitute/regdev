@@ -132,6 +132,10 @@ epicsShareFunc int regDevRegisterDevice(
 epicsShareFunc regDevice* regDevFind(
     const char* name);
 
+/* get device name by handle */
+epicsShareFunc const char* regDevName(
+    regDevice* device);
+
 /* lock/unlock access to the device (for asynchronous work threads) */
 epicsShareFunc int regDevLock(
     regDevice* device);
