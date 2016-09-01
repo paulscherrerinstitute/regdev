@@ -8,6 +8,7 @@
 #define epicsTypesGLOBAL
 #include <callback.h>
 #include <dbAccess.h>
+#include <dbScan.h>
 #include <recSup.h>
 #include <epicsTimer.h>
 #include <epicsMessageQueue.h>
@@ -341,6 +342,13 @@ int regDevIoParse2(
         regDevDebugLog(DBG_INIT,
             "%s: init offset=%"Z"u\n", recordName, priv->initoffset);
         separator = *p++;
+
+        if (!device->support->read)
+        {
+            errlogPrintf("regDevIoParse %s: can't init from device without read function\n",
+                recordName);
+            priv->initoffset = DONT_INIT;
+        }
     }
     else
     {
@@ -652,7 +660,11 @@ long regDevGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     
     (void)cmd; /* unused */
 
-    if (device->support->getInScanPvt)
+    if (device->blockBuffer && record->prio != 2)
+    {
+        *ppvt = device->blockReceived;
+    }
+    else if (device->support->getInScanPvt)
     {
         epicsMutexLock(device->accesslock);
         *ppvt = device->support->getInScanPvt(
@@ -732,14 +744,14 @@ long regDevReport(int level)
     {
         if (device->support)
         {
-            printf (" \"%s\" size ", device->name);
+            printf(" \"%s\" size ", device->name);
             if (device->size)
             {
-                printf ("0x%"Z"x = %"Z"d ", device->size, device->size);
+                printf("0x%"Z"x = %"Z"d ", device->size, device->size);
                 if (device->size > 1024*1024)
-                    printf ("= %"Z"dMiB ", device->size >> 20);
+                    printf("= %"Z"dMiB ", device->size >> 20);
                 else if (device->size > 1024)
-                    printf ("= %"Z"dKiB ", device->size >> 10);
+                    printf("= %"Z"dKiB ", device->size >> 10);
             }
             else
                 printf("unknown ");
@@ -751,7 +763,7 @@ long regDevReport(int level)
                 epicsMutexUnlock(device->accesslock);
             }
             else
-                printf ("\n");
+                printf("\n");
         }
     }
     return S_dev_success;
@@ -1008,7 +1020,7 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
         priv->arraypacking,
         status);
     if (status == S_dev_badArgument)
-        fprintf (stderr,
+        fprintf(stderr,
             "regDevCheckType %s: data type %s does not match FTVL %s\n",
              record->name, regDevTypeName(priv->dtype), pamapdbfType[ftvl].strvalue+4);
     return status;
@@ -1186,23 +1198,17 @@ int regDevInstallWorkQueue(regDevice* driver, unsigned int maxEntries)
 
 /*********  DMA buffers ****************************/
 
-int regDevMemAlloc(dbCommon* record, void** bptr, size_t size)
+int regDevAlloc(regDeviceNode* device, const char* name, void** bptr, size_t size)
 {
     void* ptr = NULL;
-    regDeviceNode* device;
-
-    regDevGetPriv();
-    device = priv->device;
-    assert(device != NULL);
-
     if (device->dmaAlloc)
     {
         ptr = device->dmaAlloc(device->driver, NULL, size);
         if (ptr == NULL)
         {
-            fprintf (stderr,
+            fprintf(stderr,
                 "regDevMemAlloc %s: allocating device memory failed.\n",
-                record->name);
+                name);
             return S_dev_noMemory;
         }
         memset(ptr, 0, size);
@@ -1212,15 +1218,38 @@ int regDevMemAlloc(dbCommon* record, void** bptr, size_t size)
     ptr = (char *)calloc(1, size);
     if (ptr == NULL)
     {
-        fprintf (stderr,
+        fprintf(stderr,
             "regDevMemAlloc %s: out of memory.\n",
-            record->name);
+            name);
         return S_dev_noMemory;
     }
     *bptr = ptr;
     return S_dev_success;
 }
 
+int regDevMemAlloc(dbCommon* record, void** bptr, size_t size)
+{
+    regDeviceNode* device;
+
+    regDevGetPriv();
+    device = priv->device;
+    assert(device != NULL);
+    return regDevAlloc(device, record->name, bptr, size);
+}
+
+int regDevMakeBlockdevice(regDevice* driver, unsigned int modes, int swap)
+{
+    int status;
+    regDeviceNode* device = regDevGetDeviceNode(driver);
+    if (modes & REGDEV_BLOCK_READ && !device->blockBuffer)
+    {
+        device->blockSwap = swap;
+        scanIoInit(&device->blockReceived);
+        status = regDevAlloc(device, device->name, &device->blockBuffer, device->size);
+        if (!status) return status;
+    }
+    return 0;
+}
 
 int regDevGetOffset(dbCommon* record, int read, epicsUInt8 dlen, size_t nelem, size_t *poffset)
 {
@@ -1322,17 +1351,27 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
 
     int status = S_dev_success;
     regDeviceNode* device;
+    size_t offset;
 
     regDevGetPriv();
     device = priv->device;
     assert(device != NULL);
     assert(buffer != NULL || nelem == 0 || dlen == 0);
 
+    if (!device->support->read)
+    {
+        recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
+        regDevDebugLog(DBG_IN, "%s: device %s has no read function\n",
+            record->name, device->name);
+        return S_dev_badRequest;
+    }
+
     if (record->pact)
     {
         /* Second call of asynchronous device */
 
-        regDevDebugLog(DBG_IN, "%s: asynchronous read returned %d\n", record->name, priv->status);
+        regDevDebugLog(DBG_IN, "%s: asynchronous read returned 0x%x\n",
+            record->name, priv->status);
         if (priv->status != S_dev_success)
         {
             recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
@@ -1341,12 +1380,12 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
     }
     else
     {
-        size_t offset;
-        /* First call of (probably asynchronous) device */
+        /* First call of (possibly asynchronous) device */
 
         if (priv->state == init)
         {
-            if (interruptAccept) priv->state = normal; /* first call after init */
+            if (interruptAccept)
+                priv->state = normal; /* first call after init */
             else
             {
                 regDevDebugLog(DBG_INIT, "%s: setup init read\n", record->name);
@@ -1354,40 +1393,55 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
             }
         }
         status = regDevGetOffset(record, TRUE, dlen, nelem, &offset);
-        if (status != S_dev_success) return status;
+        if (status != S_dev_success)
+            return status;
 
         priv->asyncOffset = offset;
         priv->status = S_dev_success;
-        if (device->support->read)
+        if (device->dispatcher)
         {
-            if (device->dispatcher)
-            {
-                struct regDevWorkMsg msg;
+            struct regDevWorkMsg msg;
 
-                msg.cmd = CMD_READ;
-                msg.offset = offset;
-                msg.dlen = dlen;
-                msg.nelem = nelem;
-                msg.buffer = buffer;
-                msg.callback = regDevCallback;
-                msg.record = record;
-                if (!device->dispatcher->qid[record->prio])
+            msg.cmd = CMD_READ;
+            msg.offset = offset;
+            msg.dlen = dlen;
+            msg.nelem = nelem;
+            msg.buffer = buffer;
+            msg.callback = regDevCallback;
+            msg.record = record;
+            if (!device->dispatcher->qid[record->prio])
+            {
+                if (regDevStartWorkQueue(device, record->prio) != S_dev_success)
+                    return S_dev_badRequest;
+            }
+            regDevDebugLog(DBG_IN, "%s: sending read to dispatcher\n", record->name);
+            if (epicsMessageQueueTrySend(device->dispatcher->qid[record->prio], (char*)&msg, sizeof(msg)) != 0)
+            {
+                recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
+                regDevDebugLog(DBG_IN, "%s: work queue is full\n", record->name);
+                return S_dev_noMemory;
+            }
+            status = ASYNC_COMPLETION;
+        }
+        else
+        {
+            if (device->blockBuffer)
+            {
+                if (record->prio == 2)
                 {
-                    if (regDevStartWorkQueue(device, record->prio) != S_dev_success)
-                        return S_dev_badRequest;
+                    /* trigger readout of whole block */
+                    regDevDebugLog(DBG_IN, "%s: reading block from %s\n", record->name, device->name);
+                    epicsMutexLock(device->accesslock);
+                    status = device->support->read(device->driver,
+                        0, 1, device->size, device->blockBuffer,
+                        2, regDevCallback, record->name);
+                    epicsMutexUnlock(device->accesslock);
+                    regDevDebugLog(DBG_IN, "%s: read returned status 0x%0x\n", record->name, status);
                 }
-                regDevDebugLog(DBG_IN, "%s: sending read to dispatcher\n", record->name);
-                if (epicsMessageQueueTrySend(device->dispatcher->qid[record->prio], (char*)&msg, sizeof(msg)) != 0)
-                {
-                    recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
-                    regDevDebugLog(DBG_IN, "%s: work queue is full\n", record->name);
-                    return S_dev_noMemory;
-                }
-                status = ASYNC_COMPLETION;
             }
             else
             {
-                regDevDebugLog(DBG_IN, "%s: reading\n", record->name);
+                regDevDebugLog(DBG_IN, "%s: reading from %s\n", record->name, device->name);
                 epicsMutexLock(device->accesslock);
                 status = device->support->read(device->driver,
                     offset, dlen, nelem, buffer,
@@ -1396,9 +1450,8 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
                 regDevDebugLog(DBG_IN, "%s: read returned status 0x%0x\n", record->name, status);
             }
         }
-        else status = S_dev_badRequest;
 
-        /* At init wait for completition of asynchronous device */
+        /* At init wait for completion of asynchronous device */
         if (priv->initDone)
         {
             if (status == ASYNC_COMPLETION)
@@ -1458,8 +1511,19 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         record->pact = 1;
         return status;
     }
+
     if (status == S_dev_success)
+    {
         record->udf = FALSE;
+        if (device->blockBuffer && (buffer < device->blockBuffer || buffer >= device->blockBuffer+device->size))
+        {
+            /* copy block buffer to record (if not mapped) */
+            regDevDebugLog(DBG_IN, "%s: copy from %s block buffer\n", record->name, device->name);
+            regDevCopy(dlen, nelem, device->blockBuffer+offset, buffer, NULL, device->blockSwap);
+        }
+        if (device->blockBuffer && record->prio == 2)
+            scanIoRequest(device->blockReceived);
+    }
     
     if (status != S_dev_success && nelem != 0) /* nelem == 0 => only status readout */
     {
@@ -1494,7 +1558,7 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
         return priv->status;
     }
 
-    /* First call of (probably asynchronous) device */
+    /* First call of (possibly asynchronous) device */
     status = regDevGetOffset(record, FALSE, dlen, nelem, &offset);
     if (status != S_dev_success) return status;
 
@@ -1606,7 +1670,7 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
     }
     else status = S_dev_badRequest;
 
-    /* At init wait for completition of asynchronous device */
+    /* At init wait for completion of asynchronous device */
     if (priv->initDone)
     {
         if (status == ASYNC_COMPLETION)
@@ -2364,8 +2428,7 @@ int regDevInstallUpdateFunction(dbCommon* record, DEVSUPFUN updater)
     assert(device != NULL);
 
     regDevDebugLog(DBG_INIT, "%s\n", record->name);
-
-    if (priv->update)
+    if (priv->update && device->support->read)
     {
         if (!device->updateTimerQueue)
         {
@@ -2475,29 +2538,29 @@ int regDevDisplay(const char* devName, int start, unsigned int dlen, size_t byte
 
         for (i = 0; i < bytes; i += bytesPerLine)
         {
-            printf ("%08"Z"x: ", offset + i);
+            printf("%08"Z"x: ", offset + i);
             for (j = 0; j < bytesPerLine; j += dlen)
             {
                 for (k = 0; k < dlen; k++)
                 {
                     if (i + j < nelem * dlen)
-                        printf ("%02x", buffer[i+j+k]);
+                        printf("%02x", buffer[i+j+k]);
                     else
-                        printf ("  ");
+                        printf("  ");
                 }
-                printf (" ");
+                printf(" ");
             }
             for (j = 0; j < bytesPerLine; j += dlen)
             {
                 for (k = 0; k < dlen; k++)
                 {
                     if (i + j < nelem * dlen)
-                        printf ("%c", isprint((unsigned char)buffer[i+j+k]) ? buffer[i+j+k] : '.');
+                        printf("%c", isprint((unsigned char)buffer[i+j+k]) ? buffer[i+j+k] : '.');
                     else
-                        printf (" ");
+                        printf(" ");
                 }
             }
-            printf ("\n");
+            printf("\n");
         }
     }
     offset += dlen * nelem;

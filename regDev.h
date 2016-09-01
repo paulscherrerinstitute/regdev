@@ -165,6 +165,12 @@ epicsShareFunc int regDevRegisterDmaAlloc(
     regDevice* device,
     void* (*dmaAlloc) (regDevice *device, void* ptr, size_t size));
 
+#define REGDEV_BLOCK_READ 1
+#define REGDEV_BLOCK_WRITE 2
+epicsShareFunc int regDevMakeBlockdevice(
+    regDevice* device,
+    unsigned int modes, int swap);
+
 /* Use this variable to control debugging messages */
 epicsShareExtern int regDevDebug;
 

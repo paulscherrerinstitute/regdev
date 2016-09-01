@@ -51,8 +51,11 @@ typedef struct regDeviceNode {                     /* per device data structure 
     regDevice* driver;                             /* Generic device driver */
     epicsMutexId accesslock;                       /* Access semaphore */
     void* (*dmaAlloc) (regDevice*, void*, size_t); /* DMA memory allocator */
-    regDevDispatcher* dispatcher;                  /* serialize requests */
+    regDevDispatcher* dispatcher;                  /* Serialize requests */
     epicsTimerQueueId updateTimerQueue;            /* For update timers */
+    void* blockBuffer;                             /* For block mode */
+    int blockSwap;
+    IOSCANPVT blockReceived;
 } regDeviceNode;
 
 typedef union {
@@ -117,6 +120,7 @@ int regDevAssertType(dbCommon *record, int types);
 const char* regDevTypeName(unsigned short dtype);
 int regDevMemAlloc(dbCommon* record, void** bptr, size_t size);
 int regDevInstallUpdateFunction(dbCommon* record, DEVSUPFUN updater);
+int regDevGetOffset(dbCommon* record, int read, epicsUInt8 dlen, size_t nelem, size_t *poffset);
 
 /* returns OK, ERROR, or ASYNC_COMPLETION */
 /* here buffer must not point to local variable! */
