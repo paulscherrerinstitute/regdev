@@ -825,6 +825,7 @@ regDevPrivate* regDevAllocPriv(dbCommon *record)
     priv->dtype = epicsInt16T;
     priv->arraypacking = 1;
     priv->irqvec=-1;
+    priv->state = init;
     record->dpvt = priv;
     return priv;
 }
@@ -1082,16 +1083,24 @@ void regDevWorkThread(regDeviceNode* device)
                 regDevDebugLog(DBG_OUT, "%s %s: doing dispatched write\n",
                     epicsThreadGetNameSelf(), msg.record->name);
                 epicsMutexLock(device->accesslock);
-                status = support->write(driver, msg.offset, msg.dlen, msg.nelem,
-                    msg.buffer, msg.mask, msg.record->prio, NULL, msg.record->name);
+                if (device->blockBuffer)
+                    status = support->write(driver, 0, 1, device->size,
+                        device->blockBuffer, NULL, prio, NULL, msg.record->name);
+                else
+                    status = support->write(driver, msg.offset, msg.dlen, msg.nelem,
+                        msg.buffer, msg.mask, prio, NULL, msg.record->name);
                 epicsMutexUnlock(device->accesslock);
                 break;
             case CMD_READ:
                 regDevDebugLog(DBG_IN, "%s %s: doing dispatched read\n",
                     epicsThreadGetNameSelf(), msg.record->name);
                 epicsMutexLock(device->accesslock);
-                status = support->read(driver, msg.offset, msg.dlen, msg.nelem,
-                    msg.buffer, msg.record->prio, NULL, msg.record->name);
+                if (device->blockBuffer)
+                    status = support->read(driver, 0, 1, device->size,
+                        device->blockBuffer, prio, NULL, msg.record->name);
+                else
+                    status = support->read(driver, msg.offset, msg.dlen, msg.nelem,
+                        msg.buffer, prio, NULL, msg.record->name);
                 epicsMutexUnlock(device->accesslock);
                 break;
             case CMD_EXIT:
@@ -1381,88 +1390,84 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
     else
     {
         /* First call of (possibly asynchronous) device */
-
-        if (priv->state == init)
-        {
-            if (interruptAccept)
-                priv->state = normal; /* first call after init */
-            else
-            {
-                regDevDebugLog(DBG_INIT, "%s: setup init read\n", record->name);
-                priv->initDone = epicsEventMustCreate(epicsEventEmpty);
-            }
-        }
         status = regDevGetOffset(record, TRUE, dlen, nelem, &offset);
         if (status != S_dev_success)
             return status;
-
-        priv->asyncOffset = offset;
-        priv->status = S_dev_success;
-        if (device->dispatcher)
+            
+        if (!device->blockBuffer || record->prio == 2)
         {
-            struct regDevWorkMsg msg;
-
-            msg.cmd = CMD_READ;
-            msg.offset = offset;
-            msg.dlen = dlen;
-            msg.nelem = nelem;
-            msg.buffer = buffer;
-            msg.callback = regDevCallback;
-            msg.record = record;
-            if (!device->dispatcher->qid[record->prio])
+            if (priv->state == init)
             {
-                if (regDevStartWorkQueue(device, record->prio) != S_dev_success)
-                    return S_dev_badRequest;
-            }
-            regDevDebugLog(DBG_IN, "%s: sending read to dispatcher\n", record->name);
-            if (epicsMessageQueueTrySend(device->dispatcher->qid[record->prio], (char*)&msg, sizeof(msg)) != 0)
-            {
-                recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
-                regDevDebugLog(DBG_IN, "%s: work queue is full\n", record->name);
-                return S_dev_noMemory;
-            }
-            status = ASYNC_COMPLETION;
-        }
-        else
-        {
-            if (device->blockBuffer)
-            {
-                if (record->prio == 2)
+                if (interruptAccept)
+                    priv->state = normal; /* first call after init */
+                else
                 {
-                    /* trigger readout of whole block */
-                    regDevDebugLog(DBG_IN, "%s: reading block from %s\n", record->name, device->name);
-                    epicsMutexLock(device->accesslock);
-                    status = device->support->read(device->driver,
-                        0, 1, device->size, device->blockBuffer,
-                        2, regDevCallback, record->name);
-                    epicsMutexUnlock(device->accesslock);
-                    regDevDebugLog(DBG_IN, "%s: read returned status 0x%0x\n", record->name, status);
+                    regDevDebugLog(DBG_INIT, "%s: setup init read\n", record->name);
+                    priv->initDone = epicsEventMustCreate(epicsEventEmpty);
                 }
+            }
+
+            record->pact = 1;
+            priv->asyncOffset = offset;
+            priv->status = S_dev_success;
+            if (device->dispatcher)
+            {
+                struct regDevWorkMsg msg;
+
+                msg.cmd = CMD_READ;
+                msg.offset = offset;
+                msg.dlen = dlen;
+                msg.nelem = nelem;
+                msg.buffer = buffer;
+                msg.callback = regDevCallback;
+                msg.record = record;
+                if (!device->dispatcher->qid[record->prio])
+                {
+                    if (regDevStartWorkQueue(device, record->prio) != S_dev_success)
+                    {
+                        record->pact = 0;
+                        return S_dev_badRequest;
+                    }
+                }
+                regDevDebugLog(DBG_IN, "%s: sending read to dispatcher\n", record->name);
+                if (epicsMessageQueueTrySend(device->dispatcher->qid[record->prio], (char*)&msg, sizeof(msg)) != 0)
+                {
+                    recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
+                    regDevDebugLog(DBG_IN, "%s: work queue is full\n", record->name);
+                    record->pact = 0;
+                    return S_dev_noMemory;
+                }
+                status = ASYNC_COMPLETION;
             }
             else
             {
                 regDevDebugLog(DBG_IN, "%s: reading from %s\n", record->name, device->name);
                 epicsMutexLock(device->accesslock);
-                status = device->support->read(device->driver,
-                    offset, dlen, nelem, buffer,
-                    record->prio, regDevCallback, record->name);
+                if (device->blockBuffer)
+                    status = device->support->read(device->driver,
+                        0, 1, device->size, device->blockBuffer,
+                        2, regDevCallback, record->name);
+                else
+                    status = device->support->read(device->driver,
+                        offset, dlen, nelem, buffer,
+                        record->prio, regDevCallback, record->name);
                 epicsMutexUnlock(device->accesslock);
                 regDevDebugLog(DBG_IN, "%s: read returned status 0x%0x\n", record->name, status);
             }
-        }
 
-        /* At init wait for completion of asynchronous device */
-        if (priv->initDone)
-        {
-            if (status == ASYNC_COMPLETION)
+            /* At init wait for completion of asynchronous device */
+            if (priv->initDone)
             {
-                regDevDebugLog(DBG_INIT, "%s: wait for asynchronous init read\n", record->name);
-                epicsEventWait(priv->initDone);
-                status = priv->status;
+                if (status == ASYNC_COMPLETION)
+                {
+                    regDevDebugLog(DBG_INIT, "%s: wait for asynchronous init read\n", record->name);
+                    epicsEventWait(priv->initDone);
+                    status = priv->status;
+                }
+                epicsEventDestroy(priv->initDone);
+                priv->initDone = NULL;
+                regDevDebugLog(DBG_INIT, "%s: init read done\n", record->name);
             }
-            epicsEventDestroy(priv->initDone);
-            priv->initDone = NULL;
-            regDevDebugLog(DBG_INIT, "%s: init read done\n", record->name);
         }
     }
 
@@ -1475,7 +1480,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
                 _CURRENT_FUNCTION_, record->name, nelem, dlen*8,
                 device->name, priv->asyncOffset);
         }
-        else switch (dlen)
+        else if (buffer) switch (dlen)
         {
             case 1:
                 printf("%s %s: read %"Z"u * 8 bit 0x%02x from %s:%"Z"u (status=%x)\n",
@@ -1508,21 +1513,24 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
     {
         /* Prepare for  completition of asynchronous device */
         regDevDebugLog(DBG_IN, "%s: wait for asynchronous read completition\n", record->name);
-        record->pact = 1;
         return status;
     }
 
+    record->pact = 0;
     if (status == S_dev_success)
     {
         record->udf = FALSE;
-        if (device->blockBuffer && (buffer < device->blockBuffer || buffer >= device->blockBuffer+device->size))
+        if (device->blockBuffer)
         {
-            /* copy block buffer to record (if not mapped) */
-            regDevDebugLog(DBG_IN, "%s: copy from %s block buffer\n", record->name, device->name);
-            regDevCopy(dlen, nelem, device->blockBuffer+offset, buffer, NULL, device->blockSwap);
+            if (buffer && (buffer < device->blockBuffer || buffer >= device->blockBuffer+device->size))
+            {
+                /* copy block buffer to record (if not mapped) */
+                regDevDebugLog(DBG_IN, "%s: copy from %s block buffer\n", record->name, device->name);
+                regDevCopy(dlen, nelem, device->blockBuffer+offset, buffer, NULL, device->blockSwap);
+            }
+            if (record->prio == 2)
+                scanIoRequest(device->blockReceived);
         }
-        if (device->blockBuffer && record->prio == 2)
-            scanIoRequest(device->blockReceived);
     }
     
     if (status != S_dev_success && nelem != 0) /* nelem == 0 => only status readout */
@@ -1544,7 +1552,15 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
     regDevGetPriv();
     device = priv->device;
     assert(device != NULL);
-    assert(buffer != NULL);
+    assert(buffer != NULL || nelem == 0 || dlen == 0);
+
+    if (!device->support->write)
+    {
+        recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM);
+        regDevDebugLog(DBG_OUT, "%s: device %s has no write function\n",
+            record->name, device->name);
+        return S_dev_badRequest;
+    }
 
     if (record->pact)
     {
@@ -1563,9 +1579,9 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
     if (status != S_dev_success) return status;
 
     /* Some debug output */
-    if (regDevDebug  & DBG_OUT)
+    if (regDevDebug & DBG_OUT)
     {
-        switch (dlen+(mask?10:0))
+        if (buffer) switch (dlen+(mask?10:0))
         {
             case 1:
                 regDevDebugLog(DBG_OUT,
@@ -1621,54 +1637,76 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
                     device->name, offset);
         }
     }
+    
+    if (device->blockBuffer)
+    {
+        if (buffer && (buffer < device->blockBuffer || buffer >= device->blockBuffer+device->size))
+        {
+            /* copy record to block buffer (if not mapped) */
+            regDevDebugLog(DBG_OUT, "%s: copy to %s block buffer\n", record->name, device->name);
+            regDevCopy(dlen, nelem, buffer, device->blockBuffer+offset, mask, device->blockSwap);
+        }
+        if (record->prio != 2)
+            return S_dev_success;
+    }
 
     priv->status = S_dev_success;
-    if (device->support->write)
-    {
-        if (priv->state == init)
-        {
-            if (interruptAccept) priv->state = normal; /* first call after init */
-            else
-            {
-                regDevDebugLog(DBG_INIT, "%s: setup init write\n", record->name);
-                priv->initDone = epicsEventMustCreate(epicsEventEmpty);
-            }
-        }
-        if (device->dispatcher)
-        {
-            struct regDevWorkMsg msg;
 
-            msg.cmd = CMD_WRITE;
-            msg.offset = offset;
-            msg.dlen = dlen;
-            msg.nelem = nelem;
-            msg.buffer = buffer;
-            msg.mask = mask;
-            msg.callback = regDevCallback;
-            msg.record = record;
-            if (!device->dispatcher->qid[record->prio])
-            {
-                if (regDevStartWorkQueue(device, record->prio) != S_dev_success)
-                    return S_dev_badRequest;
-            }
-            if (epicsMessageQueueTrySend(device->dispatcher->qid[record->prio], (char*)&msg, sizeof(msg)) != 0)
-            {
-                recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
-                regDevDebugLog(DBG_OUT, "%s: work queue is full\n", record->name);
-                return S_dev_noMemory;
-            }
-            status = ASYNC_COMPLETION;
-        }
+    if (priv->state == init)
+    {
+        if (interruptAccept) priv->state = normal; /* first call after init */
         else
         {
-            epicsMutexLock(device->accesslock);
+            regDevDebugLog(DBG_INIT, "%s: setup init write\n", record->name);
+            priv->initDone = epicsEventMustCreate(epicsEventEmpty);
+        }
+    }
+    
+    record->pact = 1;
+    if (device->dispatcher)
+    {
+        struct regDevWorkMsg msg;
+
+        msg.cmd = CMD_WRITE;
+        msg.offset = offset;
+        msg.dlen = dlen;
+        msg.nelem = nelem;
+        msg.buffer = buffer;
+        msg.mask = mask;
+        msg.callback = regDevCallback;
+        msg.record = record;
+        if (!device->dispatcher->qid[record->prio])
+        {
+            if (regDevStartWorkQueue(device, record->prio) != S_dev_success)
+            {
+                record->pact = 0;
+                return S_dev_badRequest;
+            }
+        }
+        if (epicsMessageQueueTrySend(device->dispatcher->qid[record->prio], (char*)&msg, sizeof(msg)) != 0)
+        {
+            recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
+            regDevDebugLog(DBG_OUT, "%s: work queue is full\n", record->name);
+            record->pact = 0;
+            return S_dev_noMemory;
+        }
+        status = ASYNC_COMPLETION;
+    }
+    else
+    {
+        regDevDebugLog(DBG_OUT, "%s: writing to %s\n", record->name, device->name);
+        epicsMutexLock(device->accesslock);
+        if (device->blockBuffer)
+            status = device->support->write(device->driver,
+                0, 1, device->size, buffer, NULL,
+                2, regDevCallback, record->name);
+        else
             status = device->support->write(device->driver,
                 offset, dlen, nelem, buffer, mask,
                 record->prio, regDevCallback, record->name);
-            epicsMutexUnlock(device->accesslock);
-        }
+        regDevDebugLog(DBG_OUT, "%s: write returned status 0x%0x\n", record->name, status);
+        epicsMutexUnlock(device->accesslock);
     }
-    else status = S_dev_badRequest;
 
     /* At init wait for completion of asynchronous device */
     if (priv->initDone)
@@ -1688,9 +1726,11 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
     {
         /* Prepare for  completition of asynchronous device */
         regDevDebugLog(DBG_OUT, "%s: wait for asynchronous write completition\n", record->name);
-        record->pact = 1;
+        return status;
     }
-    else if (status != S_dev_success)
+
+    record->pact = 0;
+    if (status != S_dev_success)
     {
         recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM);
         regDevDebugLog(DBG_OUT, "%s: write error\n", record->name);
