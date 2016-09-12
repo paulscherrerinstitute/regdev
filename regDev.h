@@ -173,7 +173,9 @@ epicsShareFunc int regDevRegisterDmaAlloc(
 #define REGDEV_BLOCK_WRITE 2
 epicsShareFunc int regDevMakeBlockdevice(
     regDevice* device,
-    unsigned int modes, int swap);
+    unsigned int modes, /* any of REGDEV_BLOCK_READ | REGDEV_BLOCK_WRITE */
+    int swap,           /* any of REGDEV*SWAP* below */
+    void* buffer);      /* NULL or buffer space provided by the driver */
 
 /* Use this variable to control debugging messages */
 epicsShareExtern int regDevDebug;
