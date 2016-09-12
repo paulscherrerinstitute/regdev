@@ -35,7 +35,7 @@ long regDevInitRecordAai(aaiRecord* record)
     if (status) return status;
     record->nord = record->nelm;
     /* aai record does not allocate bptr. */
-    if (priv->device->blockBuffer && !priv->device->blockSwap && !priv->offsetRecord)
+    if (priv->device->blockBuffer && !priv->offsetRecord && !priv->device->blockSwap)
     {
         /* map record with static offset memory directly in block buffer */
         size_t offs;
@@ -112,8 +112,19 @@ long regDevInitRecordAao(aaoRecord* record)
     if (status) return status;
     record->nord = record->nelm;
     /* aao record does not allocate bptr. */
-    status = regDevMemAlloc((dbCommon*)record, (void *)&record->bptr, record->nelm * priv->dlen);
-    if (status) return status;
+    if (priv->device->blockBuffer && !priv->offsetRecord && !priv->device->blockSwap)
+    {
+        /* map record with static offset memory directly in block buffer */
+        size_t offs;
+        status = regDevGetOffset((dbCommon*)record, 1, priv->dlen, record->nelm, &offs);
+        if (status) return status;
+        record->bptr = priv->device->blockBuffer + offs;
+    }
+    else
+    {
+        status = regDevMemAlloc((dbCommon*)record, (void *)&record->bptr, record->nelm * priv->dlen);
+        if (status) return status;
+    }
     priv->data.buffer = record->bptr;
     status = regDevCheckType((dbCommon*)record, record->ftvl, record->nelm);
     if (status == ARRAY_CONVERT)
