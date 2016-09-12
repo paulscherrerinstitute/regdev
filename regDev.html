@@ -976,34 +976,42 @@ void&nbsp;report (regDevice*&nbsp;<em>device</em>,
 <p class="indent">
 <code>
 IOSCANPVT&nbsp;getInScanPvt (regDevice*&nbsp;<em>device</em>,
-    unsigned&nbsp;int&nbsp;<em>offset</em>);
+    size_t&nbsp;<em>offset</em>,
+    unsigned&nbsp;int&nbsp;<em>vec</em>,
+    const&nbsp;char&nbsp;*<em>user</em>);
 </code>
 </p>
 <p class="indent">
 <code>
 IOSCANPVT&nbsp;getOutScanPvt (regDevice*&nbsp;<em>device</em>,
-    unsigned&nbsp;int&nbsp;<em>offset</em>);
+    size_t&nbsp;<em>offset</em>,
+    unsigned&nbsp;int&nbsp;<em>vec</em>,
+    const&nbsp;char&nbsp;*<em>user</em>);
 </code>
 </p>
 <p class="indent">
 <code>
 int&nbsp;read (regDevice*&nbsp;<em>device</em>,
-    unsigned&nbsp;int&nbsp;<em>offset</em>,
+    size_t&nbsp;<em>offset</em>,
     unsigned&nbsp;int&nbsp;<em>datalength</em>,
-    unsigned&nbsp;int&nbsp;<em>nelem</em>,
+    size_t&nbsp;<em>nelem</em>,
     void*&nbsp;<em>pdata</em>,
-    int&nbsp;<em>priority</em>);
+    int&nbsp;<em>priority</em>,
+    regDevTransferComplete&nbsp;<em>callback</em>,
+    const&nbsp;char&nbsp;*<em>user</em>);
 </code>
 </p>
 <p class="indent">
 <code>
 int&nbsp; write (regDevice*&nbsp;<em>device</em>,
-    unsigned&nbsp;int&nbsp;<em>offset</em>,
+    size_t&nbsp;<em>offset</em>,
     unsigned&nbsp;int&nbsp;<em>datalength</em>,
-    unsigned&nbsp;int&nbsp;<em>nelem</em>,
+    size_t&nbsp;<em>nelem</em>,
     void*&nbsp;<em>pdata</em>,
     void*&nbsp;<em>pmask</em>,
-    int&nbsp;<em>priority</em>);
+    int&nbsp;<em>priority</em>,
+    regDevTransferComplete&nbsp;<em>callback</em>,
+    const&nbsp;char&nbsp;*<em>user</em>);
 </code>
 </p>
 
@@ -1018,17 +1026,41 @@ relative to the beginning to the register block.
 </li>
 <li>
 <code><em>nelem</em></code> is the number of elements in an array.
+It is 1 for scalar values but may be larger for arrays or strings.
+It may also be 0. In that case the driver shall just report the connection
+state by returning <code>SUCCESS</code> or an error code.
 </li>
 <li>
 <code><em>pdata</em></code> is a pointer to a buffer of
 <code><em>nelem</em></code>*<code><em>dlen</em></code> bytes.
 registers values are copied to or from this buffer.
+If <code><em>nelem==0</em></code>, <code><em>pdata</em></code> may be
+<code>NULL</code>.
 </li>
 <li>
 <code><em>mask</em></code> is a pointer to a bit mask of
-<code><em>datalength</em></code> bytes.
-Only those bits are changed where the mask contains 1 bits. All other bits
-remain untouched.
+<code><em>datalength</em></code> bytes or <code>NULL</code>.
+Only those bits shall be changed where the mask contains 1 bits.
+All other bits shall remain untouched. 
+</li>
+<li>
+<code><em>priority</em></code> is a number 0...2 and may be used
+as a hint for the driver to shedule requests.
+</li>
+<li>
+<code><em>callback</em></code> is a function to be called upon request
+completion if the driver decides to handle the request asynchronously
+and returns <code>ASYNC_COMPLETION</code>. The driver may ignore it
+completely and handle all requests synchronously. The function may be
+<code>NULL</code>. In that case the driver must handle the request
+synchroously and not return <code>ASYNC_COMPLETION</code>.
+in wh
+</li>
+<li>
+<code><em>user</em></code> is a string which can be used for messages.
+It is the record name (actually a pointer to the record itself). If
+the driver decides to use the <em>callback</em>, this pointer must be
+passed to the callback function.
 </li>
 </ul>
 <p>
