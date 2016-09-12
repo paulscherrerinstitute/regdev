@@ -94,7 +94,6 @@ typedef struct regDevPrivate{          /* per record data structure */
     epicsTimerId updateTimer;          /* Update timer */
     enum {init, normal, update} state; /* Processing type */
     int status;                        /* For asynchonous drivers */
-    epicsEventId initDone;             /* For asynchonous drivers */
     size_t asyncOffset;                /* For asynchonous drivers */
     regDevAnytype data;                /* For asynchonous drivers and arrays */
     regDevAnytype mask;                /* For asynchonous drivers */

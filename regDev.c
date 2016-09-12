@@ -1246,7 +1246,7 @@ int regDevMemAlloc(dbCommon* record, void** bptr, size_t size)
     return regDevAlloc(device, record->name, bptr, size);
 }
 
-int regDevMakeBlockdevice(regDevice* driver, unsigned int modes, int swap)
+int regDevMakeBlockdevice(regDevice* driver, unsigned int modes, int swap, void* buffer)
 {
     int status;
     regDeviceNode* device = regDevGetDeviceNode(driver);
@@ -1254,8 +1254,13 @@ int regDevMakeBlockdevice(regDevice* driver, unsigned int modes, int swap)
     {
         device->blockSwap = swap;
         scanIoInit(&device->blockReceived);
-        status = regDevAlloc(device, device->name, &device->blockBuffer, device->size);
-        if (!status) return status;
+        if (buffer)
+            device->blockBuffer = buffer;
+        else
+        {
+            status = regDevAlloc(device, device->name, &device->blockBuffer, device->size);
+            if (!status) return status;
+        }
     }
     return 0;
 }
@@ -1268,6 +1273,7 @@ int regDevGetOffset(dbCommon* record, int read, epicsUInt8 dlen, size_t nelem, s
     regDeviceNode* device = priv->device;
 
     /* At init read we may use a different offset */
+    if (priv->state == init && interruptAccept) priv->state = normal; /* we are already after iocInit */
     if (read && priv->state == init && priv->initoffset != DONT_INIT)
         offset = priv->initoffset;
     else
@@ -1337,16 +1343,6 @@ void regDevCallback(const char* user, int status)
 
     priv->status = status;
 
-    if (priv->state == init)
-    {
-        regDevDebugLog(DBG_INIT, "%s: init callback\n", record->name);
-        epicsEventSignal(priv->initDone);
-        return;
-    }
-    if (priv->state == update)
-    {
-        regDevDebugLog(DBG_IN, "%s: update callback\n", record->name);
-    }
     dbScanLock(record);
     if (!record->pact) regDevPrintErr("callback for non-active record!");
     (*record->rset->process)(record);
@@ -1396,21 +1392,10 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
             
         if (!device->blockBuffer || record->prio == 2)
         {
-            if (priv->state == init)
-            {
-                if (interruptAccept)
-                    priv->state = normal; /* first call after init */
-                else
-                {
-                    regDevDebugLog(DBG_INIT, "%s: setup init read\n", record->name);
-                    priv->initDone = epicsEventMustCreate(epicsEventEmpty);
-                }
-            }
-
             record->pact = 1;
             priv->asyncOffset = offset;
             priv->status = S_dev_success;
-            if (device->dispatcher)
+            if (device->dispatcher && !priv->state == init)
             {
                 struct regDevWorkMsg msg;
 
@@ -1446,27 +1431,13 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
                 if (device->blockBuffer)
                     status = device->support->read(device->driver,
                         0, 1, device->size, device->blockBuffer,
-                        2, regDevCallback, record->name);
+                        2, priv->state == init ? NULL : regDevCallback, record->name);
                 else
                     status = device->support->read(device->driver,
                         offset, dlen, nelem, buffer,
-                        record->prio, regDevCallback, record->name);
+                        record->prio, priv->state == init ? NULL : regDevCallback, record->name);
                 epicsMutexUnlock(device->accesslock);
                 regDevDebugLog(DBG_IN, "%s: read returned status 0x%0x\n", record->name, status);
-            }
-
-            /* At init wait for completion of asynchronous device */
-            if (priv->initDone)
-            {
-                if (status == ASYNC_COMPLETION)
-                {
-                    regDevDebugLog(DBG_INIT, "%s: wait for asynchronous init read\n", record->name);
-                    epicsEventWait(priv->initDone);
-                    status = priv->status;
-                }
-                epicsEventDestroy(priv->initDone);
-                priv->initDone = NULL;
-                regDevDebugLog(DBG_INIT, "%s: init read done\n", record->name);
             }
         }
     }
@@ -1528,8 +1499,11 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
                 regDevDebugLog(DBG_IN, "%s: copy from %s block buffer\n", record->name, device->name);
                 regDevCopy(dlen, nelem, device->blockBuffer+offset, buffer, NULL, device->blockSwap);
             }
-            if (record->prio == 2)
+            if (record->prio == 2 && !priv->state == init)
+            {
+                /* inform other records of new block input */
                 scanIoRequest(device->blockReceived);
+            }
         }
     }
     
@@ -1652,16 +1626,6 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
 
     priv->status = S_dev_success;
 
-    if (priv->state == init)
-    {
-        if (interruptAccept) priv->state = normal; /* first call after init */
-        else
-        {
-            regDevDebugLog(DBG_INIT, "%s: setup init write\n", record->name);
-            priv->initDone = epicsEventMustCreate(epicsEventEmpty);
-        }
-    }
-    
     record->pact = 1;
     if (device->dispatcher)
     {
@@ -1706,20 +1670,6 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
                 record->prio, regDevCallback, record->name);
         regDevDebugLog(DBG_OUT, "%s: write returned status 0x%0x\n", record->name, status);
         epicsMutexUnlock(device->accesslock);
-    }
-
-    /* At init wait for completion of asynchronous device */
-    if (priv->initDone)
-    {
-        if (status == ASYNC_COMPLETION)
-        {
-            regDevDebugLog(DBG_INIT, "%s: wait for asynchronous init write\n", record->name);
-            epicsEventWait(priv->initDone);
-            status = priv->status;
-        }
-        epicsEventDestroy(priv->initDone);
-        priv->initDone = NULL;
-        regDevDebugLog(DBG_INIT, "%s: init write done\n", record->name);
     }
 
     if (status == ASYNC_COMPLETION)
