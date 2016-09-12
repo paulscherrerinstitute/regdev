@@ -76,7 +76,7 @@ int simRegDevAsynTransfer(
     simRegDevMessage* msg;
 
     if (simRegDevDebug & (isOutput ? DBG_OUT : DBG_IN))
-        printf ("simRegDevAsynTransfer %s %s: copy %s %u bytes * %"Z"u elements\n",
+        printf ("simRegDevAsynTransfer %s %s: copy %s %u bytes * 0x%"Z"x elements\n",
         user, device->name, isOutput ? "out" : "in", dlen, nelem);
 
     epicsMutexLock(device->lock);
@@ -126,7 +126,7 @@ void simRegDevCallback(void* arg)
     int status;
 
     if (simRegDevDebug & (msg->isOutput ? DBG_OUT : DBG_IN))
-        printf ("simRegDevCallback %s %s: copy %u bytes * %"Z"u elements\n",
+        printf ("simRegDevCallback %s %s: copy %u bytes * 0x%"Z"x elements\n",
         msg->user, device->name, msg->dlen, msg->nelem);
     epicsMutexLock(device->lock);
     if (device->connected == 0)
@@ -228,13 +228,16 @@ int simRegDevRead(
         return S_dev_noDevice;
     }
     if (simRegDevDebug & DBG_IN)
-        printf ("simRegDevRead %s %s:%"Z"u: %u bytes * %"Z"u elements, prio=%d\n",
+        printf ("simRegDevRead %s %s:0x%"Z"x: %u bytes * 0x%"Z"x elements, prio=%d\n",
         user, device->name, offset, dlen, nelem, prio);
 
-    if (nelem > 1 && device->lock)
+    if (callback && nelem > 1 && device->lock)
         return simRegDevAsynTransfer(device, dlen, nelem,
             device->buffer+offset, pdata, NULL, prio, callback, user, FALSE);
 
+    if (simRegDevDebug & DBG_IN)
+        printf ("simRegDevRead %s %s:0x%"Z"x: copy values\n",
+        user, device->name, offset);
     regDevCopy(dlen, nelem, device->buffer+offset, pdata, NULL, device->swap);
     return S_dev_success;
 }
@@ -263,7 +266,7 @@ int simRegDevWrite(
     if (simRegDevDebug & DBG_OUT)
     {
         size_t n;
-        printf ("simRegDevWrite %s %s:%"Z"u: %u bytes * %"Z"u elements, prio=%d\n",
+        printf ("simRegDevWrite %s %s:0x%"Z"x: %u bytes * 0x%"Z"x elements, prio=%d\n",
         user, device->name, offset, dlen, nelem, prio);
         for (n=0; n<nelem && n<10; n++)
         {
@@ -286,10 +289,13 @@ int simRegDevWrite(
         printf ("\n");
     }
 
-    if (nelem > 1 && device->lock)
+    if (callback && nelem > 1 && device->lock)
         return simRegDevAsynTransfer(device, dlen, nelem, pdata,
             device->buffer+offset, pmask, prio, callback, user, TRUE);
 
+    if (simRegDevDebug & DBG_OUT)
+        printf ("simRegDevWrite %s %s:0x%"Z"x: copy values\n",
+        user, device->name, offset);
     regDevCopy(dlen, nelem, pdata, device->buffer+offset, pmask, device->swap);
     /* We got new data: trigger all interested input records */
     if (simRegDevDebug & DBG_OUT)
