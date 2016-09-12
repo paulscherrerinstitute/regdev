@@ -91,12 +91,14 @@ typedef struct regDevSupport {
     IOSCANPVT (*getInScanPvt)(
         regDevice *device,
         size_t offset,
+        size_t size,
         int intvec,
         const char* user);
 
     IOSCANPVT (*getOutScanPvt)(
         regDevice *device,
         size_t offset,
+        size_t size,
         int intvec,
         const char* user);
 

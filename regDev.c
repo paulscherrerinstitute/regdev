@@ -668,7 +668,7 @@ long regDevGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     {
         epicsMutexLock(device->accesslock);
         *ppvt = device->support->getInScanPvt(
-            device->driver, priv->offset, priv->irqvec, record->name);
+            device->driver, priv->offset, priv->dlen*priv->nelm, priv->irqvec, record->name);
         epicsMutexUnlock(device->accesslock);
     }
     else
@@ -706,7 +706,7 @@ long regDevGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     {
         epicsMutexLock(device->accesslock);
         *ppvt = device->support->getOutScanPvt(
-            device->driver, priv->offset, priv->irqvec, record->name);
+            device->driver, priv->offset, priv->dlen*priv->nelm, priv->irqvec, record->name);
         epicsMutexUnlock(device->accesslock);
     }
     else
@@ -826,6 +826,7 @@ regDevPrivate* regDevAllocPriv(dbCommon *record)
     priv->arraypacking = 1;
     priv->irqvec=-1;
     priv->state = init;
+    priv->nelm = 1;
     record->dpvt = priv;
     return priv;
 }
@@ -934,6 +935,7 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
     assert(priv != NULL);
     device = priv->device;
     assert(device != NULL);
+    priv->nelm = nelm;
 
     switch (priv->dtype)
     {

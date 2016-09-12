@@ -195,6 +195,7 @@ void simRegDevReport(
 IOSCANPVT simRegDevGetInScanPvt(
     regDevice *device,
     size_t offset,
+    size_t size,
     int ivec,
     const char* name)
 {
