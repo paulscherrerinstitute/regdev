@@ -1082,8 +1082,8 @@ void regDevWorkThread(regDeviceNode* device)
         switch (msg.cmd)
         {
             case CMD_WRITE:
-                regDevDebugLog(DBG_OUT, "%s %s: doing dispatched write\n",
-                    epicsThreadGetNameSelf(), msg.record->name);
+                regDevDebugLog(DBG_OUT, "%s %s: doing dispatched %swrite\n",
+                    epicsThreadGetNameSelf(), msg.record->name, device->blockBuffer ? "block " : "");
                 epicsMutexLock(device->accesslock);
                 if (device->blockBuffer)
                     status = support->write(driver, 0, 1, device->size,
@@ -1094,8 +1094,8 @@ void regDevWorkThread(regDeviceNode* device)
                 epicsMutexUnlock(device->accesslock);
                 break;
             case CMD_READ:
-                regDevDebugLog(DBG_IN, "%s %s: doing dispatched read\n",
-                    epicsThreadGetNameSelf(), msg.record->name);
+                regDevDebugLog(DBG_IN, "%s %s: doing dispatched %sread\n",
+                    epicsThreadGetNameSelf(), msg.record->name, device->blockBuffer ? "block " : "");
                 epicsMutexLock(device->accesslock);
                 if (device->blockBuffer)
                     status = support->read(driver, 0, 1, device->size,
@@ -1365,6 +1365,9 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
     assert(device != NULL);
     assert(buffer != NULL || nelem == 0 || dlen == 0);
 
+    regDevDebugLog(DBG_IN, "%s: dlen=%u, nelm=%"Z"u, buffer=%p\n",
+        record->name, dlen, nelem, buffer);
+
     if (!device->support->read)
     {
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
@@ -1384,6 +1387,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
             recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
             return priv->status;
         }
+        offset = priv->asyncOffset;
     }
     else
     {
@@ -1410,13 +1414,16 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
                 msg.record = record;
                 if (!device->dispatcher->qid[record->prio])
                 {
+                    regDevDebugLog(DBG_IN, "%s: starting %s prio %d dispatcher\n",
+                        record->name, device->name, record->prio);
                     if (regDevStartWorkQueue(device, record->prio) != S_dev_success)
                     {
                         record->pact = 0;
                         return S_dev_badRequest;
                     }
                 }
-                regDevDebugLog(DBG_IN, "%s: sending read to dispatcher\n", record->name);
+                regDevDebugLog(DBG_IN, "%s: sending read to %s prio %d dispatcher\n",
+                    record->name, device->name, record->prio);
                 if (epicsMessageQueueTrySend(device->dispatcher->qid[record->prio], (char*)&msg, sizeof(msg)) != 0)
                 {
                     recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
@@ -1428,7 +1435,8 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
             }
             else
             {
-                regDevDebugLog(DBG_IN, "%s: reading from %s\n", record->name, device->name);
+                regDevDebugLog(DBG_IN, "%s: reading %sfrom %s\n",
+                    record->name, device->blockBuffer ? "block " : "", device->name);
                 epicsMutexLock(device->accesslock);
                 if (device->blockBuffer)
                     status = device->support->read(device->driver,
@@ -1444,6 +1452,34 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         }
     }
 
+    if (status == S_dev_success)
+    {
+        record->udf = FALSE;
+        if (device->blockBuffer)
+        {
+            if (buffer)
+            {
+                if (buffer < device->blockBuffer || buffer >= device->blockBuffer+device->size)
+                {
+                    /* copy block buffer to record (if not mapped) */
+                    regDevDebugLog(DBG_IN, "%s: copy %"Z"u * %u bytes from %s block buffer %p+0x%"Z"x to record buffer %p\n",
+                        record->name, nelem, dlen, device->name, device->blockBuffer, offset, buffer);
+                    regDevCopy(dlen, nelem, device->blockBuffer+offset, buffer, NULL, device->blockSwap);
+                }
+                else
+                {
+                    regDevDebugLog(DBG_IN, "%s: %"Z"u * %u bytes mapped in %s block buffer %p+0x%"Z"x\n",
+                        record->name, nelem, dlen, device->name, device->blockBuffer, offset);
+                }
+            }
+            if (record->prio == 2 && !priv->state == init)
+            {
+                /* inform other records of new block input */
+                scanIoRequest(device->blockReceived);
+            }
+        }
+    }
+    
     /* Some debug output */
     if (regDevDebug & DBG_IN)
     {
@@ -1456,29 +1492,34 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         else if (buffer) switch (dlen)
         {
             case 1:
-                printf("%s %s: read %"Z"u * 8 bit 0x%02x from %s:%"Z"u (status=%x)\n",
-                    _CURRENT_FUNCTION_, record->name, nelem, *(epicsUInt8*)buffer,
-                    device->name, priv->asyncOffset, status);
+                regDevDebugLog(DBG_IN,
+                    "%s: read %"Z"u * 8 bit 0x%02x from %s:%"Z"u (status=%x)\n",
+                    record->name, nelem, *(epicsUInt8*)buffer,
+                    device->name, offset, status);
                 break;
             case 2:
-                printf("%s %s: read %"Z"u * 16 bit 0x%04x from %s:%"Z"u (status=%x)\n",
-                    _CURRENT_FUNCTION_, record->name, nelem, *(epicsUInt16*)buffer,
-                    device->name, priv->asyncOffset, status);
+                regDevDebugLog(DBG_IN,
+                    "%s: read %"Z"u * 16 bit 0x%04x from %s:%"Z"u (status=%x)\n",
+                    record->name, nelem, *(epicsUInt16*)buffer,
+                    device->name, offset, status);
                 break;
             case 4:
-                printf("%s %s: read %"Z"u * 32 bit 0x%08x from %s:%"Z"u (status=%x)\n",
-                    _CURRENT_FUNCTION_, record->name, nelem, *(epicsUInt32*)buffer,
-                    device->name, priv->asyncOffset, status);
+                regDevDebugLog(DBG_IN,
+                    "%s: read %"Z"u * 32 bit 0x%08x from %s:%"Z"u (status=%x)\n",
+                    record->name, nelem, *(epicsUInt32*)buffer,
+                    device->name, offset, status);
                 break;
             case 8:
-                printf("%s %s: read %"Z"u * 64 bit 0x%016llx from %s:%"Z"u (status=%x)\n",
-                    _CURRENT_FUNCTION_, record->name, nelem, (unsigned long long)*(epicsUInt64*)buffer,
-                    device->name, priv->asyncOffset, status);
+                regDevDebugLog(DBG_IN,
+                    "%s: read %"Z"u * 64 bit 0x%016llx from %s:%"Z"u (status=%x)\n",
+                    record->name, nelem, (unsigned long long)*(epicsUInt64*)buffer,
+                    device->name, offset, status);
                 break;
             default:
-                printf("%s %s: read %"Z"u * %d bit from %s:%"Z"u (status=%x)\n",
-                    _CURRENT_FUNCTION_, record->name, nelem, dlen*8,
-                    device->name, priv->asyncOffset, status);
+                regDevDebugLog(DBG_IN,
+                    "%s: read %"Z"u * %d bit from %s:%"Z"u (status=%x)\n",
+                    record->name, nelem, dlen*8,
+                    device->name, offset, status);
         }
     }
 
@@ -1490,25 +1531,6 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
     }
 
     record->pact = 0;
-    if (status == S_dev_success)
-    {
-        record->udf = FALSE;
-        if (device->blockBuffer)
-        {
-            if (buffer && (buffer < device->blockBuffer || buffer >= device->blockBuffer+device->size))
-            {
-                /* copy block buffer to record (if not mapped) */
-                regDevDebugLog(DBG_IN, "%s: copy from %s block buffer\n", record->name, device->name);
-                regDevCopy(dlen, nelem, device->blockBuffer+offset, buffer, NULL, device->blockSwap);
-            }
-            if (record->prio == 2 && !priv->state == init)
-            {
-                /* inform other records of new block input */
-                scanIoRequest(device->blockReceived);
-            }
-        }
-    }
-    
     if (status != S_dev_success && nelem != 0) /* nelem == 0 => only status readout */
     {
         recGblSetSevr(record, READ_ALARM, INVALID_ALARM);
@@ -1529,6 +1551,9 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
     device = priv->device;
     assert(device != NULL);
     assert(buffer != NULL || nelem == 0 || dlen == 0);
+
+    regDevDebugLog(DBG_OUT, "%s: dlen=%u, nelm=%"Z"u, buffer=%p mask=%p\n",
+        record->name, dlen, nelem, buffer, mask);
 
     if (!device->support->write)
     {
@@ -1616,11 +1641,20 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
     
     if (device->blockBuffer)
     {
-        if (buffer && (buffer < device->blockBuffer || buffer >= device->blockBuffer+device->size))
+        if (buffer)
         {
-            /* copy record to block buffer (if not mapped) */
-            regDevDebugLog(DBG_OUT, "%s: copy to %s block buffer\n", record->name, device->name);
-            regDevCopy(dlen, nelem, buffer, device->blockBuffer+offset, mask, device->blockSwap);
+            if (buffer < device->blockBuffer || buffer >= device->blockBuffer+device->size)
+            {
+                /* copy record to block buffer (if not mapped) */
+                regDevDebugLog(DBG_OUT, "%s: copy %"Z"u * %u bytes from record buffer %p to %s block buffer %p+0x%"Z"x\n",
+                    record->name, nelem, dlen, buffer, device->name, device->blockBuffer, offset);
+                regDevCopy(dlen, nelem, buffer, device->blockBuffer+offset, mask, device->blockSwap);
+            }
+            else
+            {
+                regDevDebugLog(DBG_OUT, "%s: %"Z"u * %u bytes mapped in %s block buffer %p+0x%"Z"x\n",
+                    record->name, nelem, dlen, device->name, device->blockBuffer, offset);
+            }
         }
         if (record->prio != 2)
             return S_dev_success;
@@ -1643,12 +1677,16 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
         msg.record = record;
         if (!device->dispatcher->qid[record->prio])
         {
+            regDevDebugLog(DBG_OUT, "%s: starting %s prio %d dispatcher\n",
+                record->name, device->name, record->prio);
             if (regDevStartWorkQueue(device, record->prio) != S_dev_success)
             {
                 record->pact = 0;
                 return S_dev_badRequest;
             }
         }
+        regDevDebugLog(DBG_OUT, "%s: sending write to %s prio %d dispatcher\n",
+            record->name, device->name, record->prio);
         if (epicsMessageQueueTrySend(device->dispatcher->qid[record->prio], (char*)&msg, sizeof(msg)) != 0)
         {
             recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
@@ -1660,11 +1698,12 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
     }
     else
     {
-        regDevDebugLog(DBG_OUT, "%s: writing to %s\n", record->name, device->name);
+        regDevDebugLog(DBG_OUT, "%s: writing %sto %s\n",
+            record->name, device->blockBuffer ? "block " : "", device->name);
         epicsMutexLock(device->accesslock);
         if (device->blockBuffer)
             status = device->support->write(device->driver,
-                0, 1, device->size, buffer, NULL,
+                0, 1, device->size, device->blockBuffer, NULL,
                 2, regDevCallback, record->name);
         else
             status = device->support->write(device->driver,
