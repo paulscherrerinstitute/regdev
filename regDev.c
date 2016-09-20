@@ -1316,13 +1316,13 @@ int regDevGetOffset(dbCommon* record, int read, epicsUInt8 dlen, size_t nelem, s
         if (offset > device->size)
         {
             errlogPrintf("%s %s: offset %"Z"u out of range of device %s (0-%"Z"u)\n",
-                record->name, read ? "read" : "write", offset, device->name, device->size-1);
+                record->name, read ? priv->state == init ? "init read" : "read" : "write", offset, device->name, device->size-1);
             return S_dev_badSignalNumber;
         }
         if (offset + dlen * nelem > device->size)
         {
             errlogPrintf("%s %s: offset %"Z"u + %"Z"u bytes length exceeds device %s size %"Z"u by %"Z"u bytes\n",
-                record->name, read ? "read" : "write", offset, nelem*dlen, device->name, device->size,
+                record->name, read ? priv->state == init ? "init read" : "read" : "write", offset, nelem*dlen, device->name, device->size,
                 offset + dlen * nelem - device->size);
             return S_dev_badSignalCount;
         }
