@@ -35,13 +35,11 @@ long regDevInitRecordAai(aaiRecord* record)
     if (status) return status;
     record->nord = record->nelm;
     /* aai record does not allocate bptr. */
-    if (priv->device->blockBuffer && !priv->offsetRecord && !priv->device->blockSwap)
+    if (priv->device->blockBuffer && !priv->offsetRecord && !priv->device->blockSwap
+        && priv->offset + record->nelm * priv->dlen <= priv->device->size)
     {
-        /* map record with static offset memory directly in block buffer */
-        size_t offs;
-        status = regDevGetOffset((dbCommon*)record, 1, priv->dlen, record->nelm, &offs);
-        if (status) return status;
-        record->bptr = priv->device->blockBuffer + offs;
+        /* map record with static offset directly in block buffer */
+        record->bptr = priv->device->blockBuffer + priv->offset;
     }
     else
     {
@@ -104,6 +102,7 @@ long regDevInitRecordAao(aaoRecord* record)
     regDevPrivate* priv;
     int status;
     
+    regDevDebugLog(DBG_INIT, "%s:\n", record->name);
     priv = regDevAllocPriv((dbCommon*)record);
     if (!priv) return S_dev_noMemory;
     status = regDevCheckFTVL((dbCommon*)record, record->ftvl);
@@ -112,13 +111,11 @@ long regDevInitRecordAao(aaoRecord* record)
     if (status) return status;
     record->nord = record->nelm;
     /* aao record does not allocate bptr. */
-    if (priv->device->blockBuffer && !priv->offsetRecord && !priv->device->blockSwap)
+    if (priv->device->blockBuffer && !priv->offsetRecord && !priv->device->blockSwap
+        && priv->offset + record->nelm * priv->dlen <= priv->device->size)
     {
-        /* map record with static offset memory directly in block buffer */
-        size_t offs;
-        status = regDevGetOffset((dbCommon*)record, 1, priv->dlen, record->nelm, &offs);
-        if (status) return status;
-        record->bptr = priv->device->blockBuffer + offs;
+        /* map record with static offset directly in block buffer */
+        record->bptr = priv->device->blockBuffer + priv->offset;
     }
     else
     {
