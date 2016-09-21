@@ -133,7 +133,7 @@ long regDevInitRecordAao(aaoRecord* record)
     else if (status) return status;
     status = regDevInstallUpdateFunction((dbCommon*)record, regDevUpdateAao);
     if (status) return status;
-    if (priv->initoffset == DONT_INIT) return S_dev_success;
+    if (priv->rboffset == DONT_INIT) return S_dev_success;
     status = regDevReadArray((dbCommon*)record, record->nelm);
     if (status) return status;
     if (priv->data.buffer == record->bptr) return S_dev_success;

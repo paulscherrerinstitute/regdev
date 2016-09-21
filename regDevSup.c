@@ -16,7 +16,7 @@ struct devsup regDevStat =
 {
     5,
     NULL,
-    NULL,
+    regDevInit,
     regDevInitRecordStat,
     regDevGetInIntInfo,
     regDevReadStat
@@ -108,7 +108,7 @@ long regDevInitRecordBo(boRecord* record)
     if (priv->invert) priv->invert = record->mask;
     status = regDevInstallUpdateFunction((dbCommon*)record, regDevUpdateBo);
     if (status) return status;
-    if (priv->initoffset == DONT_INIT) return DONT_CONVERT;
+    if (priv->rboffset == DONT_INIT) return DONT_CONVERT;
     status = regDevReadBits((dbCommon*)record, &rval);
     if (status) return status;
     if (record->mask) rval &= record->mask;
@@ -221,7 +221,7 @@ long regDevInitRecordMbbo(mbboRecord* record)
     priv->invert <<= record->shft;
     status = regDevInstallUpdateFunction((dbCommon*)record, regDevUpdateMbbo);
     if (status) return status;
-    if (priv->initoffset == DONT_INIT) return DONT_CONVERT;
+    if (priv->rboffset == DONT_INIT) return DONT_CONVERT;
     status = regDevReadBits((dbCommon*)record, &rval);
     if (status) return status;
     if (record->mask) rval &= record->mask;
@@ -366,7 +366,7 @@ long regDevInitRecordMbboDirect(mbboDirectRecord* record)
     priv->invert <<= record->shft;
     regDevInstallUpdateFunction((dbCommon*)record, regDevUpdateMbboDirect);
     if (status) return status;
-    if (priv->initoffset == DONT_INIT) return DONT_CONVERT;
+    if (priv->rboffset == DONT_INIT) return DONT_CONVERT;
     status = regDevReadBits((dbCommon*)record, &rval);
     if (status) return status;
     if (record->mask) rval &= record->mask;
@@ -475,7 +475,7 @@ long regDevInitRecordLongout(longoutRecord* record)
     regDevCommonInit(record, out, TYPE_INT|TYPE_BCD);
     status = regDevInstallUpdateFunction((dbCommon*)record, regDevUpdateLongout);
     if (status) return status;
-    if (priv->initoffset == DONT_INIT) return S_dev_success;
+    if (priv->rboffset == DONT_INIT) return S_dev_success;
     status = regDevReadBits((dbCommon*)record, &val);
     if (status) return status;
     record->val = val;
@@ -642,7 +642,7 @@ long regDevInitRecordAo(aoRecord* record)
     regDevSpecialLinconvAo(record, TRUE);
     status = regDevInstallUpdateFunction((dbCommon*)record, regDevUpdateAo);
     if (status) return status;
-    if (priv->initoffset == DONT_INIT) return DONT_CONVERT;
+    if (priv->rboffset == DONT_INIT) return DONT_CONVERT;
     status = regDevReadNumber((dbCommon*)record, &rval, &val);
     if (status == S_dev_success)
     {
@@ -842,7 +842,7 @@ long regDevInitRecordStringout(stringoutRecord* record)
     priv->data.buffer = record->val;
     status = regDevInstallUpdateFunction((dbCommon*)record, regDevUpdateStringout);
     if (status) return status;
-    if (priv->initoffset == DONT_INIT) return S_dev_success;
+    if (priv->rboffset == DONT_INIT) return S_dev_success;
     status =  regDevReadArray((dbCommon*) record, sizeof(record->val));
     if (status) return status;
     record->val[sizeof(record->val)-1] = 0;

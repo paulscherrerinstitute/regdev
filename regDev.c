@@ -316,45 +316,51 @@ int regDevIoParse2(
         priv->offset = 0;
     }
 
-    /* Check init offset (for backward compatibility allow '!' and '/') */
+    /* Check readback offset (for backward compatibility allow '!' and '/') */
     if (separator == ':' || separator == '/' || separator == '!')
     {
         char* p1;
-        regDevSignedOffset_t initoffset;
-
-        while (isspace((unsigned char)*p)) p++;
-        p1 = p;
-        initoffset = regDevParseExpr(&p);
-        if (p1 == p)
-        {
-            priv->initoffset = priv->offset;
-        }
-        else
-        {
-            if (initoffset < 0)
-            {
-                errlogPrintf("regDevIoParse %s: init offset %"Z"d < 0\n",
-                    recordName, initoffset);
-                return S_dev_badArgument;
-            }
-            priv->initoffset = initoffset;
-        }
-        regDevDebugLog(DBG_INIT,
-            "%s: init offset=0x%"Z"x\n", recordName, priv->initoffset);
-        separator = *p++;
+        regDevSignedOffset_t rboffset;
 
         if (!device->support->read)
         {
-            errlogPrintf("regDevIoParse %s: can't init from device without read function\n",
+            errlogPrintf("regDevIoParse %s: can't read back from device without read function\n",
                 recordName);
-            priv->initoffset = DONT_INIT;
+            return S_dev_badArgument;
         }
+
+        while (isspace((unsigned char)*p)) p++;
+        p1 = p;
+        rboffset = regDevParseExpr(&p);
+        if (p1 == p)
+        {
+            if (priv->offsetRecord)
+            {
+                errlogPrintf("regDevIoParse %s: cannot read back from variable offset\n",
+                    recordName);
+                return S_dev_badArgument;
+            }
+            priv->rboffset = priv->offset;
+        }
+        else
+        {
+            if (rboffset < 0)
+            {
+                errlogPrintf("regDevIoParse %s: readback offset %"Z"d < 0\n",
+                    recordName, rboffset);
+                return S_dev_badArgument;
+            }
+            priv->rboffset = rboffset;
+        }
+        regDevDebugLog(DBG_INIT,
+            "%s: readback offset=0x%"Z"x\n", recordName, priv->rboffset);
+        separator = *p++;
     }
     else
     {
         regDevDebugLog(DBG_INIT,
-            "%s: no initoffset\n", recordName);
-        priv->initoffset = DONT_INIT;
+            "%s: no readback offset\n", recordName);
+        priv->rboffset = DONT_INIT;
     }
 
     /* set default values for parameters */
@@ -827,7 +833,7 @@ regDevPrivate* regDevAllocPriv(dbCommon *record)
     priv->dtype = epicsInt16T;
     priv->arraypacking = 1;
     priv->irqvec=-1;
-    priv->state = init;
+    priv->updating = 0;
     priv->nelm = 1;
     record->dpvt = priv;
     return priv;
@@ -1269,19 +1275,27 @@ int regDevMakeBlockdevice(regDevice* driver, unsigned int modes, int swap, void*
     return 0;
 }
 
-int regDevGetOffset(dbCommon* record, int read, epicsUInt8 dlen, size_t nelem, size_t *poffset)
+static int atInit = 1;
+long regDevInit(int finished)
+{
+    if (!finished || !atInit) return 0;
+    atInit = 0;
+    regDevDebugLog(DBG_INIT, "init finished\n");
+    return 0;
+}
+
+int regDevGetOffset(dbCommon* record, epicsUInt8 dlen, size_t nelem, size_t *poffset)
 {
     int status;
     size_t offset;
     regDevPrivate* priv = record->dpvt;
     regDeviceNode* device = priv->device;
 
-    /* At init read we may use a different offset */
-    if (priv->state == init && interruptAccept) priv->state = normal; /* we are already after iocInit */
-    if (priv->state == init) regDevDebugLog(DBG_INIT, "%s: init read from 0x%"Z"x interruptAccept = %d\n",
-        record->name, priv->initoffset, interruptAccept);
-    if (read && priv->state == init)
-        offset = priv->initoffset;
+    /* For readback we may use a different offset */
+    if ((atInit || priv->updating) && priv->rboffset != DONT_INIT)
+    {
+        offset = priv->rboffset;
+    }
     else
     {
         offset = priv->offset;
@@ -1299,14 +1313,14 @@ int regDevGetOffset(dbCommon* record, int read, epicsUInt8 dlen, size_t nelem, s
             if (status != S_dev_success)
             {
                 recGblSetSevr(record, LINK_ALARM, INVALID_ALARM);
-                regDevDebugLog(DBG_OUT, "%s: cannot read offset from '%s'\n",
+                errlogPrintf("%s: cannot read offset from '%s'\n",
                     record->name, priv->offsetRecord->precord->name);
                 return status;
             }
             off += buffer.i * priv->offsetScale;
             if (off < 0)
             {
-                regDevDebugLog(DBG_OUT, "%s: effective offset '%s'=%d * %"Z"d + %"Z"u = %"Z"d < 0\n",
+                errlogPrintf("%s: effective offset '%s'=%d * %"Z"d + %"Z"u = %"Z"d < 0\n",
                     record->name, priv->offsetRecord->precord->name,
                     buffer.i, priv->offsetScale, offset, off);
                 return S_dev_badSignalNumber;
@@ -1314,19 +1328,23 @@ int regDevGetOffset(dbCommon* record, int read, epicsUInt8 dlen, size_t nelem, s
             offset = off;
         }
     }
+    if (atInit) regDevDebugLog(DBG_INIT, "%s: init from offset 0x%"Z"x\n",
+        record->name, offset);
+    if (priv->updating) regDevDebugLog(DBG_IN, "%s: update from offset 0x%"Z"x\n",
+        record->name, offset);
 
     if (device->size) /* check offset range if size is proviced */
     {
         if (offset > device->size)
         {
-            errlogPrintf("%s %s: offset 0x%"Z"x out of range of device %s (0-0x%"Z"x)\n",
-                record->name, read ? priv->state == init ? "init read" : "read" : "write", offset, device->name, device->size-1);
+            errlogPrintf("%s: offset 0x%"Z"x out of range of device %s (0-0x%"Z"x)\n",
+                record->name, offset, device->name, device->size-1);
             return S_dev_badSignalNumber;
         }
         if (offset + dlen * nelem > device->size)
         {
-            errlogPrintf("%s %s: offset 0x%"Z"x + 0x%"Z"x bytes length exceeds device %s size 0x%"Z"x by 0x%"Z"x bytes\n",
-                record->name, read ? priv->state == init ? "init read" : "read" : "write", offset, nelem*dlen, device->name, device->size,
+            errlogPrintf("%s: offset 0x%"Z"x + 0x%"Z"x bytes length exceeds device %s size 0x%"Z"x by 0x%"Z"x bytes\n",
+                record->name, offset, nelem*dlen, device->name, device->size,
                 offset + dlen * nelem - device->size);
             return S_dev_badSignalCount;
         }
@@ -1353,7 +1371,7 @@ void regDevCallback(const char* user, int status)
     if (!record->pact) regDevPrintErr("callback for non-active record!");
     (*record->rset->process)(record);
     dbScanUnlock(record);
-    priv->state = normal;
+    priv->updating = 0;
 }
 
 int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
@@ -1396,7 +1414,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
     else
     {
         /* First call of (possibly asynchronous) device */
-        status = regDevGetOffset(record, TRUE, dlen, nelem, &offset);
+        status = regDevGetOffset(record, dlen, nelem, &offset);
         if (status != S_dev_success)
             return status;
             
@@ -1405,7 +1423,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
             record->pact = 1;
             priv->asyncOffset = offset;
             priv->status = S_dev_success;
-            if (device->dispatcher && !priv->state == init)
+            if (device->dispatcher && !atInit)
             {
                 struct regDevWorkMsg msg;
 
@@ -1445,11 +1463,11 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
                 if (device->blockBuffer)
                     status = device->support->read(device->driver,
                         0, 1, device->size, device->blockBuffer,
-                        2, priv->state == init ? NULL : regDevCallback, record->name);
+                        2, atInit ? NULL : regDevCallback, record->name);
                 else
                     status = device->support->read(device->driver,
                         offset, dlen, nelem, buffer,
-                        record->prio, priv->state == init ? NULL : regDevCallback, record->name);
+                        record->prio, atInit ? NULL : regDevCallback, record->name);
                 epicsMutexUnlock(device->accesslock);
                 regDevDebugLog(DBG_IN, "%s: read returned status 0x%0x\n", record->name, status);
             }
@@ -1476,7 +1494,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
                         record->name, nelem, dlen, device->name, device->blockBuffer, offset);
                 }
             }
-            if (record->prio == 2 && !priv->state == init)
+            if (record->prio == 2 && !atInit)
             {
                 /* inform other records of new block input */
                 scanIoRequest(device->blockReceived);
@@ -1580,7 +1598,7 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
     }
 
     /* First call of (possibly asynchronous) device */
-    status = regDevGetOffset(record, FALSE, dlen, nelem, &offset);
+    status = regDevGetOffset(record, dlen, nelem, &offset);
     if (status != S_dev_success) return status;
 
     /* Some debug output */
@@ -1783,7 +1801,7 @@ int regDevReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
             return S_dev_badArgument;
     }
 
-    if (priv->state == init)
+    if (atInit)
     {
         /* initialize output record to valid state */
         record->sevr = NO_ALARM;
@@ -1929,7 +1947,7 @@ int regDevReadBits(dbCommon* record, epicsUInt32* rval)
             return S_dev_badArgument;
     }
 
-    if (priv->state == init)
+    if (atInit)
     {
         /* initialize output record to valid state */
         record->sevr = NO_ALARM;
@@ -2436,11 +2454,11 @@ void regDevUpdateCallback(dbCommon* record)
         {
             regDevDebugLog(DBG_IN, "%s: updating record\n",
                 record->name);
-            priv->state = update;
+            priv->updating = 1;
             status = (*record->rset->process)(record);
             if (!record->pact)
             {
-                priv->state = normal;
+                priv->updating = 0;
                 if (status != S_dev_success)
                 {
                     regDevPrintErr("record update failed. status = 0x%x",
