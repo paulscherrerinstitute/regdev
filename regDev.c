@@ -304,11 +304,11 @@ int regDevIoParse2(
         priv->offset = offset;
         if (priv->offsetRecord)
             regDevDebugLog(DBG_INIT,
-                "%s: offset='%s'*%"Z"u+%"Z"u\n",
+                "%s: offset='%s'*0x%"Z"x+0x%"Z"x\n",
                 recordName, priv->offsetRecord->precord->name, priv->offsetScale, priv->offset);
         else
             regDevDebugLog(DBG_INIT,
-                "%s: offset=%"Z"u\n", recordName, priv->offset);
+                "%s: offset=0x%"Z"x\n", recordName, priv->offset);
         separator = *p++;
     }
     else
@@ -340,7 +340,7 @@ int regDevIoParse2(
             priv->initoffset = initoffset;
         }
         regDevDebugLog(DBG_INIT,
-            "%s: init offset=%"Z"u\n", recordName, priv->initoffset);
+            "%s: init offset=0x%"Z"x\n", recordName, priv->initoffset);
         separator = *p++;
 
         if (!device->support->read)
@@ -352,6 +352,8 @@ int regDevIoParse2(
     }
     else
     {
+        regDevDebugLog(DBG_INIT,
+            "%s: no initoffset\n", recordName);
         priv->initoffset = DONT_INIT;
     }
 
@@ -668,7 +670,7 @@ long regDevGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     {
         epicsMutexLock(device->accesslock);
         *ppvt = device->support->getInScanPvt(
-            device->driver, priv->offset, priv->dlen*priv->nelm, priv->irqvec, record->name);
+            device->driver, priv->offset, priv->dlen, priv->nelm, priv->irqvec, record->name);
         epicsMutexUnlock(device->accesslock);
     }
     else
@@ -706,7 +708,7 @@ long regDevGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     {
         epicsMutexLock(device->accesslock);
         *ppvt = device->support->getOutScanPvt(
-            device->driver, priv->offset, priv->dlen*priv->nelm, priv->irqvec, record->name);
+            device->driver, priv->offset, priv->dlen, priv->nelm, priv->irqvec, record->name);
         epicsMutexUnlock(device->accesslock);
     }
     else
@@ -1276,7 +1278,9 @@ int regDevGetOffset(dbCommon* record, int read, epicsUInt8 dlen, size_t nelem, s
 
     /* At init read we may use a different offset */
     if (priv->state == init && interruptAccept) priv->state = normal; /* we are already after iocInit */
-    if (read && priv->state == init && priv->initoffset != DONT_INIT)
+    if (priv->state == init) regDevDebugLog(DBG_INIT, "%s: init read from 0x%"Z"x interruptAccept = %d\n",
+        record->name, priv->initoffset, interruptAccept);
+    if (read && priv->state == init)
         offset = priv->initoffset;
     else
     {
@@ -1315,13 +1319,13 @@ int regDevGetOffset(dbCommon* record, int read, epicsUInt8 dlen, size_t nelem, s
     {
         if (offset > device->size)
         {
-            errlogPrintf("%s %s: offset %"Z"u out of range of device %s (0-%"Z"u)\n",
+            errlogPrintf("%s %s: offset 0x%"Z"x out of range of device %s (0-0x%"Z"x)\n",
                 record->name, read ? priv->state == init ? "init read" : "read" : "write", offset, device->name, device->size-1);
             return S_dev_badSignalNumber;
         }
         if (offset + dlen * nelem > device->size)
         {
-            errlogPrintf("%s %s: offset %"Z"u + %"Z"u bytes length exceeds device %s size %"Z"u by %"Z"u bytes\n",
+            errlogPrintf("%s %s: offset 0x%"Z"x + 0x%"Z"x bytes length exceeds device %s size 0x%"Z"x by 0x%"Z"x bytes\n",
                 record->name, read ? priv->state == init ? "init read" : "read" : "write", offset, nelem*dlen, device->name, device->size,
                 offset + dlen * nelem - device->size);
             return S_dev_badSignalCount;
@@ -1459,7 +1463,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         {
             if (buffer)
             {
-                if (buffer < device->blockBuffer || buffer >= device->blockBuffer+device->size)
+                if (buffer < device->blockBuffer || buffer >= device->blockBuffer+device->size || offset != priv->offset)
                 {
                     /* copy block buffer to record (if not mapped) */
                     regDevDebugLog(DBG_IN, "%s: copy %"Z"u * %u bytes from %s block buffer %p+0x%"Z"x to record buffer %p\n",
@@ -2458,9 +2462,9 @@ int regDevInstallUpdateFunction(dbCommon* record, DEVSUPFUN updater)
     device = priv->device;
     assert(device != NULL);
 
-    regDevDebugLog(DBG_INIT, "%s\n", record->name);
     if (priv->update && device->support->read)
     {
+        regDevDebugLog(DBG_INIT, "%s\n", record->name);
         if (!device->updateTimerQueue)
         {
             device->updateTimerQueue = epicsTimerQueueAllocate(0, epicsThreadPriorityLow);
