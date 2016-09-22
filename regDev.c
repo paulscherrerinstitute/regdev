@@ -1346,7 +1346,7 @@ int regDevGetOffset(dbCommon* record, epicsUInt8 dlen, size_t nelem, size_t *pof
     if (priv->updating) regDevDebugLog(DBG_IN, "%s: update from offset 0x%"Z"x\n",
         record->name, offset);
 
-    if (device->size) /* check offset range if size is proviced */
+    if (device->size) /* check offset range if size is provided */
     {
         if (offset > device->size)
         {
