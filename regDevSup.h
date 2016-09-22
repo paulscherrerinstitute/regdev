@@ -54,6 +54,7 @@ typedef struct regDeviceNode {                     /* per device data structure 
     regDevDispatcher* dispatcher;                  /* Serialize requests */
     epicsTimerQueueId updateTimerQueue;            /* For update timers */
     void* blockBuffer;                             /* For block mode */
+    int blockModes;
     int blockSwap;
     IOSCANPVT blockReceived;
 } regDeviceNode;

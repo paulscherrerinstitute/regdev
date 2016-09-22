@@ -17,6 +17,8 @@
 #include <epicsAssert.h>
 #include <epicsExit.h>
 
+#include <memDisplay.h>
+
 #include "regDevSup.h"
 
 #define MAGIC_PRIV 2181699655U /* crc("regDev") */
@@ -666,9 +668,10 @@ long regDevGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     device = priv->device;
     assert(device != NULL);
     
-    (void)cmd; /* unused */
+    regDevDebugLog(DBG_INIT, "%s %s prio=%d irqvec=%d block=%p blockmodes=%d cmd=%d\n",
+        device->name, record->name, record->prio, priv->irqvec, device->blockBuffer, device->blockModes, cmd);
 
-    if (device->blockBuffer && record->prio != 2)
+    if (priv->irqvec == -1 && (device->blockModes & REGDEV_BLOCK_READ) && record->prio != 2)
     {
         *ppvt = device->blockReceived;
     }
@@ -708,7 +711,8 @@ long regDevGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     device = priv->device;
     assert(device != NULL);
 
-    (void)cmd; /* unused */
+    regDevDebugLog(DBG_INIT, "%s %s prio=%d irqvec=%d cmd=%d\n",
+        device->name, record->name, record->prio, priv->irqvec, cmd);
 
     if (device->support->getOutScanPvt)
     {
@@ -752,20 +756,26 @@ long regDevReport(int level)
     {
         if (device->support)
         {
+            size_t size = device->size;
             printf(" \"%s\" size ", device->name);
-            if (device->size)
+            if (size)
             {
-                printf("0x%"Z"x = %"Z"d ", device->size, device->size);
-                if (device->size > 1024*1024)
-                    printf("= %"Z"dMiB ", device->size >> 20);
-                else if (device->size > 1024)
-                    printf("= %"Z"dKiB ", device->size >> 10);
+                printf("%"Z"d", size);
+                if (size > 9) printf("=0x%"Z"x", size);
+                if (size > 1024*1024)
+                    printf("=%"Z"dMiB", size >> 20);
+                else if (size > 1024)
+                    printf("=%"Z"dKiB", size >> 10);
             }
             else
-                printf("unknown ");
+                printf("unknown");
+                
+            if (device->blockBuffer)
+                printf(" block@%p", device->blockBuffer);
             
             if (device->support->report)
             {
+                printf(" ");
                 epicsMutexLock(device->accesslock);
                 device->support->report(device->driver, level);
                 epicsMutexUnlock(device->accesslock);
@@ -1091,9 +1101,9 @@ void regDevWorkThread(regDeviceNode* device)
         {
             case CMD_WRITE:
                 regDevDebugLog(DBG_OUT, "%s %s: doing dispatched %swrite\n",
-                    epicsThreadGetNameSelf(), msg.record->name, device->blockBuffer ? "block " : "");
+                    epicsThreadGetNameSelf(), msg.record->name, device->blockModes & REGDEV_BLOCK_WRITE ? "block " : "");
                 epicsMutexLock(device->accesslock);
-                if (device->blockBuffer)
+                if (device->blockModes & REGDEV_BLOCK_WRITE)
                     status = support->write(driver, 0, 1, device->size,
                         device->blockBuffer, NULL, prio, NULL, msg.record->name);
                 else
@@ -1103,9 +1113,9 @@ void regDevWorkThread(regDeviceNode* device)
                 break;
             case CMD_READ:
                 regDevDebugLog(DBG_IN, "%s %s: doing dispatched %sread\n",
-                    epicsThreadGetNameSelf(), msg.record->name, device->blockBuffer ? "block " : "");
+                    epicsThreadGetNameSelf(), msg.record->name, device->blockModes & REGDEV_BLOCK_READ ? "block " : "");
                 epicsMutexLock(device->accesslock);
-                if (device->blockBuffer)
+                if (device->blockModes & REGDEV_BLOCK_READ)
                     status = support->read(driver, 0, 1, device->size,
                         device->blockBuffer, prio, NULL, msg.record->name);
                 else
@@ -1217,7 +1227,7 @@ int regDevInstallWorkQueue(regDevice* driver, unsigned int maxEntries)
 
 /*********  DMA buffers ****************************/
 
-int regDevAlloc(regDeviceNode* device, const char* name, void** bptr, size_t size)
+int regDevAllocBuffer(regDeviceNode* device, const char* name, void** bptr, size_t size)
 {
     void* ptr = NULL;
     if (device->dmaAlloc)
@@ -1226,7 +1236,7 @@ int regDevAlloc(regDeviceNode* device, const char* name, void** bptr, size_t siz
         if (ptr == NULL)
         {
             fprintf(stderr,
-                "regDevMemAlloc %s: allocating device memory failed.\n",
+                "regDevAllocBuffer %s: allocating device memory failed.\n",
                 name);
             return S_dev_noMemory;
         }
@@ -1238,7 +1248,7 @@ int regDevAlloc(regDeviceNode* device, const char* name, void** bptr, size_t siz
     if (ptr == NULL)
     {
         fprintf(stderr,
-            "regDevMemAlloc %s: out of memory.\n",
+            "regDevAllocBuffer %s: out of memory.\n",
             name);
         return S_dev_noMemory;
     }
@@ -1253,35 +1263,38 @@ int regDevMemAlloc(dbCommon* record, void** bptr, size_t size)
     regDevGetPriv();
     device = priv->device;
     assert(device != NULL);
-    return regDevAlloc(device, record->name, bptr, size);
+    return regDevAllocBuffer(device, record->name, bptr, size);
 }
 
 int regDevMakeBlockdevice(regDevice* driver, unsigned int modes, int swap, void* buffer)
 {
     int status;
     regDeviceNode* device = regDevGetDeviceNode(driver);
-    if (modes & REGDEV_BLOCK_READ && !device->blockBuffer)
+    if (modes & (REGDEV_BLOCK_READ|REGDEV_BLOCK_WRITE))
     {
-        device->blockSwap = swap;
-        scanIoInit(&device->blockReceived);
         if (buffer)
             device->blockBuffer = buffer;
         else
         {
-            status = regDevAlloc(device, device->name, &device->blockBuffer, device->size);
-            if (!status) return status;
+            status = regDevAllocBuffer(device, device->name, &device->blockBuffer, device->size);
+            if (status != S_dev_success) return status;
         }
+        if (modes & REGDEV_BLOCK_READ) scanIoInit(&device->blockReceived);
     }
-    return 0;
+    device->blockSwap = swap;
+    device->blockModes = modes;
+    return S_dev_success;
 }
 
 static int atInit = 1;
 long regDevInit(int finished)
 {
-    if (!finished || !atInit) return 0;
-    atInit = 0;
-    regDevDebugLog(DBG_INIT, "init finished\n");
-    return 0;
+    if (atInit && finished)
+    {
+        atInit = 0;
+        regDevDebugLog(DBG_INIT, "init finished\n");
+    }
+    return S_dev_success;
 }
 
 int regDevGetOffset(dbCommon* record, epicsUInt8 dlen, size_t nelem, size_t *poffset)
@@ -1418,7 +1431,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         if (status != S_dev_success)
             return status;
             
-        if (!device->blockBuffer || record->prio == 2)
+        if (!(device->blockModes & REGDEV_BLOCK_READ) || record->prio == 2)
         {
             record->pact = 1;
             priv->asyncOffset = offset;
@@ -1458,9 +1471,9 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
             else
             {
                 regDevDebugLog(DBG_IN, "%s: reading %sfrom %s\n",
-                    record->name, device->blockBuffer ? "block " : "", device->name);
+                    record->name, device->blockModes & REGDEV_BLOCK_READ ? "block " : "", device->name);
                 epicsMutexLock(device->accesslock);
-                if (device->blockBuffer)
+                if (device->blockModes & REGDEV_BLOCK_READ)
                     status = device->support->read(device->driver,
                         0, 1, device->size, device->blockBuffer,
                         2, atInit ? NULL : regDevCallback, record->name);
@@ -1477,7 +1490,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
     if (status == S_dev_success)
     {
         record->udf = FALSE;
-        if (device->blockBuffer)
+        if (device->blockModes & REGDEV_BLOCK_READ)
         {
             if (buffer)
             {
@@ -1661,7 +1674,7 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
         }
     }
     
-    if (device->blockBuffer)
+    if (device->blockModes & REGDEV_BLOCK_WRITE)
     {
         if (buffer)
         {
@@ -1721,9 +1734,9 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
     else
     {
         regDevDebugLog(DBG_OUT, "%s: writing %sto %s\n",
-            record->name, device->blockBuffer ? "block " : "", device->name);
+            record->name, device->blockModes & REGDEV_BLOCK_WRITE ? "block " : "", device->name);
         epicsMutexLock(device->accesslock);
-        if (device->blockBuffer)
+        if (device->blockModes & REGDEV_BLOCK_WRITE)
             status = device->support->write(device->driver,
                 0, 1, device->size, device->blockBuffer, NULL,
                 2, regDevCallback, record->name);
@@ -2547,6 +2560,13 @@ int regDevDisplay(const char* devName, int start, unsigned int dlen, size_t byte
     }
     nelem = bytes/dlen;
 
+    if (device->blockBuffer)
+    {
+        printf("block buffer:\n");
+        memDisplay(offset, device->blockBuffer+offset, dlen, dlen * nelem);
+        offset += dlen * nelem;
+        return S_dev_success;
+    }
     if (bytes > bufferSize)
     {
         if (device->dmaAlloc)
@@ -2572,52 +2592,25 @@ int regDevDisplay(const char* devName, int start, unsigned int dlen, size_t byte
         bufferSize = bytes;
     }
 
-    if (device->support->read)
-    {
-        epicsMutexLock(device->accesslock);
-        status = device->support->read(device->driver,
-            offset, dlen, nelem, buffer, 2, NULL, "regDevDisplay");
-        epicsMutexUnlock(device->accesslock);
-    }
-    else
+    if (!device->support->read)
     {
         errlogPrintf("device has no read method\n");
-        status = S_dev_badRequest;
+        return S_dev_badRequest;
     }
-    if (status == S_dev_success)
+    
+    epicsMutexLock(device->accesslock);
+    status = device->support->read(device->driver,
+        offset, dlen, nelem, buffer, 2, NULL, "regDevDisplay");
+    epicsMutexUnlock(device->accesslock);
+    if (status != S_dev_success)
     {
-        unsigned int i, j, k;
-        unsigned int bytesPerLine = dlen <= 16 ? 16 / dlen * dlen : dlen;
-
-        for (i = 0; i < bytes; i += bytesPerLine)
-        {
-            printf("%08"Z"x: ", offset + i);
-            for (j = 0; j < bytesPerLine; j += dlen)
-            {
-                for (k = 0; k < dlen; k++)
-                {
-                    if (i + j < nelem * dlen)
-                        printf("%02x", buffer[i+j+k]);
-                    else
-                        printf("  ");
-                }
-                printf(" ");
-            }
-            for (j = 0; j < bytesPerLine; j += dlen)
-            {
-                for (k = 0; k < dlen; k++)
-                {
-                    if (i + j < nelem * dlen)
-                        printf("%c", isprint((unsigned char)buffer[i+j+k]) ? buffer[i+j+k] : '.');
-                    else
-                        printf(" ");
-                }
-            }
-            printf("\n");
-        }
+        printf("read error 0x%x\n", status);
+        return status;
     }
+
+    memDisplay(offset, buffer, dlen, dlen * nelem);
     offset += dlen * nelem;
-    return status;
+    return S_dev_success;
 }
 
 int regDevPut(const char* devName, int offset, unsigned int dlen, int value)
