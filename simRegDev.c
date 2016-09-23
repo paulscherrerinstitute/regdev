@@ -483,7 +483,7 @@ int simRegDevGetData(
 }
 
 
-#ifdef EPICS_3_14
+#ifndef EPICS_3_13
 
 static const iocshArg simRegDevConfigureArg0 = { "name", iocshArgString };
 static const iocshArg simRegDevConfigureArg1 = { "size", iocshArgInt };

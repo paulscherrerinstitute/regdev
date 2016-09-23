@@ -1,5 +1,12 @@
 #include <stdlib.h>
+#include <dbAccess.h>
+#include <dbEvent.h>
 #include "regDevSup.h"
+
+#if !defined(EPICS_3_13) && (EPICS_REVISION > 14 || EPICS_MODIFICATION >= 12)
+#include <epicsString.h>
+#define USE_HASH
+#endif
 
 /* aai **************************************************************/
 
@@ -146,6 +153,7 @@ long regDevUpdateAao(aaoRecord* record)
 {
     regDevPrivate* priv = (regDevPrivate*)record->dpvt;
     int status;
+    unsigned short monitor_mask;
     
     if (!record->bptr)
     {
@@ -154,11 +162,47 @@ long regDevUpdateAao(aaoRecord* record)
     }
     status = regDevReadArray((dbCommon*)record, record->nelm);
     if (status == ASYNC_COMPLETION) return S_dev_success;
-    if (status) return status;
-    if (priv->data.buffer == record->bptr) return S_dev_success;
-    /* convert to float/double */
-    return regDevScaleFromRaw((dbCommon*)record, record->ftvl,
-        record->bptr, record->nelm, record->lopr, record->hopr);
+    if (status == S_dev_success)
+    {
+        if (priv->data.buffer != record->bptr) /* convert to float/double */
+        {
+            status = regDevScaleFromRaw((dbCommon*)record, record->ftvl,
+                record->bptr, record->nelm, record->lopr, record->hopr);
+        }
+    }
+    monitor_mask = recGblResetAlarms(record);
+#ifndef USE_HASH
+    monitor_mask |= DBE_LOG|DBE_VALUE;
+#else
+    if (record->mpst == aaoPOST_Always)
+        monitor_mask |= DBE_VALUE;
+    if (record->apst == aaoPOST_Always)
+        monitor_mask |= DBE_LOG;
+    /* Calculate hash if we are interested in OnChange events. */
+    if ((record->mpst == aaoPOST_OnChange) ||
+        (record->apst == aaoPOST_OnChange))
+    {
+        unsigned int hash = epicsMemHash(record->bptr,
+            record->nord * dbValueSize(record->ftvl), 0);
+
+        /* Only post OnChange values if the hash is different. */
+        if (hash != record->hash)
+        {
+            if (record->mpst == aaoPOST_OnChange)
+                monitor_mask |= DBE_VALUE;
+            if (record->apst == aaoPOST_OnChange)
+                monitor_mask |= DBE_LOG;
+
+            /* Store hash for next process. */
+            record->hash = hash;
+            /* Post HASH. */
+            db_post_events(record, &record->hash, DBE_VALUE);
+        }
+    }
+    if (monitor_mask)
+#endif
+        db_post_events(record, record->bptr, monitor_mask);
+    return status;
 }
 
 

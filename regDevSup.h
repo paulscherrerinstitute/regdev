@@ -165,26 +165,12 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* rval, size_t nelm, double
     { \
         if (priv->status != S_dev_success) \
         { \
-            if (priv->updating) \
-            { \
-                recGblSetSevr(record, READ_ALARM, INVALID_ALARM); \
-                regDevDebugLog(DBG_IN, "%s: asynchronous update error\n", record->name); \
-            } \
-            else \
-            { \
-                recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM); \
-                regDevDebugLog(DBG_OUT, "%s: asynchronous write error\n", record->name); \
-            } \
+            recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM); \
+            regDevDebugLog(DBG_OUT, "%s: asynchronous write error\n", record->name); \
         } \
         regDevDebugLog(DBG_OUT, "%s: status=%x\n", record->name, priv->status); \
         return priv->status; \
-    } \
-    if (priv->updating) \
-    { \
-        regDevDebugLog(DBG_IN, "%s: running updater\n", record->name); \
-        recGblResetAlarms(record); \
-        return priv->updater(record); \
-    } \
+    }
 
 #if defined(__GNUC__) && __GNUC__ < 3
  #define regDevPrintErr(f, args...) errlogPrintf("%s %s: " f "\n", _CURRENT_FUNCTION_, record->name , ## args)

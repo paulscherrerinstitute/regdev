@@ -1,7 +1,10 @@
 /* Device Support for all standard records */
 
 #include <stdlib.h>
+#include <string.h>
 #include <epicsMath.h>
+#include <dbAccess.h>
+#include <dbEvent.h>
 
 #include "regDevSup.h"
 
@@ -120,14 +123,35 @@ long regDevUpdateBo(boRecord *record)
 {
     int status;
     epicsUInt32 rval;
+    unsigned short monitor_mask;
 
     status = regDevReadBits((dbCommon*)record, &rval);
     if (status == ASYNC_COMPLETION) return S_dev_success;
-    if (status) return status;
-    if (record->mask) rval &= record->mask;
-    record->rval = rval;
-    record->val = rval != 0;
-    return S_dev_success;
+    if (status == S_dev_success)
+    {
+        if (record->mask) rval &= record->mask;
+        record->rval = rval;
+        record->rbv = record->val = rval != 0;
+    }
+    monitor_mask = recGblResetAlarms(record);
+    if (record->mlst != record->val)
+    {
+        monitor_mask |= (DBE_VALUE | DBE_LOG);
+        record->mlst = record->val;
+    }
+    if (monitor_mask)
+        db_post_events(record, &record->val, monitor_mask);
+    if (record->oraw != record->rval)
+    {
+        db_post_events(record,&record->rval, monitor_mask|DBE_VALUE|DBE_LOG);
+        record->oraw = record->rval;
+    }
+    if (record->orbv != record->rbv)
+    {
+        db_post_events(record, &record->rbv, monitor_mask|DBE_VALUE|DBE_LOG);
+        record->orbv = record->rbv;
+    }
+    return status;
 }
 
 long regDevWriteBo(boRecord* record)
@@ -243,34 +267,53 @@ long regDevUpdateMbbo(mbboRecord* record)
 {
     int status;
     epicsUInt32 rval;
+    unsigned short monitor_mask;
     int i;
 
     status = regDevReadBits((dbCommon*)record, &rval);
     if (status == ASYNC_COMPLETION) return S_dev_success;
-    if (status) return status;
-    if (record->mask) rval &= record->mask;
-    /* If any values defined go through RVAL field else use VAL field directly */
-    record->rval = rval;
-    rval >>= record->shft;
-    if (record->sdef) for (i = 0; i < 16; i++)
+    if (status == S_dev_success)
     {
-        if ((&record->zrvl)[i]) /* any state defined */
+        if (record->mask) rval &= record->mask;
+        /* If any values defined go through RVAL field else VAL field is used directly */
+        record->rval = rval;
+        rval >>= record->shft;
+        record->rbv = record->val = rval;
+        if (record->sdef) for (i = 0; i < 16; i++)
         {
-            record->val = 65535; /* initalize to unknown state*/
-            for (i = 0; i < 16; i++)
+            if ((&record->zrvl)[i]) /* any state defined */
             {
-                if ((&record->zrvl)[i] == rval)
+                record->val = 65535; /* initalize to unknown state*/
+                for (i = 0; i < 16; i++)
                 {
-                    record->val = i; /* get VAL from RVAL */
-                    return S_dev_success;
-                }                    
+                    if ((&record->zrvl)[i] == rval)
+                    {
+                        record->val = i; /* get VAL from RVAL */
+                        break;
+                    }                    
+                }
+                break;
             }
-            return S_dev_success;
         }
     }
-    /* write VAL directly */
-    record->val = rval;
-    return S_dev_success;
+    monitor_mask = recGblResetAlarms(record);
+    if (record->mlst != record->val)
+    {
+        monitor_mask |= (DBE_VALUE | DBE_LOG);
+        record->mlst = record->val;
+    }
+    if (monitor_mask){
+        db_post_events(record, &record->val, monitor_mask);
+    }
+    if (record->oraw != record->rval) {
+        db_post_events(record, &record->rval, monitor_mask|DBE_VALUE);
+        record->oraw = record->rval;
+    }
+    if (record->orbv != record->rbv) {
+        db_post_events(record, &record->rbv, monitor_mask|DBE_VALUE);
+        record->orbv = record->rbv;
+    }
+    return status;
 }
 
 long regDevWriteMbbo(mbboRecord* record)
@@ -384,19 +427,50 @@ long regDevUpdateMbboDirect(mbboDirectRecord* record)
 {
     int status;
     epicsUInt32 rval;
+    unsigned short monitor_mask;
+    unsigned char *bit;
     int i;
 
     status = regDevReadBits((dbCommon*)record, &rval);
     if (status == ASYNC_COMPLETION) return S_dev_success;
-    if (status) return status;
-    if (record->mask) rval &= record->mask;
-    record->rval = rval;
-    rval >>= record->shft;
-    record->val = rval;
+    if (status == S_dev_success)
+    {
+        if (record->mask) rval &= record->mask;
+        record->rval = rval;
+        rval >>= record->shft;
+        record->rbv = record->val = rval;
+    }
+    monitor_mask = recGblResetAlarms(record);
+    if (record->mlst != record->val)
+    {
+        monitor_mask |= (DBE_VALUE | DBE_LOG);
+        record->mlst = record->val;
+    }
+    if (monitor_mask)
+    {
+        db_post_events(record, &record->val, monitor_mask);
+    }
+    if (record->oraw!=record->rval)
+    {
+        db_post_events(record, &record->rval, monitor_mask|DBE_VALUE|DBE_LOG);
+        record->oraw = record->rval;
+    }
+    if (record->orbv!=record->rbv)
+    {
+        db_post_events(record, &record->rbv, monitor_mask|DBE_VALUE|DBE_LOG);
+        record->orbv = record->rbv;
+    }
+    /* update the bits */
     for (i = 0; i < 16; i++)
     {
-        (&record->b0)[i] = rval & 1;
-        rval >>= 1;
+        bit = &(record->b0)+i;
+        if ((rval & 1) == !*bit)
+        {
+            *bit = rval & 1;
+            db_post_events(record, bit, monitor_mask |= DBE_VALUE | DBE_LOG);
+        }
+        else if (monitor_mask)
+            db_post_events(record, bit, monitor_mask);
     }
     return status;
 }
@@ -482,16 +556,35 @@ long regDevInitRecordLongout(longoutRecord* record)
     return S_dev_success;
 }
 
+/* DELTA calculates the absolute difference between its arguments */
+#define DELTA(last, val) ((last) > (val) ? (last) - (val) : (val) - (last))
+
 long regDevUpdateLongout(longoutRecord* record)
 {
     int status;
     epicsUInt32 val;
-
+    unsigned short monitor_mask;
+    
     status = regDevReadBits((dbCommon*)record, &val);
     if (status == ASYNC_COMPLETION) return S_dev_success;
-    if (status) return status;
-    record->val = val;
-    return S_dev_success;
+    if (status == S_dev_success)
+    {
+        record->val = val;
+    }
+    monitor_mask = recGblResetAlarms(record);
+    if (DELTA(record->mlst, record->val) > record->mdel)
+    {
+        monitor_mask |= DBE_VALUE;
+        record->mlst = record->val;
+    }
+    if (DELTA(record->alst, record->val) > record->adel)
+    {
+        monitor_mask |= DBE_LOG;
+        record->alst = record->val;
+    }
+    if (monitor_mask)
+        db_post_events(record, &record->val, monitor_mask);
+    return status;
 }
 
 long regDevWriteLongout(longoutRecord* record)
@@ -663,11 +756,13 @@ long regDevUpdateAo(aoRecord* record)
     int status;
     double val;
     epicsInt32 rval;
+    unsigned short monitor_mask;
     
     status = regDevReadNumber((dbCommon*)record, &rval, &val);
+    if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status == S_dev_success)
     {
-        record->rval = rval;
+        record->rbv = record->rval = rval;
         val = (double)rval + (double)record->roff;
 	if (record->aslo != 0.0) val *= record->aslo;
 	val += record->aoff;
@@ -679,17 +774,48 @@ long regDevUpdateAo(aoRecord* record)
         } else { 
             status = cvtRawToEngBpt(&val, record->linr, 0,
 		    (void *)&record->pbrk, &record->lbrk);
-            if (status) return status;
         }
-	record->val = val;
     }
     if (status == DONT_CONVERT)
     {
         /* emulate scaling */
         if (record->aslo != 0.0) val *= record->aslo;
         val += record->aoff;
-        record->val = val;
-        return S_dev_success;
+        status = S_dev_success;
+    }
+    if (status == S_dev_success)
+    {
+        record->omod = record->oval != val;
+	record->orbv = record->oval = record->val = val;
+    }
+    monitor_mask = recGblResetAlarms(record);
+    if (!(fabs(record->mlst - record->val) <= record->mdel)) /* Handles MDEL == NAN */
+    {
+        monitor_mask |= DBE_VALUE;
+        record->mlst = record->val;
+    }
+    if (!(fabs(record->alst - record->val) <= record->adel)) /* Handles ADEL == NAN */
+    { 
+        monitor_mask |= DBE_LOG;
+        record->alst = record->val;
+    }
+    if (monitor_mask)
+        db_post_events(record, &record->val, monitor_mask);
+    if (record->omod) monitor_mask |= (DBE_VALUE|DBE_LOG);
+    if (monitor_mask)
+    {
+	record->omod = FALSE;
+	db_post_events (record, &record->oval, monitor_mask);
+	if (record->oraw != record->rval)
+        {
+            db_post_events(record, &record->rval, monitor_mask|DBE_VALUE|DBE_LOG);
+            record->oraw = record->rval;
+	}
+        if (record->orbv != record->rbv)
+        {
+            db_post_events(record, &record->rbv, monitor_mask|DBE_VALUE|DBE_LOG);
+            record->orbv = record->rbv;
+        }
     }
     return status;
 }
@@ -852,12 +978,29 @@ long regDevInitRecordStringout(stringoutRecord* record)
 long regDevUpdateStringout(stringoutRecord* record)
 {
     int status;
+    unsigned short monitor_mask;
 
     status = regDevReadArray((dbCommon*) record, sizeof(record->val));
     if (status == ASYNC_COMPLETION) return S_dev_success;
-    if (status) return status;
-    record->val[sizeof(record->val)-1] = 0;
-    return S_dev_success;
+    if (status == S_dev_success)
+    {
+        record->val[sizeof(record->val)-1] = 0;
+    }
+    monitor_mask = recGblResetAlarms(record);
+    if (strncmp(record->oval, record->val, sizeof(record->val)))
+    {
+        monitor_mask |= DBE_VALUE | DBE_LOG;
+        strncpy(record->oval, record->val, sizeof(record->val));
+    }
+#ifndef EPICS_3_13
+    if (record->mpst == stringoutPOST_Always)
+        monitor_mask |= DBE_VALUE;
+    if (record->apst == stringoutPOST_Always)
+        monitor_mask |= DBE_LOG;
+#endif
+    if (monitor_mask)
+        db_post_events(record, record->val, monitor_mask);
+    return status;
 }
 
 long regDevWriteStringout(stringoutRecord* record)

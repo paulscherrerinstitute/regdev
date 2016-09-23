@@ -1126,7 +1126,7 @@ void regDevWorkThread(regDeviceNode* device)
             case CMD_EXIT:
                 regDevDebugLog(DBG_INIT, "%s: stopped\n",
                     epicsThreadGetNameSelf());
-#ifdef EPICS_3_14
+#ifndef EPICS_3_13
                 epicsThreadSuspendSelf();
 #endif
                 return;
@@ -1382,9 +1382,21 @@ void regDevCallback(const char* user, int status)
 
     dbScanLock(record);
     if (!record->pact) regDevPrintErr("callback for non-active record!");
-    (*record->rset->process)(record);
+    if (priv->updating)
+    {
+        if (status != S_dev_success)
+        {
+            regDevDebugLog(DBG_IN, "%s: async update failed. status=0x%x",
+                record->name, status);
+        }
+        priv->updater(record);
+        priv->updating = 0;
+    }
+    else
+    {
+        (*record->rset->process)(record);
+    }
     dbScanUnlock(record);
-    priv->updating = 0;
 }
 
 int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
@@ -1520,7 +1532,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
     {
         if (status == ASYNC_COMPLETION)
         {
-            printf("%s %s: async read %"Z"d * %d bit from %s:%"Z"u\n",
+            printf("%s %s: async read %"Z"u * %u bit from %s:0x%"Z"x\n",
                 _CURRENT_FUNCTION_, record->name, nelem, dlen*8,
                 device->name, priv->asyncOffset);
         }
@@ -1528,31 +1540,31 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         {
             case 1:
                 regDevDebugLog(DBG_IN,
-                    "%s: read %"Z"u * 8 bit 0x%02x from %s:%"Z"u (status=%x)\n",
+                    "%s: read %"Z"u * 8 bit 0x%02x from %s:0x%"Z"x (status=%x)\n",
                     record->name, nelem, *(epicsUInt8*)buffer,
                     device->name, offset, status);
                 break;
             case 2:
                 regDevDebugLog(DBG_IN,
-                    "%s: read %"Z"u * 16 bit 0x%04x from %s:%"Z"u (status=%x)\n",
+                    "%s: read %"Z"u * 16 bit 0x%04x from %s:0x%"Z"x (status=%x)\n",
                     record->name, nelem, *(epicsUInt16*)buffer,
                     device->name, offset, status);
                 break;
             case 4:
                 regDevDebugLog(DBG_IN,
-                    "%s: read %"Z"u * 32 bit 0x%08x from %s:%"Z"u (status=%x)\n",
+                    "%s: read %"Z"u * 32 bit 0x%08x from %s:0x%"Z"x (status=%x)\n",
                     record->name, nelem, *(epicsUInt32*)buffer,
                     device->name, offset, status);
                 break;
             case 8:
                 regDevDebugLog(DBG_IN,
-                    "%s: read %"Z"u * 64 bit 0x%016llx from %s:%"Z"u (status=%x)\n",
+                    "%s: read %"Z"u * 64 bit 0x%016llx from %s:0x%"Z"x (status=%x)\n",
                     record->name, nelem, (unsigned long long)*(epicsUInt64*)buffer,
                     device->name, offset, status);
                 break;
             default:
                 regDevDebugLog(DBG_IN,
-                    "%s: read %"Z"u * %d bit from %s:%"Z"u (status=%x)\n",
+                    "%s: read %"Z"u * %d bit from %s:0x%"Z"x (status=%x)\n",
                     record->name, nelem, dlen*8,
                     device->name, offset, status);
         }
@@ -1621,54 +1633,54 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
         {
             case 1:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * 8 bit 0x%02x to %s:%"Z"u\n",
+                    "%s: write %"Z"u * 8 bit 0x%02x to %s:0x%"Z"x\n",
                     record->name, nelem, *(epicsUInt8*)buffer,
                     device->name, offset);
                 break;
             case 2:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * 16 bit 0x%04x to %s:%"Z"u\n",
+                    "%s: write %"Z"u * 16 bit 0x%04x to %s:0x%"Z"x\n",
                     record->name, nelem, *(epicsUInt16*)buffer,
                     device->name, offset);
                 break;
             case 4:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * 32 bit 0x%08x to %s:%"Z"u\n",
+                    "%s: write %"Z"u * 32 bit 0x%08x to %s:0x%"Z"x\n",
                     record->name, nelem, *(epicsUInt32*)buffer,
                     device->name, offset);
                 break;
             case 8:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * 64 bit 0x%016llx to %s:%"Z"u\n",
+                    "%s: write %"Z"u * 64 bit 0x%016llx to %s:0x%"Z"x\n",
                     record->name, nelem, (unsigned long long)*(epicsUInt64*)buffer,
                     device->name, offset);
                 break;
             case 11:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * 8 bit 0x%02x mask 0x%02x to %s:%"Z"u\n",
+                    "%s: write %"Z"u * 8 bit 0x%02x mask 0x%02x to %s:0x%"Z"x\n",
                     record->name, nelem, *(epicsUInt8*)buffer, *(epicsUInt8*)mask,
                     device->name, offset);
             case 12:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * 16 bit 0x%04x mask 0x%04x to %s:%"Z"u\n",
+                    "%s: write %"Z"u * 16 bit 0x%04x mask 0x%04x to %s:0x%"Z"x\n",
                     record->name, nelem, *(epicsUInt16*)buffer, *(epicsUInt16*)mask,
                     device->name, offset);
                 break;
             case 14:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * 32 bit 0x%08x mask 0x%08x to %s:%"Z"u\n",
+                    "%s: write %"Z"u * 32 bit 0x%08x mask 0x%08x to %s:0x%"Z"x\n",
                     record->name, nelem, *(epicsUInt32*)buffer, *(epicsUInt32*)mask,
                     device->name, offset);
                 break;
             case 18:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * 64 bit 0x%016llx mask 0x%016llx to %s:%"Z"u\n",
+                    "%s: write %"Z"u * 64 bit 0x%016llx mask 0x%016llx to %s:0x%"Z"x\n",
                     record->name, nelem, (unsigned long long)*(epicsUInt64*)buffer, (unsigned long long)*(epicsUInt64*)mask,
                     device->name, offset);
                 break;
             default:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * %d bit to %s:%"Z"u\n",
+                    "%s: write %"Z"u * %d bit to %s:0x%"Z"x\n",
                     record->name, nelem, dlen*8,
                     device->name, offset);
         }
@@ -2455,12 +2467,12 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
 
 /*********  Output updates from hardware ****************************/
 
-void regDevUpdateCallback(dbCommon* record)
+void regDevRunUpdater(dbCommon* record)
 {
     int status;
     regDevPrivate* priv = record->dpvt;
 
-    if (interruptAccept) /* scanning allowed? */
+    if (interruptAccept && !record->pact) /* scanning allowed? */
     {
         dbScanLock(record);
         if (!record->pact)
@@ -2468,14 +2480,14 @@ void regDevUpdateCallback(dbCommon* record)
             regDevDebugLog(DBG_IN, "%s: updating record\n",
                 record->name);
             priv->updating = 1;
-            status = (*record->rset->process)(record);
+            status = priv->updater(record);
             if (!record->pact)
             {
                 priv->updating = 0;
                 if (status != S_dev_success)
                 {
-                    regDevPrintErr("record update failed. status = 0x%x",
-                        status);
+                    regDevDebugLog(DBG_IN, "%s: update failed. status=0x%x",
+                        record->name, status);
                 }
             }
         }
@@ -2509,11 +2521,13 @@ int regDevInstallUpdateFunction(dbCommon* record, DEVSUPFUN updater)
         regDevDebugLog(DBG_INIT, "%s: install update every %f seconds\n", record->name, priv->update * 0.001);
         priv->updater = updater;
         priv->updateTimer = epicsTimerQueueCreateTimer(device->updateTimerQueue,
-            (epicsTimerCallback)regDevUpdateCallback, record);
+            (epicsTimerCallback)regDevRunUpdater, record);
         epicsTimerStartDelay(priv->updateTimer, priv->update * 0.001);
     }
     return S_dev_success;
 }
+
+/*********  Shell utilities ****************************/
 
 int regDevDisplay(const char* devName, int start, unsigned int dlen, size_t bytes)
 {
@@ -2661,7 +2675,7 @@ int regDevPut(const char* devName, int offset, unsigned int dlen, int value)
     return status;
 }
 
-#ifdef EPICS_3_14
+#ifndef EPICS_3_13
 #include <iocsh.h>
 static const iocshArg regDevDisplayArg0 = { "devName", iocshArgString };
 static const iocshArg regDevDisplayArg1 = { "start", iocshArgString };
