@@ -2510,7 +2510,7 @@ int regDevInstallUpdateFunction(dbCommon* record, DEVSUPFUN updater)
         regDevDebugLog(DBG_INIT, "%s\n", record->name);
         if (!device->updateTimerQueue)
         {
-            device->updateTimerQueue = epicsTimerQueueAllocate(0, epicsThreadPriorityLow);
+            device->updateTimerQueue = epicsTimerQueueAllocate(1, epicsThreadPriorityLow);
             if (!device->updateTimerQueue)
             {
                 regDevPrintErr("epicsTimerQueueAllocate failed");
