@@ -2563,14 +2563,17 @@ int regDevDisplay(const char* devName, int start, unsigned int dlen, size_t byte
     if (dlen) save_dlen = dlen; else dlen = save_dlen;
     if (bytes) save_bytes = bytes; else bytes = save_bytes;
 
-    if (offset >= device->size)
+    if (device->size)
     {
-        errlogPrintf("address 0x%"Z"x out of range\n", offset);
-        return S_dev_badArgument;
-    }
-    if (offset + bytes > device->size)
-    {
-        bytes = device->size - offset;
+        if (offset >= device->size)
+        {
+            errlogPrintf("address 0x%"Z"x out of range\n", offset);
+            return S_dev_badArgument;
+        }
+        if (offset + bytes > device->size)
+        {
+            bytes = device->size - offset;
+        }
     }
     nelem = bytes/dlen;
 
