@@ -6,7 +6,6 @@ regDev_DBD += base.dbd
 
 # library
 LIBRARY = regDev
-LIB_SRCS += regDev_registerRecordDeviceDriver.cpp
 
 INC += regDev.h
 DBDS = regDev.dbd
@@ -25,6 +24,7 @@ regDev_DBD += regDevCalcout.dbd
 LIB_SRCS += simRegDev.c
 regDev_DBD += simRegDev.dbd
 
+LIB_LIBS += memDisplay
 LIB_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 include $(TOP)/configure/RULES
