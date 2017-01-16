@@ -1,3 +1,7 @@
+ifeq ($(wildcard /ioc/tools/driver.makefile),)
+$(warning It seems you do not have the PSI build environment. Remove GNUmakefile.)
+include Makefile
+else
 include /ioc/tools/driver.makefile
 
 BUILDCLASSES += Linux
@@ -20,3 +24,5 @@ copytest: regDevCopy.c
 	gcc -o copytest regDevCopy.c -DTESTCASE -I /usr/local/epics/base/include -I /usr/local/epics/base/include/os/Linux
 	./copytest
 	rm copytest
+endif
+
