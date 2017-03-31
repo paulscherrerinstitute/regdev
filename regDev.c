@@ -1173,41 +1173,14 @@ void regDevWorkExit(regDeviceNode* device)
 
 int regDevStartWorkQueue(regDeviceNode* device, unsigned int prio)
 {
-    char* threadName;
     regDevDispatcher *dispatcher = device->dispatcher;
-    unsigned int threadPrio;
-
-    if (prio >= NUM_CALLBACK_PRIORITIES) prio = NUM_CALLBACK_PRIORITIES-1;
-
+    if (prio >= 3) prio = 2;
     dispatcher->qid[prio] = epicsMessageQueueCreate(dispatcher->maxEntries, (unsigned int)sizeof(struct regDevWorkMsg));
-    threadName=mallocMustSucceed(strlen(device->name)+9, "regDevStartWorkQueue");
-
-    switch (prio)
-
-    {
-        case 0:
-            sprintf(threadName, "regDevL %s", device->name);
-            threadPrio = epicsThreadPriorityLow;
-            break;
-        case 1:
-            sprintf(threadName, "regDevM %s", device->name);
-            threadPrio = epicsThreadPriorityMedium;
-            break;
-        case 2:
-            sprintf(threadName, "regDevH %s", device->name);
-            threadPrio = epicsThreadPriorityHigh;
-            break;
-        default:
-            errlogPrintf("regDevStartWorkQueue %s: illegal priority %d\n",
-                device->name, prio);
-            return S_dev_badRequest;
-    }          
-    dispatcher->tid[prio] = epicsThreadCreate(threadName, threadPrio,
+    dispatcher->tid[prio] = epicsThreadCreate(device->name,
+        ((int[3]){epicsThreadPriorityLow, epicsThreadPriorityMedium, epicsThreadPriorityHigh})[prio],
         epicsThreadGetStackSize(epicsThreadStackSmall),
         (EPICSTHREADFUNC) regDevWorkThread, device);
-
-    free(threadName);
-    return S_dev_success;
+    return dispatcher->tid[prio] != NULL ? S_dev_success : S_dev_internal;
 }
 
 int regDevInstallWorkQueue(regDevice* driver, unsigned int maxEntries)
