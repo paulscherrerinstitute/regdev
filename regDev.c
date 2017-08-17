@@ -147,11 +147,11 @@ const char* regDevTypeName(unsigned short dtype)
         regDevTypeNames[dtype-regDevFirstType];
 }
 
-regDevSignedOffset_t regDevParseExpr(char** pp);
+ptrdiff_t regDevParseExpr(char** pp);
 
-regDevSignedOffset_t regDevParseValue(char** pp)
+ptrdiff_t regDevParseValue(char** pp)
 {
-    regDevSignedOffset_t val;
+    ptrdiff_t val;
     char *p = *pp;
     int neg = 0;
 
@@ -169,9 +169,9 @@ regDevSignedOffset_t regDevParseValue(char** pp)
     return neg ? -val : val;
 }
 
-regDevSignedOffset_t regDevParseProd(char** pp)
+ptrdiff_t regDevParseProd(char** pp)
 {
-    regDevSignedOffset_t val = 1;
+    ptrdiff_t val = 1;
     char *p = *pp;
 
     while (isspace((unsigned char)*p)) p++;
@@ -184,10 +184,10 @@ regDevSignedOffset_t regDevParseProd(char** pp)
     return val;
 }
 
-regDevSignedOffset_t regDevParseExpr(char** pp)
+ptrdiff_t regDevParseExpr(char** pp)
 {
-    regDevSignedOffset_t sum = 0;
-    regDevSignedOffset_t val;
+    ptrdiff_t sum = 0;
+    ptrdiff_t val;
     char *p = *pp;
 
     do {
@@ -251,7 +251,7 @@ int regDevIoParse2(
     /* Check device offset (for backward compatibility allow '/') */
     if (separator == ':' || separator == '/')
     {
-        regDevSignedOffset_t offset = 0;
+        ptrdiff_t offset = 0;
         while (isspace((unsigned char)*p)) p++;
 
         if (!isdigit((unsigned char)*p))
@@ -284,7 +284,7 @@ int regDevIoParse2(
             priv->offsetScale = regDevParseProd(&p);
             if (b == '(')
             {
-                regDevSignedOffset_t scale;
+                ptrdiff_t scale;
                 offset = regDevParseExpr(&p);
                 if (*p == ')')
                 {
@@ -322,7 +322,7 @@ int regDevIoParse2(
     if (separator == ':' || separator == '/' || separator == '!')
     {
         char* p1;
-        regDevSignedOffset_t rboffset;
+        ptrdiff_t rboffset;
 
         if (!device->support->read)
         {
@@ -382,7 +382,7 @@ int regDevIoParse2(
     /* parse parameters */
     while (p && *p)
     {
-        regDevSignedOffset_t val;
+        ptrdiff_t val;
         switch (toupper((unsigned char)*p))
         {
             case ' ':
@@ -1292,7 +1292,7 @@ int regDevGetOffset(dbCommon* record, epicsUInt8 dlen, size_t nelem, size_t *pof
                 epicsInt32 i;
             } buffer;
             long options = DBR_STATUS;
-            regDevSignedOffset_t off = offset;
+            ptrdiff_t off = offset;
 
             status = dbGetField(priv->offsetRecord, DBR_LONG, &buffer, &options, NULL, NULL);
             if (status == S_dev_success && buffer.severity == INVALID_ALARM) status = S_dev_badArgument;

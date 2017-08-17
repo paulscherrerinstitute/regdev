@@ -18,6 +18,7 @@
 #include <math.h>
 #include <sys/types.h>
 #include <epicsTypes.h>
+
 #if __STDC_VERSION__ < 199901L
 typedef long long epicsInt64;
 typedef unsigned long long epicsUInt64;
@@ -73,15 +74,13 @@ typedef union {
     void* buffer;
 } regDevAnytype;
 
-typedef ptrdiff_t regDevSignedOffset_t; /* WIN has no ssize_t */
-
 typedef struct regDevPrivate{          /* per record data structure */
     epicsUInt32 magic;
     regDeviceNode* device;
     size_t offset;                     /* Offset (in bytes) within device memory */
     size_t rboffset;                   /* Offset to read back output records (or DONT_INIT) */
     struct dbAddr* offsetRecord;       /* record to read offset from */
-    regDevSignedOffset_t offsetScale;  /* scaling of value from offsetRecord */
+    ptrdiff_t offsetScale;             /* scaling of value from offsetRecord */
     epicsUInt8 bit;                    /* Bit number (0-15) for bi/bo */
     epicsUInt8 dtype;                  /* Data type */
     epicsUInt8 dlen;                   /* Data length (in bytes) */
