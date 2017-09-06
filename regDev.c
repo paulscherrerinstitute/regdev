@@ -17,7 +17,7 @@
 #include <epicsAssert.h>
 #include <epicsExit.h>
 
-#include <memDisplay.h>
+#include "memDisplay.h"
 
 #include "regDevSup.h"
 
@@ -332,7 +332,7 @@ int regDevIoParse2(
         {
             errlogPrintf("regDevIoParse %s: can't read back from device without read function\n",
                 recordName);
-            return S_dev_badArgument;
+            return S_dev_wrongDevice;
         }
 
         while (isspace((unsigned char)*p)) p++;
