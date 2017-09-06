@@ -27,7 +27,11 @@ struct devsup regDevAai =
 
 epicsExportAddress(dset, regDevAai);
 
+#ifdef DBR_INT64
+static const int sizeofTypes[] = {MAX_STRING_SIZE,1,1,2,2,4,4,8,8,4,8,2};
+#else
 static const int sizeofTypes[] = {MAX_STRING_SIZE,1,1,2,2,4,4,4,8,2};
+#endif
 
 long regDevInitRecordAai(aaiRecord* record)
 {
@@ -41,7 +45,7 @@ long regDevInitRecordAai(aaiRecord* record)
     status = regDevIoParse((dbCommon*)record, &record->inp);
     if (status) return status;
     record->nord = record->nelm;
-    /* aai record does not allocate bptr. */
+    /* aai record does not allocate bptr in older EPICS versions. */
     if (priv->device->blockBuffer && !priv->offsetRecord && !priv->device->blockSwap
         && priv->offset + record->nelm * priv->dlen <= priv->device->size)
     {
@@ -117,7 +121,7 @@ long regDevInitRecordAao(aaoRecord* record)
     status = regDevIoParse((dbCommon*)record, &record->out);
     if (status) return status;
     record->nord = record->nelm;
-    /* aao record does not allocate bptr. */
+    /* aao record does not allocate bptr in older EPICS versions. */
     if (priv->device->blockBuffer && !priv->offsetRecord && !priv->device->blockSwap
         && priv->offset + record->nelm * priv->dlen <= priv->device->size)
     {
