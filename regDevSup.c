@@ -398,6 +398,12 @@ struct devsup regDevMbboDirect =
 
 epicsExportAddress(dset, regDevMbboDirect);
 
+#ifdef mbboDirectRecord1BF
+#define  mbboDirectBits 32
+#else
+#define  mbboDirectBits 16
+#endif
+
 long regDevInitRecordMbboDirect(mbboDirectRecord* record)
 {
     epicsUInt32 rval;
@@ -415,7 +421,7 @@ long regDevInitRecordMbboDirect(mbboDirectRecord* record)
     if (record->mask) rval &= record->mask;
     record->rval = rval;
     rval >>= record->shft;
-    for (i = 0; i < 16; i++)
+    for (i = 0; i < mbboDirectBits; i++)
     {
         (&record->b0)[i] = rval & 1;
         rval >>= 1;
@@ -461,7 +467,7 @@ long regDevUpdateMbboDirect(mbboDirectRecord* record)
         record->orbv = record->rbv;
     }
     /* update the bits */
-    for (i = 0; i < 16; i++)
+    for (i = 0; i < mbboDirectBits; i++)
     {
         bit = &(record->b0)+i;
         if ((rval & 1) == !*bit)
