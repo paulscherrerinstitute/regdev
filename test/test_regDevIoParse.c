@@ -3,17 +3,17 @@
 #include <devLib.h>
 #include "epicsTypes.h"
 #include "regDevSup.h"
+#include "simRegDev.h"
 #include "test_regDev.h"
 
+#define epicsInt64T  (98)
+#define epicsUInt64T (99)
 #define regDevBCD8T  (100)
 #define regDevBCD16T (101)
 #define regDevBCD32T (102)
-#define regDev64T    (103)
-#define regDevFirstType regDevBCD8T
-#define regDevLastType  regDev64T
 
 struct  { char* string;
-        int result;    int offs; int init; int dtype; int dlen;    int l;      int h; int b; int p;} 
+        int result; size_t offs; size_t init; int dtype; int dlen; long long l; long long h; int b; int p;} 
 parameters[] = {
 { "dev1",
     S_dev_success,           0,      -1,  epicsInt16T,    2,     -0x7fff,     0x7fff,    0,     0  },
@@ -29,8 +29,12 @@ parameters[] = {
     S_dev_success,          51,      -1,  epicsUInt8T,    1,           0,       0xff,    0,     0  },
 { "dev1:1+5*(2*(2+3)) T=UINT8",
     S_dev_success,          51,      -1,  epicsUInt8T,    1,           0,       0xff,    0,     0  },
+{ "dev1:5*(2*(2+3))+1:2 T=Byte",
+    S_dev_success,          51,       2,  epicsUInt8T,    1,           0,       0xff,    0,     0  },
 { "dev1:5*(2*(2+3))+1/2 T=Byte",
     S_dev_success,          51,       2,  epicsUInt8T,    1,           0,       0xff,    0,     0  },
+{ "dev1:51:1+1 T=char l=0 H=100",
+    S_dev_success,          51,       2,  epicsUInt8T,    1,           0,        100,    0,     0  },
 { "dev1:51/1+1 T=char l=0 H=100",
     S_dev_success,          51,       2,  epicsUInt8T,    1,           0,        100,    0,     0  },
 { "dev1:51 T=INT16",
@@ -63,8 +67,12 @@ parameters[] = {
     S_dev_success,        0x30,    0x30,  epicsFloat32T,  4,           0,          0,    0,     0  },
 { "dev1:0x30/ T=float32 P=1",
     S_dev_success,        0x30,    0x30,  epicsFloat32T,  4,           0,          0,    0,     1  },
+{ "dev1:0x30: T=float32 P=1",
+    S_dev_success,        0x30,    0x30,  epicsFloat32T,  4,           0,          0,    0,     1  },
 { "dev1:0x30:0x40 T=real32 P=2",
     S_dev_success,        0x30,    0x40,  epicsFloat32T,  4,           0,          0,    0,     2  },
+{ "dev1/0x30: T=double",
+    S_dev_success,        0x30,    0x30,  epicsFloat64T,  8,           0,          0,    0,     0  },
 { "dev1/0x30/ T=double",
     S_dev_success,        0x30,    0x30,  epicsFloat64T,  8,           0,          0,    0,     0  },
 { "dev1/0x30/ T=float64 P=1",
@@ -90,14 +98,6 @@ parameters[] = {
     S_dev_badArgument,      -5,      -1,  epicsInt16T,   2,      -0x7fff,     0x7fff,    0,     0  },
 };    
 
-static regDevSupport dummyRegDevSupport = {
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL
-};
-
 int test_regDevIoParse()
 {
     int i;
@@ -115,8 +115,7 @@ int test_regDevIoParse()
     link.type = INST_IO;
     link.value.instio.string = malloc(80);
     
-    
-    regDevRegisterDevice("dev1", &dummyRegDevSupport, NULL, 0);
+    simRegDevConfigure ("dev1",100,0,0);
     
     for (i = 0; i < sizeof(parameters)/sizeof(parameters[0]); i++)
     {
@@ -147,15 +146,15 @@ int test_regDevIoParse()
         }
         if (priv->offset !=  parameters[i].offs)
         {
-            printf (FAILED ": wrong offset %"Z"d instead of %d\n",
+            printf (FAILED ": wrong offset %"Z"d instead of %"Z"d\n",
                 priv->offset, parameters[i].offs);
             errorcount++;
             continue;
         }
-        if (priv->initoffset !=  parameters[i].init)
+        if (priv->rboffset !=  parameters[i].init)
         {
-            printf (FAILED ": wrong init offset %"Z"d instead of %d\n",
-                priv->initoffset, parameters[i].init);
+            printf (FAILED ": wrong readback offset %"Z"d instead of %"Z"d\n",
+                priv->rboffset, parameters[i].init);
             errorcount++;
             continue;
         }
@@ -175,14 +174,14 @@ int test_regDevIoParse()
         }
         if (priv->L !=  parameters[i].l)
         {
-            printf (FAILED ": wrong low limit %#x (%d) instead of %#x (%d) \n",
+            printf (FAILED ": wrong low limit 0x%llx (%lld) instead of 0x%llx (%lld) \n",
                 priv->L, priv->L, parameters[i].l, parameters[i].l);
             errorcount++;
             continue;
         }
         if (priv->H !=  parameters[i].h)
         {
-            printf (FAILED ": wrong high limit %#x (%d) instead of %#x (%d) \n",
+            printf (FAILED ": wrong high limit 0x%llx (%lld) instead of 0x%llx (%lld) \n",
                 priv->H, priv->H, parameters[i].h, parameters[i].h);
             errorcount++;
             continue;

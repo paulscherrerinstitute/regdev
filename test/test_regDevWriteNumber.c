@@ -10,7 +10,6 @@ int test_regDevWriteNumber()
 {
     struct dbCommon record;
     regDevPrivate* priv;
-    regDevice* device;
     int parsestatus;
     int i,r,e;
     struct link link;
@@ -25,13 +24,12 @@ int test_regDevWriteNumber()
     strcpy(link.value.instio.string, "test/0 T=int8");
 
     simRegDevConfigure ("test",100,0,0);
-    device = regDevFind("test");
     priv = regDevAllocPriv(&record);
     assert(priv);
 
     parsestatus = regDevIoParse(&record, &link);
     assert(parsestatus==0);
-    printf ("low=%x hight=%x\n", priv->L, priv->H);
+    printf ("low=%llx hight=%llx\n", priv->L, priv->H);
     for (i=-300; i<=300; i++)
     {
         simRegDevSetData("test", 0, 0);
