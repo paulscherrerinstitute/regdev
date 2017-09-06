@@ -71,12 +71,13 @@ static int startswith(const char *s, const char *key)
  *        <update>  - milliseconds for periodic update of output records
  **********************************************************************/
 
+#define epicsInt64T  (98)
+#define epicsUInt64T (99)
 #define regDevBCD8T  (100)
 #define regDevBCD16T (101)
 #define regDevBCD32T (102)
-#define regDev64T    (103)
-#define regDevFirstType regDevBCD8T
-#define regDevLastType  regDev64T
+#define regDevFirstType epicsInt64T
+#define regDevLastType  regDevBCD32T
 
 static const struct {char* name; epicsType type;} datatypes [] =
 {
@@ -108,6 +109,14 @@ static const struct {char* name; epicsType type;} datatypes [] =
     { "unsign32",   epicsUInt32T  },
     { "unsigned32", epicsUInt32T  },
 
+    { "longlong",   epicsInt64T   },
+    { "int64",      epicsInt64T   },
+
+    { "qword",      epicsUInt64T  },
+    { "uint64",     epicsUInt64T  },
+    { "unsign64",   epicsUInt64T  },
+    { "unsigned64", epicsUInt64T  },
+
     { "double",     epicsFloat64T },
     { "real64",     epicsFloat64T },
     { "float64",    epicsFloat64T },
@@ -119,12 +128,6 @@ static const struct {char* name; epicsType type;} datatypes [] =
 
     { "string",     epicsStringT  },
 
-    { "qword",      regDev64T     },
-    { "int64",      regDev64T     },
-    { "uint64",     regDev64T     },
-    { "unsign64",   regDev64T     },
-    { "unsigned64", regDev64T     },
-
     { "bcd8",       regDevBCD8T   },
     { "bcd16",      regDevBCD16T  },
     { "bcd32",      regDevBCD32T  },
@@ -135,10 +138,11 @@ static const struct {char* name; epicsType type;} datatypes [] =
 const char* regDevTypeName(unsigned short dtype)
 {
     const char* regDevTypeNames [] = {
-        "regDevBCD8T",
-        "regDevBCD16T",
-        "regDevBCD32T",
-        "regDev64T"
+        "epicsInt64",
+        "epicsUInt64",
+        "regDevBCD8",
+        "regDevBCD16",
+        "regDevBCD32",
     };
 
     if (dtype > regDevLastType) return "invalid";
@@ -147,11 +151,11 @@ const char* regDevTypeName(unsigned short dtype)
         regDevTypeNames[dtype-regDevFirstType];
 }
 
-ptrdiff_t regDevParseExpr(char** pp);
+epicsInt64 regDevParseExpr(char** pp);
 
-ptrdiff_t regDevParseValue(char** pp)
+epicsInt64 regDevParseValue(char** pp)
 {
-    ptrdiff_t val;
+    epicsInt64 val;
     char *p = *pp;
     int neg = 0;
 
@@ -163,15 +167,15 @@ ptrdiff_t regDevParseValue(char** pp)
         val = regDevParseExpr(&p);
         if (*p == ')') p++;
     }
-    else val = strtol(p, &p, 0);
+    else val = strtoul(p, &p, 0);
     while (isspace((unsigned char)*p)) p++;
     *pp = p;
     return neg ? -val : val;
 }
 
-ptrdiff_t regDevParseProd(char** pp)
+epicsInt64 regDevParseProd(char** pp)
 {
-    ptrdiff_t val = 1;
+    epicsInt64 val = 1;
     char *p = *pp;
 
     while (isspace((unsigned char)*p)) p++;
@@ -184,10 +188,10 @@ ptrdiff_t regDevParseProd(char** pp)
     return val;
 }
 
-ptrdiff_t regDevParseExpr(char** pp)
+epicsInt64 regDevParseExpr(char** pp)
 {
-    ptrdiff_t sum = 0;
-    ptrdiff_t val;
+    epicsInt64 sum = 0;
+    epicsInt64 val;
     char *p = *pp;
 
     do {
@@ -214,8 +218,8 @@ int regDevIoParse2(
     int type = 0;
     int hset = 0;
     int lset = 0;
-    long H = 0;
-    long L = 0;
+    epicsInt64 H = 0;
+    epicsInt64 L = 0;
 
     regDevDebugLog(DBG_INIT, "%s: \"%s\"\n", recordName, parameterstring);
 
@@ -485,7 +489,11 @@ int regDevIoParse2(
             priv->dlen = 4;
             if (!hset) H = 0xFFFFFFFF;
             break;
-        case regDev64T:
+        case epicsInt64T:
+            priv->dlen = 8;
+            if (!hset) H = 0xFFFFFFFF;
+            break;
+        case epicsUInt64T:
             priv->dlen = 8;
             if (!hset) H = 0xFFFFFFFF;
             break;
@@ -542,8 +550,8 @@ int regDevIoParse2(
     priv->L = L;
     priv->H = H;
     regDevDebugLog(DBG_INIT, "%s: dlen=%d\n",recordName, priv->dlen);
-    regDevDebugLog(DBG_INIT, "%s: L=%d=%#x\n",  recordName, priv->L, priv->L);
-    regDevDebugLog(DBG_INIT, "%s: H=%d=%#x\n",  recordName, priv->H, priv->H);
+    regDevDebugLog(DBG_INIT, "%s: L=%lld=%#llx\n",  recordName, priv->L, priv->L);
+    regDevDebugLog(DBG_INIT, "%s: H=%lld=%#llx\n",  recordName, priv->H, priv->H);
     regDevDebugLog(DBG_INIT, "%s: B=%d\n",   recordName, priv->bit);
     regDevDebugLog(DBG_INIT, "%s: X=%#x\n",  recordName, priv->invert);
 
@@ -885,7 +893,7 @@ int regDevAssertType(dbCommon *record, int allowedTypes)
         case regDevBCD32T:
             if (allowedTypes & TYPE_BCD) return S_dev_success;
             break;
-        case regDev64T:
+        case epicsInt64T:
             if (allowedTypes & (TYPE_INT|TYPE_FLOAT)) return S_dev_success;
             break;
     }
@@ -928,6 +936,16 @@ int regDevCheckFTVL(dbCommon* record, int ftvl)
             priv->dtype = epicsUInt32T;
             priv->dlen = 4;
             return S_dev_success;
+#ifdef DBR_INT64
+        case DBF_INT64:
+            priv->dtype = epicsInt64T;
+            priv->dlen = 8;
+            return S_dev_success;
+        case DBF_UINT64:
+            priv->dtype = epicsUInt64T;
+            priv->dlen = 8;
+            return S_dev_success;
+#endif
         case DBF_FLOAT:
             priv->dtype = epicsFloat32T;
             priv->dlen = 4;
@@ -1012,7 +1030,7 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
             else if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
                 status = ARRAY_CONVERT;
             break;
-        case regDev64T:
+        case epicsInt64T:
             if ((ftvl == DBF_LONG) || (ftvl == DBF_ULONG))
             {
                 priv->arraypacking = 2;
@@ -1749,10 +1767,10 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
     return status;
 }
 
-int regDevReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
+int regDevReadNumber(dbCommon* record, epicsInt64* rval, double* fval)
 {
     int status = S_dev_success;
-    epicsInt32 rv = 0;
+    epicsInt64 rv = 0;
     epicsFloat64 fv = 0.0;
 
     regDevGetPriv();
@@ -1783,7 +1801,7 @@ int regDevReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
         case regDevBCD32T:
             rv = priv->data.uval32;
             break;
-        case regDev64T:
+        case epicsInt64T:
             rv = (epicsInt32)priv->data.uval64; /* cut off high bits */
             break;
         case epicsFloat32T:
@@ -1825,10 +1843,10 @@ int regDevReadNumber(dbCommon* record, epicsInt32* rval, double* fval)
     return S_dev_success;
 }
 
-int regDevWriteNumber(dbCommon* record, epicsInt32 rval, double fval)
+int regDevWriteNumber(dbCommon* record, epicsInt64 rval, double fval)
 {
     regDevGetPriv();
-    regDevDebugLog(DBG_OUT, "%s: rval=%d (0x%08x), fval=%#g\n",
+    regDevDebugLog(DBG_OUT, "%s: rval=%lld (0x%llx), fval=%#g\n",
         record->name, rval, rval, fval);
 
     /* enforce bounds */
@@ -1837,17 +1855,16 @@ int regDevWriteNumber(dbCommon* record, epicsInt32 rval, double fval)
         case epicsFloat32T:
         case epicsFloat64T:
             break;
-        case epicsUInt32T:
-        case regDevBCD32T:
-            if ((epicsUInt32)rval > (epicsUInt32)priv->H)
+        case epicsUInt64T:
+            if ((epicsUInt64)rval > (epicsUInt64)priv->H)
             {
-                regDevDebugLog(DBG_OUT, "%s: limit output from %u (0x%08x) to upper bound %u (0x%08x)\n",
+                regDevDebugLog(DBG_OUT, "%s: limit output from %llu (0x%llx) to upper bound %llu (0x%llx)\n",
                     record->name, rval, rval, priv->H, priv->H);
                 rval = priv->H;
             }
-            if ((epicsUInt32)rval < (epicsUInt32)priv->L)
+            if ((epicsUInt64)rval < (epicsUInt64)priv->L)
             {
-                regDevDebugLog(DBG_OUT, "%s: limit output from %u (0x%08x) to lower bound %u (0x%08x)\n",
+                regDevDebugLog(DBG_OUT, "%s: limit output from %llu (0x%llx) to lower bound %llu (0x%llx)\n",
                     record->name, rval, rval, priv->L, priv->L);
                 rval = priv->L;
             }
@@ -1855,13 +1872,13 @@ int regDevWriteNumber(dbCommon* record, epicsInt32 rval, double fval)
         default:
             if (rval > priv->H)
             {
-                regDevDebugLog(DBG_OUT, "%s: limit output from %d (0x%08x) to upper bound %d (0x%08x)\n",
+                regDevDebugLog(DBG_OUT, "%s: limit output from %lld (0x%llx) to upper bound %lld (0x%llx)\n",
                     record->name, rval, rval, priv->H, priv->H);
                 rval = priv->H;
             }
             if (rval < priv->L)
             {
-                regDevDebugLog(DBG_OUT, "%s: limit output from %d (0x%08x) to lower bound %d (0x%08x)\n",
+                regDevDebugLog(DBG_OUT, "%s: limit output from %lld (0x%llx) to lower bound %lld (0x%llx)\n",
                     record->name, rval, rval, priv->L, priv->L);
                 rval = priv->L;
             }
@@ -1873,21 +1890,21 @@ int regDevWriteNumber(dbCommon* record, epicsInt32 rval, double fval)
             rval = i2bcd(rval);
         case epicsInt8T:
         case epicsUInt8T:
-            priv->data.uval8 = rval;
+            priv->data.uval8 = (epicsUInt8)rval;
             break;
         case regDevBCD16T:
             rval = i2bcd(rval);
         case epicsInt16T:
         case epicsUInt16T:
-            priv->data.uval16 = rval;
+            priv->data.uval16 = (epicsUInt16)rval;
             break;
         case regDevBCD32T:
             rval = i2bcd(rval);
         case epicsInt32T:
         case epicsUInt32T:
-            priv->data.uval32 = rval;
+            priv->data.uval32 = (epicsUInt32)rval;
             break;
-        case regDev64T:
+        case epicsInt64T:
             priv->data.uval64 = rval;
             break;
         case epicsFloat32T:
@@ -1935,7 +1952,7 @@ int regDevReadBits(dbCommon* record, epicsUInt32* rval)
         case epicsUInt32T:
             rv = priv->data.uval32;
             break;
-        case regDev64T:
+        case epicsInt64T:
             rv = (epicsUInt32)priv->data.uval64; /* cut off high bits */
             break;
         default:
@@ -1982,7 +1999,7 @@ int regDevWriteBits(dbCommon* record, epicsUInt32 rval, epicsUInt32 mask)
             priv->data.uval32 = rval;
             priv->mask.uval32 = mask == 0xffffffff ? 0 : mask;
             break;
-        case regDev64T:
+        case epicsInt64T:
             priv->data.uval64 = rval;
             priv->mask.uval64 = mask;
             break;

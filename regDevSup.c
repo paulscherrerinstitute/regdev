@@ -643,7 +643,7 @@ long regDevReadAi(aiRecord* record)
 {
     int status;
     double val;
-    epicsInt32 rval;
+    epicsInt64 rval;
     int udf;
     
     udf = record->udf;
@@ -671,7 +671,7 @@ long regDevReadAi(aiRecord* record)
 
 long regDevSpecialLinconvAi(aiRecord* record, int after)
 {
-    epicsUInt32 hwSpan;
+    epicsUInt64 hwSpan;
     regDevPrivate* priv = (regDevPrivate*)record->dpvt;
 
     if (after && priv) {
@@ -686,15 +686,15 @@ long regDevSpecialLinconvAi(aiRecord* record, int after)
             case epicsInt16T:
             case epicsInt32T:
                 record->eoff = 
-                    ((epicsInt32)priv->H * record->egul - (epicsInt32)priv->L * record->eguf)
+                    ((epicsInt64)priv->H * record->egul - (epicsInt64)priv->L * record->eguf)
                     / hwSpan;
                 break;
             default:
                 record->eoff = 
-                    ((epicsUInt32)priv->H * record->egul - (epicsUInt32)priv->L * record->eguf)
+                    ((epicsUInt64)priv->H * record->egul - (epicsUInt64)priv->L * record->eguf)
                     / hwSpan;
         }                   
-        regDevDebugLog(DBG_INIT, "regDevSpecialLinconvAi(%s, 1): H=0x%08x=%d, L=0x%08x=%d, hwSpan=%u, ESLO=%g, EOFF=%g\n",
+        regDevDebugLog(DBG_INIT, "regDevSpecialLinconvAi(%s, 1): H=0x%llx=%lld, L=0x%llx=%lld, hwSpan=%llu, ESLO=%g, EOFF=%g\n",
             record->name, priv->H, priv->H, priv->L, priv->L, hwSpan, record->eslo, record->eoff);
     }
     return S_dev_success;
@@ -735,7 +735,7 @@ epicsExportAddress(dset, regDevAo);
 long regDevInitRecordAo(aoRecord* record)
 {
     double val;
-    epicsInt32 rval;
+    epicsInt64 rval;
 
     regDevCommonInit(record, out, TYPE_INT|TYPE_BCD|TYPE_FLOAT);
     regDevSpecialLinconvAo(record, TRUE);
@@ -761,7 +761,7 @@ long regDevUpdateAo(aoRecord* record)
 {
     int status;
     double val;
-    epicsInt32 rval;
+    epicsInt64 rval;
     unsigned short monitor_mask;
     
     status = regDevReadNumber((dbCommon*)record, &rval, &val);
@@ -843,7 +843,7 @@ long regDevWriteAo(aoRecord* record)
 
 long regDevSpecialLinconvAo(aoRecord* record, int after)
 {
-    epicsUInt32 hwSpan;
+    epicsUInt64 hwSpan;
     regDevPrivate* priv = (regDevPrivate*) record->dpvt;
 
     if (after) {
@@ -884,7 +884,7 @@ long regDevSpecialLinconvAo(aoRecord* record, int after)
                 = H            
 */        
 
-        regDevDebugLog(DBG_INIT, "regDevSpecialLinconvAo(%s, 1): H=0x%08x=%d, L=0x%08x=%d, hwSpan=%u, ESLO=%g, EOFF=%g\n",
+        regDevDebugLog(DBG_INIT, "regDevSpecialLinconvAo(%s, 1): H=0x%llx=%lld, L=0x%llx=%lld, hwSpan=%llu, ESLO=%g, EOFF=%g\n",
             record->name, priv->H, priv->H, priv->L, priv->L, hwSpan, record->eslo, record->eoff);
     }
     return S_dev_success;

@@ -89,8 +89,8 @@ typedef struct regDevPrivate{          /* per record data structure */
     epicsUInt8 dlen;                   /* Data length (in bytes) */
     epicsUInt8 arraypacking;           /* Array: elelents in one register */
     epicsUInt8 fifopacking;            /* Fifo: elelents in one register */
-    epicsInt32 L;                      /* Hardware Low limit */
-    epicsInt32 H;                      /* Hardware High limit */
+    epicsInt64 L;                      /* Hardware Low limit */
+    epicsInt64 H;                      /* Hardware High limit */
     epicsUInt32 invert;                /* Invert bits for bi,bo,mbbi,... */
     epicsUInt32 update;                /* Periodic update of output records (msec) */
     DEVSUPFUN updater;                 /* Update function */
@@ -130,8 +130,8 @@ int regDevInstallUpdateFunction(dbCommon* record, DEVSUPFUN updater);
 int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer);
 int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, void* mask);
 
-int regDevReadNumber(dbCommon* record, epicsInt32* rval, double* fval);
-int regDevWriteNumber(dbCommon* record, epicsInt32 rval, double fval);
+int regDevReadNumber(dbCommon* record, epicsInt64* rval, double* fval);
+int regDevWriteNumber(dbCommon* record, epicsInt64 rval, double fval);
 
 int regDevReadBits(dbCommon* record, epicsUInt32* rval);
 int regDevWriteBits(dbCommon* record, epicsUInt32 rval, epicsUInt32 mask);
