@@ -906,11 +906,25 @@ record (mbbo, "$(DEV):MBBO1")
     field (OUT,  "@test:16 T=word")
 }
 
-record (mbbo, "$(DEV):MBBO2")
+record (mbbi, "$(DEV):MBBI1")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:16 T=word")
+    field (SCAN, "I/O Intr")
+}
+
+record (mbboDirect, "$(DEV):MBBO2")
 {
     field (DTYP, "regDev")
     field (NOBT, "32")
     field (OUT,  "@test:16 T=uint32")
+}
+
+record (mbbiDirect, "$(DEV):MBBI2")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:16 T=uint32")
+    field (SCAN, "I/O Intr")
 }
 
 record (stringin, "$(DEV):SI1")
