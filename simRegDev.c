@@ -14,6 +14,8 @@
 #include <epicsMutex.h>
 #include <epicsThread.h>
 #include <epicsExport.h>
+#include <epicsStdioRedirect.h>
+#include "memDisplay.h"
 #include "simRegDev.h"
 
 #define MAGIC 322588966U /* crc("simRegDev") */
@@ -165,30 +167,7 @@ void simRegDevReport(
             device->size,
             device->connected ? "connected" : "disconnected");
         if (level > 0)
-        {
-            unsigned int r, c;
-            for (r=0; r<device->size; r+=16)
-            {
-                printf ("0x%04x:", r);
-
-                for (c=0; c<16; c++)
-                {
-                    if (r+c < device->size)
-                        printf (" %02x", device->buffer[r+c]);
-                    else
-                        printf ("   ");
-                }
-                printf (" | ");
-                for (c=0; c<16 && r+c < device->size; c++)
-                {
-                    if ((device->buffer[r+c] & 0x7f) >= 0x20)
-                        printf ("%c", device->buffer[r+c]);
-                    else
-                        printf (".");
-                }
-                printf ("\n");
-            }
-        }                    
+            memDisplay(0, device->buffer, 1, device->size);
     }
 }
 
