@@ -689,7 +689,7 @@ long regDevSpecialLinconvAi(aiRecord* record, int after)
                     / hwSpan;
         }                   
         regDevDebugLog(DBG_INIT, "regDevSpecialLinconvAi(%s, 1): H=0x%llx=%lld, L=0x%llx=%lld, hwSpan=%llu, ESLO=%g, EOFF=%g\n",
-            record->name, priv->H, priv->H, priv->L, priv->L, hwSpan, record->eslo, record->eoff);
+            record->name, (unsigned long long)priv->H, (unsigned long long)priv->H, (unsigned long long)priv->L, (unsigned long long)priv->L, (unsigned long long)hwSpan, record->eslo, record->eoff);
     }
     return S_dev_success;
 }
@@ -879,7 +879,7 @@ long regDevSpecialLinconvAo(aoRecord* record, int after)
 */        
 
         regDevDebugLog(DBG_INIT, "regDevSpecialLinconvAo(%s, 1): H=0x%llx=%lld, L=0x%llx=%lld, hwSpan=%llu, ESLO=%g, EOFF=%g\n",
-            record->name, priv->H, priv->H, priv->L, priv->L, hwSpan, record->eslo, record->eoff);
+            record->name, (unsigned long long)priv->H, (unsigned long long)priv->H, (unsigned long long)priv->L, (unsigned long long)priv->L, (unsigned long long)hwSpan, record->eslo, record->eoff);
     }
     return S_dev_success;
 }
