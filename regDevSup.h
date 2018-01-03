@@ -134,7 +134,8 @@ int regDevReadNumber(dbCommon* record, epicsInt64* rval, double* fval);
 int regDevWriteNumber(dbCommon* record, epicsInt64 rval, double fval);
 
 int regDevReadBits(dbCommon* record, epicsUInt32* rval);
-int regDevWriteBits(dbCommon* record, epicsUInt32 rval, epicsUInt32 mask);
+int regDevReadBits64(dbCommon* record, epicsUInt64* rval);
+int regDevWriteBits(dbCommon* record, epicsUInt64 rval, epicsUInt64 mask);
 
 /* returns OK or ERROR, or ASYNC_COMPLETION */
 int regDevReadArray(dbCommon* record, size_t nelm);

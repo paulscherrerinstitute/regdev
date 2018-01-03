@@ -16,6 +16,7 @@
 #include <cantProceed.h>
 #include <epicsAssert.h>
 #include <epicsExit.h>
+#include <epicsStdioRedirect.h>
 
 #include "memDisplay.h"
 
@@ -425,16 +426,16 @@ int regDevIoParse2(
                 break;
             case 'I': /* I=<invert> */
                 p += 2;
-                priv->invert = (epicsUInt32)regDevParseExpr(&p);
+                priv->invert = regDevParseExpr(&p);
                 break;
             case 'L': /* L=<low raw value> (converts to EGUL) */
                 p += 2;
-                L = (epicsInt32)regDevParseExpr(&p);
+                L = regDevParseExpr(&p);
                 lset = 1;
                 break;
             case 'H': /* L=<high raw value> (converts to EGUF) */
                 p += 2;
-                H = (epicsInt32)regDevParseExpr(&p);
+                H = regDevParseExpr(&p);
                 hset = 1;
                 break;
             case 'P': /* P=<packing> (for fifo) */
@@ -489,28 +490,29 @@ int regDevIoParse2(
             priv->dlen = 4;
             if (!hset) H = 0xFFFFFFFF;
             break;
-        case epicsInt64T:
-            priv->dlen = 8;
-            if (!hset) H = 0xFFFFFFFF;
-            break;
         case epicsUInt64T:
             priv->dlen = 8;
-            if (!hset) H = 0xFFFFFFFF;
+            if (!hset) H = 0xFFFFFFFFFFFFFFFFLL;
             break;
         case epicsInt8T:
             priv->dlen = 1;
-            if (!lset) L = -0x7F;
+            if (!lset) L = -0x80;
             if (!hset) H = 0x7F;
             break;
         case epicsInt16T:
             priv->dlen = 2;
-            if (!lset) L = -0x7FFF;
+            if (!lset) L = -0x8000;
             if (!hset) H = 0x7FFF;
             break;
         case epicsInt32T:
             priv->dlen = 4;
-            if (!lset) L = -0x7FFFFFFF;
+            if (!lset) L = -0x80000000;
             if (!hset) H = 0x7FFFFFFF;
+            break;
+        case epicsInt64T:
+            priv->dlen = 8;
+            if (!lset) L = -0x8000000000000000LL;
+            if (!hset) H = 0x7FFFFFFFFFFFFFFFLL;
             break;
         case regDevBCD8T:
             priv->dlen = 1;
@@ -1802,7 +1804,7 @@ int regDevReadNumber(dbCommon* record, epicsInt64* rval, double* fval)
             rv = priv->data.uval32;
             break;
         case epicsInt64T:
-            rv = (epicsInt32)priv->data.uval64; /* cut off high bits */
+            rv = priv->data.uval64;
             break;
         case epicsFloat32T:
             fv = priv->data.fval32;
@@ -1924,8 +1926,19 @@ int regDevWriteNumber(dbCommon* record, epicsInt64 rval, double fval)
 
 int regDevReadBits(dbCommon* record, epicsUInt32* rval)
 {
-    int status = S_dev_success;
-    epicsUInt32 rv = 0;
+    int status;
+    epicsUInt64 rv;
+
+    status = regDevReadBits64(record, &rv);
+    if (status) return status;
+    *rval = (epicsUInt32) rv; /* cut off high bits */
+    return 0;
+}
+
+int regDevReadBits64(dbCommon* record, epicsUInt64* rval)
+{
+    int status;
+    epicsUInt64 rv;
 
     regDevGetPriv();
     status = regDevRead(record, priv->dlen, 1, &priv->data);
@@ -1953,7 +1966,7 @@ int regDevReadBits(dbCommon* record, epicsUInt32* rval)
             rv = priv->data.uval32;
             break;
         case epicsInt64T:
-            rv = (epicsUInt32)priv->data.uval64; /* cut off high bits */
+            rv = priv->data.uval64;
             break;
         default:
             recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
@@ -1974,11 +1987,11 @@ int regDevReadBits(dbCommon* record, epicsUInt32* rval)
     return S_dev_success;
 }
 
-int regDevWriteBits(dbCommon* record, epicsUInt32 rval, epicsUInt32 mask)
+int regDevWriteBits(dbCommon* record, epicsUInt64 rval, epicsUInt64 mask)
 {
     regDevGetPriv();
-    regDevDebugLog(DBG_OUT, "%s: rval=0x%08x, mask=0x%08x)\n",
-        record->name, rval, mask);
+    regDevDebugLog(DBG_OUT, "%s: rval=0x%08llx, mask=0x%08llx)\n",
+        record->name, (unsigned long long)rval, (unsigned long long)mask);
 
     rval ^= priv->invert;
 
