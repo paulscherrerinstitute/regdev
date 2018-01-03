@@ -550,8 +550,8 @@ int regDevIoParse2(
     priv->L = L;
     priv->H = H;
     regDevDebugLog(DBG_INIT, "%s: dlen=%d\n",recordName, priv->dlen);
-    regDevDebugLog(DBG_INIT, "%s: L=%lld=%#llx\n",  recordName, priv->L, priv->L);
-    regDevDebugLog(DBG_INIT, "%s: H=%lld=%#llx\n",  recordName, priv->H, priv->H);
+    regDevDebugLog(DBG_INIT, "%s: L=%lld=%#llx\n",  recordName, (long long)priv->L, (long long)priv->L);
+    regDevDebugLog(DBG_INIT, "%s: H=%lld=%#llx\n",  recordName, (long long)priv->H, (long long)priv->H);
     regDevDebugLog(DBG_INIT, "%s: B=%d\n",   recordName, priv->bit);
     regDevDebugLog(DBG_INIT, "%s: X=%#x\n",  recordName, priv->invert);
 
@@ -1847,7 +1847,7 @@ int regDevWriteNumber(dbCommon* record, epicsInt64 rval, double fval)
 {
     regDevGetPriv();
     regDevDebugLog(DBG_OUT, "%s: rval=%lld (0x%llx), fval=%#g\n",
-        record->name, rval, rval, fval);
+        record->name, (long long)rval, (long long)rval, fval);
 
     /* enforce bounds */
     switch (priv->dtype)
@@ -1859,13 +1859,13 @@ int regDevWriteNumber(dbCommon* record, epicsInt64 rval, double fval)
             if ((epicsUInt64)rval > (epicsUInt64)priv->H)
             {
                 regDevDebugLog(DBG_OUT, "%s: limit output from %llu (0x%llx) to upper bound %llu (0x%llx)\n",
-                    record->name, rval, rval, priv->H, priv->H);
+                    record->name, (long long)rval, (long long)rval, (long long)priv->H, (long long)priv->H);
                 rval = priv->H;
             }
             if ((epicsUInt64)rval < (epicsUInt64)priv->L)
             {
                 regDevDebugLog(DBG_OUT, "%s: limit output from %llu (0x%llx) to lower bound %llu (0x%llx)\n",
-                    record->name, rval, rval, priv->L, priv->L);
+                    record->name, (long long)rval, (long long)rval, (long long)priv->L, (long long)priv->L);
                 rval = priv->L;
             }
             break;
@@ -1873,13 +1873,13 @@ int regDevWriteNumber(dbCommon* record, epicsInt64 rval, double fval)
             if (rval > priv->H)
             {
                 regDevDebugLog(DBG_OUT, "%s: limit output from %lld (0x%llx) to upper bound %lld (0x%llx)\n",
-                    record->name, rval, rval, priv->H, priv->H);
+                    record->name, (long long)rval, (long long)rval, (long long)priv->H, (long long)priv->H);
                 rval = priv->H;
             }
             if (rval < priv->L)
             {
                 regDevDebugLog(DBG_OUT, "%s: limit output from %lld (0x%llx) to lower bound %lld (0x%llx)\n",
-                    record->name, rval, rval, priv->L, priv->L);
+                    record->name, (long long)rval, (long long)rval, (long long)priv->L, (long long)priv->L);
                 rval = priv->L;
             }
     }
