@@ -304,18 +304,18 @@ int regDevIoParse2(
         offset += regDevParseExpr(&p);
         if (offset < 0 && !priv->offsetRecord)
         {
-            errlogPrintf("regDevIoParse %s: offset %"Z"d<0\n",
+            errlogPrintf("regDevIoParse %s: offset %" Z "d<0\n",
                 recordName, offset);
             return S_dev_badArgument;
         }
         priv->offset = offset;
         if (priv->offsetRecord)
             regDevDebugLog(DBG_INIT,
-                "%s: offset='%s'*0x%"Z"x+0x%"Z"x\n",
+                "%s: offset='%s'*0x%" Z "x+0x%" Z "x\n",
                 recordName, priv->offsetRecord->precord->name, priv->offsetScale, priv->offset);
         else
             regDevDebugLog(DBG_INIT,
-                "%s: offset=0x%"Z"x\n", recordName, priv->offset);
+                "%s: offset=0x%" Z "x\n", recordName, priv->offset);
         separator = *p++;
     }
     else
@@ -353,14 +353,14 @@ int regDevIoParse2(
         {
             if (rboffset < 0)
             {
-                errlogPrintf("regDevIoParse %s: readback offset %"Z"d < 0\n",
+                errlogPrintf("regDevIoParse %s: readback offset %" Z "d < 0\n",
                     recordName, rboffset);
                 return S_dev_badArgument;
             }
             priv->rboffset = rboffset;
         }
         regDevDebugLog(DBG_INIT,
-            "%s: readback offset=0x%"Z"x\n", recordName, priv->rboffset);
+            "%s: readback offset=0x%" Z "x\n", recordName, priv->rboffset);
         separator = *p++;
     }
     else
@@ -418,7 +418,7 @@ int regDevIoParse2(
                 val = regDevParseExpr(&p);
                 if (val < 0 || val >= 64)
                 {
-                    errlogPrintf("regDevIoParse %s: invalid bit number %"Z"d\n",
+                    errlogPrintf("regDevIoParse %s: invalid bit number %" Z "d\n",
                         recordName, val);
                     return S_dev_badArgument;
                 }
@@ -770,12 +770,12 @@ long regDevReport(int level)
             printf(" \"%s\" size ", device->name);
             if (size)
             {
-                printf("%"Z"d", size);
-                if (size > 9) printf("=0x%"Z"x", size);
+                printf("%" Z "d", size);
+                if (size > 9) printf("=0x%" Z "x", size);
                 if (size > 1024*1024)
-                    printf("=%"Z"dMiB", size >> 20);
+                    printf("=%" Z "dMiB", size >> 20);
                 else if (size > 1024)
-                    printf("=%"Z"dKiB", size >> 10);
+                    printf("=%" Z "dKiB", size >> 10);
             }
             else
                 printf("unknown");
@@ -1326,7 +1326,7 @@ int regDevGetOffset(dbCommon* record, epicsUInt8 dlen, size_t nelem, size_t *pof
             off += buffer.i * priv->offsetScale;
             if (off < 0)
             {
-                errlogPrintf("%s: effective offset '%s'=%d * %"Z"d + %"Z"u = %"Z"d < 0\n",
+                errlogPrintf("%s: effective offset '%s'=%d * %" Z "d + %" Z "u = %" Z "d < 0\n",
                     record->name, priv->offsetRecord->precord->name,
                     buffer.i, priv->offsetScale, offset, off);
                 return S_dev_badSignalNumber;
@@ -1334,22 +1334,22 @@ int regDevGetOffset(dbCommon* record, epicsUInt8 dlen, size_t nelem, size_t *pof
             offset = off;
         }
     }
-    if (atInit) regDevDebugLog(DBG_INIT, "%s: init from offset 0x%"Z"x\n",
+    if (atInit) regDevDebugLog(DBG_INIT, "%s: init from offset 0x%" Z "x\n",
         record->name, offset);
-    if (priv->updating) regDevDebugLog(DBG_IN, "%s: update from offset 0x%"Z"x\n",
+    if (priv->updating) regDevDebugLog(DBG_IN, "%s: update from offset 0x%" Z "x\n",
         record->name, offset);
 
     if (device->size) /* check offset range if size is provided */
     {
         if (offset > device->size)
         {
-            errlogPrintf("%s: offset 0x%"Z"x out of range of device %s (0-0x%"Z"x)\n",
+            errlogPrintf("%s: offset 0x%" Z "x out of range of device %s (0-0x%" Z "x)\n",
                 record->name, offset, device->name, device->size-1);
             return S_dev_badSignalNumber;
         }
         if (offset + dlen * nelem > device->size)
         {
-            errlogPrintf("%s: offset 0x%"Z"x + 0x%"Z"x bytes length exceeds device %s size 0x%"Z"x by 0x%"Z"x bytes\n",
+            errlogPrintf("%s: offset 0x%" Z "x + 0x%" Z "x bytes length exceeds device %s size 0x%" Z "x by 0x%" Z "x bytes\n",
                 record->name, offset, nelem*dlen, device->name, device->size,
                 offset + dlen * nelem - device->size);
             return S_dev_badSignalCount;
@@ -1405,7 +1405,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
     assert(device != NULL);
     assert(buffer != NULL || nelem == 0 || dlen == 0);
 
-    regDevDebugLog(DBG_IN, "%s: dlen=%u, nelm=%"Z"u, buffer=%p\n",
+    regDevDebugLog(DBG_IN, "%s: dlen=%u, nelm=%" Z "u, buffer=%p\n",
         record->name, dlen, nelem, buffer);
 
     if (!device->support->read)
@@ -1502,13 +1502,13 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
                 if (buffer < device->blockBuffer || buffer >= device->blockBuffer+device->size || offset != priv->offset)
                 {
                     /* copy block buffer to record (if not mapped) */
-                    regDevDebugLog(DBG_IN, "%s: copy %"Z"u * %u bytes from %s block buffer %p+0x%"Z"x to record buffer %p\n",
+                    regDevDebugLog(DBG_IN, "%s: copy %" Z "u * %u bytes from %s block buffer %p+0x%" Z "x to record buffer %p\n",
                         record->name, nelem, dlen, device->name, device->blockBuffer, offset, buffer);
                     regDevCopy(dlen, nelem, device->blockBuffer+offset, buffer, NULL, device->blockSwap);
                 }
                 else
                 {
-                    regDevDebugLog(DBG_IN, "%s: %"Z"u * %u bytes mapped in %s block buffer %p+0x%"Z"x\n",
+                    regDevDebugLog(DBG_IN, "%s: %" Z "u * %u bytes mapped in %s block buffer %p+0x%" Z "x\n",
                         record->name, nelem, dlen, device->name, device->blockBuffer, offset);
                 }
             }
@@ -1525,7 +1525,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
     {
         if (status == ASYNC_COMPLETION)
         {
-            printf("%s %s: async read %"Z"u * %u bit from %s:0x%"Z"x\n",
+            printf("%s %s: async read %" Z "u * %u bit from %s:0x%" Z "x\n",
                 _CURRENT_FUNCTION_, record->name, nelem, dlen*8,
                 device->name, priv->asyncOffset);
         }
@@ -1533,31 +1533,31 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         {
             case 1:
                 regDevDebugLog(DBG_IN,
-                    "%s: read %"Z"u * 8 bit 0x%02x from %s:0x%"Z"x (status=%x)\n",
+                    "%s: read %" Z "u * 8 bit 0x%02x from %s:0x%" Z "x (status=%x)\n",
                     record->name, nelem, *(epicsUInt8*)buffer,
                     device->name, offset, status);
                 break;
             case 2:
                 regDevDebugLog(DBG_IN,
-                    "%s: read %"Z"u * 16 bit 0x%04x from %s:0x%"Z"x (status=%x)\n",
+                    "%s: read %" Z "u * 16 bit 0x%04x from %s:0x%" Z "x (status=%x)\n",
                     record->name, nelem, *(epicsUInt16*)buffer,
                     device->name, offset, status);
                 break;
             case 4:
                 regDevDebugLog(DBG_IN,
-                    "%s: read %"Z"u * 32 bit 0x%08x from %s:0x%"Z"x (status=%x)\n",
+                    "%s: read %" Z "u * 32 bit 0x%08x from %s:0x%" Z "x (status=%x)\n",
                     record->name, nelem, *(epicsUInt32*)buffer,
                     device->name, offset, status);
                 break;
             case 8:
                 regDevDebugLog(DBG_IN,
-                    "%s: read %"Z"u * 64 bit 0x%016llx from %s:0x%"Z"x (status=%x)\n",
+                    "%s: read %" Z "u * 64 bit 0x%016llx from %s:0x%" Z "x (status=%x)\n",
                     record->name, nelem, (unsigned long long)*(epicsUInt64*)buffer,
                     device->name, offset, status);
                 break;
             default:
                 regDevDebugLog(DBG_IN,
-                    "%s: read %"Z"u * %d bit from %s:0x%"Z"x (status=%x)\n",
+                    "%s: read %" Z "u * %d bit from %s:0x%" Z "x (status=%x)\n",
                     record->name, nelem, dlen*8,
                     device->name, offset, status);
         }
@@ -1592,7 +1592,7 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
     assert(device != NULL);
     assert(buffer != NULL || nelem == 0 || dlen == 0);
 
-    regDevDebugLog(DBG_OUT, "%s: dlen=%u, nelm=%"Z"u, buffer=%p mask=%p\n",
+    regDevDebugLog(DBG_OUT, "%s: dlen=%u, nelm=%" Z "u, buffer=%p mask=%p\n",
         record->name, dlen, nelem, buffer, mask);
 
     if (!device->support->write)
@@ -1626,54 +1626,54 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
         {
             case 1:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * 8 bit 0x%02x to %s:0x%"Z"x\n",
+                    "%s: write %" Z "u * 8 bit 0x%02x to %s:0x%" Z "x\n",
                     record->name, nelem, *(epicsUInt8*)buffer,
                     device->name, offset);
                 break;
             case 2:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * 16 bit 0x%04x to %s:0x%"Z"x\n",
+                    "%s: write %" Z "u * 16 bit 0x%04x to %s:0x%" Z "x\n",
                     record->name, nelem, *(epicsUInt16*)buffer,
                     device->name, offset);
                 break;
             case 4:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * 32 bit 0x%08x to %s:0x%"Z"x\n",
+                    "%s: write %" Z "u * 32 bit 0x%08x to %s:0x%" Z "x\n",
                     record->name, nelem, *(epicsUInt32*)buffer,
                     device->name, offset);
                 break;
             case 8:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * 64 bit 0x%016llx to %s:0x%"Z"x\n",
+                    "%s: write %" Z "u * 64 bit 0x%016llx to %s:0x%" Z "x\n",
                     record->name, nelem, (unsigned long long)*(epicsUInt64*)buffer,
                     device->name, offset);
                 break;
             case 11:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * 8 bit 0x%02x mask 0x%02x to %s:0x%"Z"x\n",
+                    "%s: write %" Z "u * 8 bit 0x%02x mask 0x%02x to %s:0x%" Z "x\n",
                     record->name, nelem, *(epicsUInt8*)buffer, *(epicsUInt8*)mask,
                     device->name, offset);
             case 12:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * 16 bit 0x%04x mask 0x%04x to %s:0x%"Z"x\n",
+                    "%s: write %" Z "u * 16 bit 0x%04x mask 0x%04x to %s:0x%" Z "x\n",
                     record->name, nelem, *(epicsUInt16*)buffer, *(epicsUInt16*)mask,
                     device->name, offset);
                 break;
             case 14:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * 32 bit 0x%08x mask 0x%08x to %s:0x%"Z"x\n",
+                    "%s: write %" Z "u * 32 bit 0x%08x mask 0x%08x to %s:0x%" Z "x\n",
                     record->name, nelem, *(epicsUInt32*)buffer, *(epicsUInt32*)mask,
                     device->name, offset);
                 break;
             case 18:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * 64 bit 0x%016llx mask 0x%016llx to %s:0x%"Z"x\n",
+                    "%s: write %" Z "u * 64 bit 0x%016llx mask 0x%016llx to %s:0x%" Z "x\n",
                     record->name, nelem, (unsigned long long)*(epicsUInt64*)buffer, (unsigned long long)*(epicsUInt64*)mask,
                     device->name, offset);
                 break;
             default:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %"Z"u * %d bit to %s:0x%"Z"x\n",
+                    "%s: write %" Z "u * %d bit to %s:0x%" Z "x\n",
                     record->name, nelem, dlen*8,
                     device->name, offset);
         }
@@ -1686,13 +1686,13 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
             if (buffer < device->blockBuffer || buffer >= device->blockBuffer+device->size)
             {
                 /* copy record to block buffer (if not mapped) */
-                regDevDebugLog(DBG_OUT, "%s: copy %"Z"u * %u bytes from record buffer %p to %s block buffer %p+0x%"Z"x\n",
+                regDevDebugLog(DBG_OUT, "%s: copy %" Z "u * %u bytes from record buffer %p to %s block buffer %p+0x%" Z "x\n",
                     record->name, nelem, dlen, buffer, device->name, device->blockBuffer, offset);
                 regDevCopy(dlen, nelem, buffer, device->blockBuffer+offset, mask, device->blockSwap);
             }
             else
             {
-                regDevDebugLog(DBG_OUT, "%s: %"Z"u * %u bytes mapped in %s block buffer %p+0x%"Z"x\n",
+                regDevDebugLog(DBG_OUT, "%s: %" Z "u * %u bytes mapped in %s block buffer %p+0x%" Z "x\n",
                     record->name, nelem, dlen, device->name, device->blockBuffer, offset);
             }
         }
@@ -2101,14 +2101,14 @@ int regDevWriteArray(dbCommon* record, size_t nelm)
 
     regDevGetPriv();
 
-    regDevDebugLog(DBG_OUT, "%s: nelm=%"Z"d dlen=%d\n", record->name, nelm, priv->dlen);
+    regDevDebugLog(DBG_OUT, "%s: nelm=%" Z "d dlen=%d\n", record->name, nelm, priv->dlen);
 
     if (priv->dtype == epicsStringT)
     {
         /* strings are arrays of single bytes but priv->L contains string length */
         if (nelm > (size_t)priv->L)
             nelm = (size_t)priv->L;
-        regDevDebugLog(DBG_OUT, "%s: string length %"Z"d\n", record->name, nelm);
+        regDevDebugLog(DBG_OUT, "%s: string length %" Z "d\n", record->name, nelm);
     }
     dlen = priv->dlen;
 
@@ -2570,7 +2570,7 @@ int regDevDisplay(const char* devName, int start, unsigned int dlen, size_t byte
     {
         if (offset >= device->size)
         {
-            errlogPrintf("address 0x%"Z"x out of range\n", offset);
+            errlogPrintf("address 0x%" Z "x out of range\n", offset);
             return S_dev_badArgument;
         }
         if (offset + bytes > device->size)
