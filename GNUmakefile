@@ -17,6 +17,11 @@ DBDS_3.14 += regDevCalcout.dbd simRegDev.dbd
 DBDS += regDevBase.dbd regDevAaiAao.dbd 
 HEADERS = regDev.h
 
+ifneq ($(wildcard ${EPICS_BASE}/include/int64inRecord.h),)
+SOURCES += regDevInt64.c
+DBDS += regDevInt64.dbd 
+endif
+
 test:
 	make -C test test
 

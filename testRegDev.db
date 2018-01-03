@@ -981,3 +981,14 @@ record (waveform, "$(DEV):INDEXED-WF1")
     field (INP,  "@test:('$(DEV):INDEX'*2+3)*5+7")
     field (NELM, "10")
 }
+record(int64in, "$(DEV):INT64IN")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test:12 T=int64")
+    field (SCAN, "I/O Intr")
+}
+record(int64out, "$(DEV):INT64OUT")
+{
+    field (DTYP, "regDev")
+    field (OUT,  "@test:12 T=int64 U=1000")
+}

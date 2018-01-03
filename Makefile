@@ -21,6 +21,10 @@ regDev_DBD += regDevAaiAao.dbd
 LIB_SRCS += regDevCalcout.c
 regDev_DBD += regDevCalcout.dbd
 
+# requires 3.16+
+LIB_SRCS += regDevInt64.c
+regDev_DBD += regDevInt64.dbd 
+
 LIB_SRCS += simRegDev.c
 regDev_DBD += simRegDev.dbd
 
