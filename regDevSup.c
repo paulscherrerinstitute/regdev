@@ -866,16 +866,18 @@ long regDevSpecialLinconvAo(aoRecord* record, int after)
                 = [OVAL * (H - L) - (H * EGUL - L * EGUF)] / (EGUF - EGUL)
                 = [OVAL * H - OVAL * L - H * EGUL + L * EGUF] / (EGUF - EGUL)
                 = [H * (OVAL - EGUL) + L * (EGUF - OVAL)] / (EGUF - EGUL)
-           
+
     OVAL = EGUL:
-           RVAL = H * (EGUL - EGUL) + L * (EGUF - EGUL)] / (EGUF - EGUL)
-                = L * (EGUF - EGUL)  / (EGUF - EGUL)
+           RVAL = [H * (OVAL - EGUL) + L * (EGUF - OVAL)] / (EGUF - EGUL)
+                = [H * (EGUL - EGUL) + L * (EGUF - EGUL)] / (EGUF - EGUL)
+                = L * (EGUF - EGUL) / (EGUF - EGUL)
                 = L
 
     OVAL = EGUF:
-           RVAL = H * (EGUF - EGUL) + L * (EGUF - EGUF)] / (EGUF - EGUL)
+           RVAL = [H * (OVAL - EGUL) + L * (EGUF - OVAL)] / (EGUF - EGUL)
+                = [H * (EGUF - EGUL) + L * (EGUF - EGUF)] / (EGUF - EGUL)
                 = H * (EGUF - EGUL) / (EGUF - EGUL)
-                = H            
+                = H
 */        
 
         regDevDebugLog(DBG_INIT, "regDevSpecialLinconvAo(%s, 1): H=0x%llx=%lld, L=0x%llx=%lld, hwSpan=%llu, ESLO=%g, EOFF=%g\n",
