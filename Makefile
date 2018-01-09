@@ -15,15 +15,38 @@ LIB_SRCS += regDevCopy.c
 LIB_SRCS += regDevSup.c
 regDev_DBD += regDevBase.dbd
 
+# Check EPICS base version for available record types
+ifeq ($(BASE_3_14),YES)
+ifeq ($(shell $(PERL) -e 'print $(EPICS_MODIFICATION)>=12',1)
+WITH_AAIO=YES
+endif
+ifeq ($(shell $(PERL) -e 'print $(EPICS_MODIFICATION)>=5',1)
+WITH_CALCOUT=YES
+endif
+
+ifdef BASE_3_15
+WITH_CALCOUT=YES
+WITH_AAIO=YES
+endif
+
+ifdef BASE_3_16
+WITH_INT64IO=YES
+endif
+
+ifdef WITH_AAIO 
 LIB_SRCS += regDevAaiAao.c
 regDev_DBD += regDevAaiAao.dbd
+endif
 
+ifdef WITH_CALCOUT
 LIB_SRCS += regDevCalcout.c
 regDev_DBD += regDevCalcout.dbd
+endif
 
-# requires 3.16+
+ifdef WITH_INT64IO
 LIB_SRCS += regDevInt64.c
 regDev_DBD += regDevInt64.dbd 
+endif
 
 LIB_SRCS += simRegDev.c
 regDev_DBD += simRegDev.dbd
