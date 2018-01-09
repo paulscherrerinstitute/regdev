@@ -77,8 +77,9 @@ static int startswith(const char *s, const char *key)
 #define regDevBCD8T  (100)
 #define regDevBCD16T (101)
 #define regDevBCD32T (102)
+#define regDevBCD64T (103)
 #define regDevFirstType epicsInt64T
-#define regDevLastType  regDevBCD32T
+#define regDevLastType  regDevBCD64T
 
 static const struct {char* name; epicsType type;} datatypes [] =
 {
@@ -132,6 +133,7 @@ static const struct {char* name; epicsType type;} datatypes [] =
     { "bcd8",       regDevBCD8T   },
     { "bcd16",      regDevBCD16T  },
     { "bcd32",      regDevBCD32T  },
+    { "bcd64",      regDevBCD64T  },
     { "bcd",        regDevBCD8T   },
     { "time",       regDevBCD8T   } /* for backward compatibility */
 };
@@ -144,6 +146,7 @@ const char* regDevTypeName(unsigned short dtype)
         "regDevBCD8",
         "regDevBCD16",
         "regDevBCD32",
+        "regDevBCD64",
     };
 
     if (dtype > regDevLastType) return "invalid";
@@ -207,7 +210,8 @@ epicsInt64 regDevParseExpr(char** pp)
 int regDevIoParse2(
     const char* recordName,
     char* parameterstring,
-    regDevPrivate* priv)
+    regDevPrivate* priv,
+    int types)
 {
     char devName[255];
     regDeviceNode* device;
@@ -496,22 +500,22 @@ int regDevIoParse2(
             break;
         case epicsInt8T:
             priv->dlen = 1;
-            if (!lset) L = -0x80;
+            if (!lset) L = (types & TYPE_FLOAT) ? -0x7F : -0x80;
             if (!hset) H = 0x7F;
             break;
         case epicsInt16T:
             priv->dlen = 2;
-            if (!lset) L = -0x8000;
+            if (!lset) L = (types & TYPE_FLOAT) ? -0x7FFF : -0x8000;
             if (!hset) H = 0x7FFF;
             break;
         case epicsInt32T:
             priv->dlen = 4;
-            if (!lset) L = -0x80000000;
+            if (!lset) L = (types & TYPE_FLOAT) ? -0x7FFFFFFF : -0x80000000;
             if (!hset) H = 0x7FFFFFFF;
             break;
         case epicsInt64T:
             priv->dlen = 8;
-            if (!lset) L = -0x8000000000000000LL;
+            if (!lset) L = (types & TYPE_FLOAT) ? -0x7FFFFFFFFFFFFFFFLL : -0x8000000000000000LL;
             if (!hset) H = 0x7FFFFFFFFFFFFFFFLL;
             break;
         case regDevBCD8T:
@@ -525,6 +529,10 @@ int regDevIoParse2(
         case regDevBCD32T:
             priv->dlen = 4;
             if (!hset) H = 99999999;
+            break;
+        case regDevBCD64T:
+            priv->dlen = 8;
+            if (!hset) H = 9999999999999999LL;
             break;
         case epicsFloat32T:
             priv->dlen = 4;
@@ -560,7 +568,7 @@ int regDevIoParse2(
     return S_dev_success;
 }
 
-int regDevIoParse(dbCommon* record, struct link* link)
+int regDevIoParse(dbCommon* record, struct link* link, int types)
 {
     int status;
 
@@ -574,7 +582,8 @@ int regDevIoParse(dbCommon* record, struct link* link)
     {
         status = regDevIoParse2(record->name,
             link->value.instio.string,
-            (regDevPrivate*) record->dpvt);
+            (regDevPrivate*) record->dpvt,
+            types);
         if (status == S_dev_success) return status;
     }
     free(record->dpvt);
@@ -811,7 +820,7 @@ epicsExportAddress(drvet, regDev);
 
 /* routine to convert bytes from BCD to integer format. */
 
-static unsigned long bcd2i(unsigned long bcd)
+static epicsUInt64 bcd2i(epicsUInt64 bcd)
 {
     unsigned long i = 0;
     unsigned long m = 1;
@@ -827,7 +836,7 @@ static unsigned long bcd2i(unsigned long bcd)
 
 /* routine to convert bytes from integer to BCD format. */
 
-static unsigned long i2bcd(unsigned long i)
+static epicsUInt64 i2bcd(epicsUInt64 i)
 {
     int bcd = 0;
     int s = 0;
@@ -835,8 +844,8 @@ static unsigned long i2bcd(unsigned long i)
     while (i)
     {
         bcd += (i % 10) << s;
-        s += 4;
         i /= 10;
+        s += 4;
     }
     return bcd;
 }
@@ -893,6 +902,7 @@ int regDevAssertType(dbCommon *record, int allowedTypes)
         case regDevBCD8T:
         case regDevBCD16T:
         case regDevBCD32T:
+        case regDevBCD64T:
             if (allowedTypes & TYPE_BCD) return S_dev_success;
             break;
         case epicsInt64T:
@@ -1032,7 +1042,9 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
             else if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
                 status = ARRAY_CONVERT;
             break;
+        case regDevBCD64T:
         case epicsInt64T:
+        case epicsUInt64T:
             if ((ftvl == DBF_LONG) || (ftvl == DBF_ULONG))
             {
                 priv->arraypacking = 2;
@@ -1804,6 +1816,7 @@ int regDevReadNumber(dbCommon* record, epicsInt64* rval, double* fval)
             rv = priv->data.uval32;
             break;
         case epicsInt64T:
+        case regDevBCD64T:
             rv = priv->data.uval64;
             break;
         case epicsFloat32T:
@@ -1814,7 +1827,7 @@ int regDevReadNumber(dbCommon* record, epicsInt64* rval, double* fval)
             break;
         default:
             recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
-            regDevPrintErr("unexpected data %s type requested",
+            regDevPrintErr("unexpected data type %s requested",
                 regDevTypeName(priv->dtype));
             return S_dev_badArgument;
     }
@@ -1831,6 +1844,7 @@ int regDevReadNumber(dbCommon* record, epicsInt64* rval, double* fval)
         case regDevBCD8T:
         case regDevBCD16T:
         case regDevBCD32T:
+        case regDevBCD64T:
             rv = bcd2i(rv);
             break;
         case epicsFloat32T:
@@ -1906,7 +1920,10 @@ int regDevWriteNumber(dbCommon* record, epicsInt64 rval, double fval)
         case epicsUInt32T:
             priv->data.uval32 = (epicsUInt32)rval;
             break;
+        case regDevBCD64T:
+            rval = i2bcd(rval);
         case epicsInt64T:
+        case epicsUInt64T:
             priv->data.uval64 = rval;
             break;
         case epicsFloat32T:
@@ -1970,7 +1987,7 @@ int regDevReadBits64(dbCommon* record, epicsUInt64* rval)
             break;
         default:
             recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
-            regDevPrintErr("unexpected data %s type requested",
+            regDevPrintErr("unexpected data type %s requested",
                 regDevTypeName(priv->dtype));
             return S_dev_badArgument;
     }
@@ -2088,6 +2105,13 @@ int regDevReadArray(dbCommon* record, size_t nelm)
                 buffer[i] = (epicsUInt32)bcd2i(buffer[i]);
             break;
         }
+        case regDevBCD64T:
+        {
+            epicsUInt64* buffer = priv->data.buffer;
+            for (i = 0; i < nelm; i++)
+                buffer[i] = bcd2i(buffer[i]);
+            break;
+        }
     }
     return S_dev_success;
 }
@@ -2135,6 +2159,13 @@ int regDevWriteArray(dbCommon* record, size_t nelm)
                 buffer[i] = (epicsUInt32)i2bcd(buffer[i]);
             break;
         }
+        case regDevBCD64T:
+        {
+            epicsUInt64* buffer = priv->data.buffer;
+            for (i = 0; i < nelm; i++)
+                buffer[i] = i2bcd(buffer[i]);
+            break;
+        }
     }
 
     packing = priv->fifopacking;
@@ -2160,12 +2191,12 @@ int regDevWriteArray(dbCommon* record, size_t nelm)
 
 int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double low, double high)
 {
-    double o, s;
+    long double o, s;
     size_t i;
 
     regDevGetPriv();
 
-    s = (double)priv->H - priv->L;
+    s = (long double)(priv->H - priv->L);
     o = (priv->H * low - priv->L * high) / s;
     s = (high - low) / s;
 
@@ -2256,13 +2287,40 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
         case epicsUInt32T:
         case regDevBCD32T:
         {
-            /* we need to care more about the type of H and L here */
             epicsUInt32* r = priv->data.buffer;
-
-            s = (double)(epicsUInt32)priv->H - (epicsUInt32)priv->L;
-            o = ((epicsUInt32)priv->H * low - (epicsUInt32)priv->L * high) / s;
-            s = (high - low) / s;
-
+            if (ftvl == DBF_DOUBLE)
+            {
+                double *v = val;
+                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
+            }
+            else if (ftvl == DBF_FLOAT)
+            {
+                float *v = val;
+                for (i = 0; i < nelm; i++) v[i] = (float)(r[i]*s+o);
+            }
+            else break;
+            return S_dev_success;
+        }
+        case epicsInt64T:
+        {
+            epicsInt64* r = priv->data.buffer;
+            if (ftvl == DBF_DOUBLE)
+            {
+                double *v = val;
+                for (i = 0; i < nelm; i++) v[i] = r[i]*s+o;
+            }
+            else if (ftvl == DBF_FLOAT)
+            {
+                float *v = val;
+                for (i = 0; i < nelm; i++) v[i] = (float)(r[i]*s+o);
+            }
+            else break;
+            return S_dev_success;
+        }
+        case epicsUInt64T:
+        case regDevBCD64T:
+        {
+            epicsUInt64* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val;
@@ -2285,12 +2343,12 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
 
 int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double low, double high)
 {
-    double o, s, x;
+    long double o, s;
     size_t i;
 
     regDevGetPriv();
 
-    s = (double)priv->H - priv->L;
+    s = (unsigned long long)(priv->H - priv->L);
     o = (priv->L * high - priv->H * low) / s;
     s = s / (high - low);
 
@@ -2301,7 +2359,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             epicsInt8* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
-                double *v = val;
+                double *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
                     if (x < priv->L) x = priv->L;
@@ -2311,7 +2369,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             }
             else if (ftvl == DBF_FLOAT)
             {
-                float *v = val;
+                float *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
                     if (x < priv->L) x = priv->L;
@@ -2328,7 +2386,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             epicsUInt8* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
-                double *v = val;
+                double *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
                     if (x < priv->L) x = priv->L;
@@ -2338,7 +2396,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             }
             else if (ftvl == DBF_FLOAT)
             {
-                float *v = val;
+                float *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
                     if (x < priv->L) x = priv->L;
@@ -2354,7 +2412,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             epicsInt16* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
-                double *v = val;
+                double *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
                     if (x < priv->L) x = priv->L;
@@ -2364,7 +2422,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             }
             else if (ftvl == DBF_FLOAT)
             {
-                float *v = val;
+                float *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
                     if (x < priv->L) x = priv->L;
@@ -2381,7 +2439,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             epicsUInt16* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
-                double *v = val;
+                double *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
                     if (x < priv->L) x = priv->L;
@@ -2391,7 +2449,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             }
             else if (ftvl == DBF_FLOAT)
             {
-                float *v = val;
+                float *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
                     if (x < priv->L) x = priv->L;
@@ -2407,7 +2465,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             epicsInt32* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
-                double *v = val;
+                double *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
                     if (x < priv->L) x = priv->L;
@@ -2417,7 +2475,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             }
             else if (ftvl == DBF_FLOAT)
             {
-                float *v = val;
+                float *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
                     if (x < priv->L) x = priv->L;
@@ -2431,31 +2489,78 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
         case epicsUInt32T:
         case regDevBCD32T:
         {
-            /* we need to care more about the type of H and L here */
             epicsUInt32* r = priv->data.buffer;
-
-            s = (double)(epicsUInt32)priv->H - (epicsUInt32)priv->L;
-            o = ((epicsUInt32)priv->L * high - (epicsUInt32)priv->H * low) / s;
-            s = s / (high - low);
-
             if (ftvl == DBF_DOUBLE)
             {
-                double *v = val;
+                double *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
-                    if (x < (epicsUInt32)priv->L) x = (epicsUInt32)priv->L;
-                    if (x > (epicsUInt32)priv->H) x = (epicsUInt32)priv->H;
+                    if (x < priv->L) x = priv->L;
+                    if (x > priv->H) x = priv->H;
                     r[i] = (epicsUInt32)x;
                 }
             }
             else if (ftvl == DBF_FLOAT)
             {
-                float *v = val;
+                float *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
-                    if (x < (epicsUInt32)priv->L) x = (epicsUInt32)priv->L;
-                    if (x > (epicsUInt32)priv->H) x = (epicsUInt32)priv->H;
+                    if (x < priv->L) x = priv->L;
+                    if (x > priv->H) x = priv->H;
                     r[i] = (epicsUInt32)x;
+                }
+            }
+            else break;
+            return S_dev_success;
+        }
+        case epicsInt64T:
+        {
+            epicsInt64* r = priv->data.buffer;
+            if (ftvl == DBF_DOUBLE)
+            {
+                double *v = val, x;
+                for (i = 0; i < nelm; i++) {
+                    x = (v[i]+o)*s;
+                    if (x < priv->L) x = priv->L;
+                    if (x > priv->H) x = priv->H;
+                    r[i] = (epicsInt64)x;
+                }
+            }
+            else if (ftvl == DBF_FLOAT)
+            {
+                float *v = val, x;
+                for (i = 0; i < nelm; i++) {
+                    x = (v[i]+o)*s;
+                    if (x < priv->L) x = priv->L;
+                    if (x > priv->H) x = priv->H;
+                    r[i] = (epicsInt64)x;
+                }
+            }
+            else break;
+            return S_dev_success;
+        }
+        case epicsUInt64T:
+        case regDevBCD64T:
+        {
+            epicsUInt64* r = priv->data.buffer;
+            if (ftvl == DBF_DOUBLE)
+            {
+                double *v = val, x;
+                for (i = 0; i < nelm; i++) {
+                    x = (v[i]+o)*s;
+                    if (x < priv->L) x = priv->L;
+                    if (x > priv->H) x = priv->H;
+                    r[i] = (epicsUInt64)x;
+                }
+            }
+            else if (ftvl == DBF_FLOAT)
+            {
+                float *v = val, x;
+                for (i = 0; i < nelm; i++) {
+                    x = (v[i]+o)*s;
+                    if (x < priv->L) x = priv->L;
+                    if (x > priv->H) x = priv->H;
+                    r[i] = (epicsUInt64)x;
                 }
             }
             else break;

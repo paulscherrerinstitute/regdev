@@ -89,10 +89,10 @@ typedef struct regDevPrivate{          /* per record data structure */
     epicsUInt8 dlen;                   /* Data length (in bytes) */
     epicsUInt8 arraypacking;           /* Array: elelents in one register */
     epicsUInt8 fifopacking;            /* Fifo: elelents in one register */
+    epicsUInt32 update;                /* Periodic update of output records (msec) */
     epicsInt64 L;                      /* Hardware Low limit */
     epicsInt64 H;                      /* Hardware High limit */
-    epicsUInt32 invert;                /* Invert bits for bi,bo,mbbi,... */
-    epicsUInt32 update;                /* Periodic update of output records (msec) */
+    epicsUInt64 invert;                /* Invert bits for bi,bo,mbbi,... */
     DEVSUPFUN updater;                 /* Update function */
     epicsTimerId updateTimer;          /* Update timer */
     int updating;                      /* Processing type */
@@ -118,7 +118,7 @@ long regDevGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt);
 long regDevGetOutIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt);
 regDevPrivate* regDevAllocPriv(dbCommon *record);
 int regDevCheckFTVL(dbCommon* record, int ftvl);
-int regDevIoParse(dbCommon* record, struct link* link);
+int regDevIoParse(dbCommon* record, struct link* link, int types);
 int regDevCheckType(dbCommon* record, int ftvl, int nelm);
 int regDevAssertType(dbCommon *record, int types);
 const char* regDevTypeName(unsigned short dtype);
@@ -149,7 +149,7 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* rval, size_t nelm, double
     regDevPrivate* priv; \
     priv = regDevAllocPriv((dbCommon*)record); \
     if (!priv) return S_dev_noMemory; \
-    status = regDevIoParse((dbCommon*)record, &record->link); \
+    status = regDevIoParse((dbCommon*)record, &record->link, types); \
     if (status) return status; \
     status = regDevAssertType((dbCommon*)record, types); \
     if (status) return status

@@ -42,7 +42,8 @@ long regDevInitRecordAai(aaiRecord* record)
     if (!priv) return S_dev_noMemory;
     status = regDevCheckFTVL((dbCommon*)record, record->ftvl);
     if (status) return status;
-    status = regDevIoParse((dbCommon*)record, &record->inp);
+    status = regDevIoParse((dbCommon*)record, &record->inp,
+        record->ftvl==DBF_FLOAT || record->ftvl==DBF_DOUBLE ? TYPE_FLOAT : 0);
     if (status) return status;
     record->nord = record->nelm;
     /* aai record does not allocate bptr in older EPICS versions. */
@@ -118,7 +119,8 @@ long regDevInitRecordAao(aaoRecord* record)
     if (!priv) return S_dev_noMemory;
     status = regDevCheckFTVL((dbCommon*)record, record->ftvl);
     if (status) return status;
-    status = regDevIoParse((dbCommon*)record, &record->out);
+    status = regDevIoParse((dbCommon*)record, &record->out,
+        record->ftvl==DBF_FLOAT || record->ftvl==DBF_DOUBLE ? TYPE_FLOAT : 0);
     if (status) return status;
     record->nord = record->nelm;
     /* aao record does not allocate bptr in older EPICS versions. */

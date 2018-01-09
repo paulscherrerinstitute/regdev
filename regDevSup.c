@@ -30,7 +30,7 @@ epicsExportAddress(dset, regDevStat);
 long regDevInitRecordStat(biRecord* record)
 {
     if (!regDevAllocPriv((dbCommon*)record)) return S_dev_noMemory;
-    return regDevIoParse((dbCommon*)record, &record->inp);
+    return regDevIoParse((dbCommon*)record, &record->inp, 0);
 }
 
 long regDevReadStat(biRecord* record)
@@ -513,9 +513,9 @@ long regDevInitRecordLongin(longinRecord* record)
 long regDevReadLongin(longinRecord* record)
 {
     int status;
-    epicsUInt32 val;
+    epicsInt64 val;
     
-    status = regDevReadBits((dbCommon*)record, &val);
+    status = regDevReadNumber((dbCommon*)record, &val, NULL);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status) return status;
     record->val = val;
@@ -544,13 +544,13 @@ epicsExportAddress(dset, regDevLongout);
 
 long regDevInitRecordLongout(longoutRecord* record)
 {
-    epicsUInt32 val;
+    epicsInt64 val;
 
     regDevCommonInit(record, out, TYPE_INT|TYPE_BCD);
     status = regDevInstallUpdateFunction((dbCommon*)record, regDevUpdateLongout);
     if (status) return status;
     if (priv->rboffset == DONT_INIT) return S_dev_success;
-    status = regDevReadBits((dbCommon*)record, &val);
+    status = regDevReadNumber((dbCommon*)record, &val, NULL);
     if (status) return status;
     record->val = val;
     return S_dev_success;
@@ -562,10 +562,10 @@ long regDevInitRecordLongout(longoutRecord* record)
 long regDevUpdateLongout(longoutRecord* record)
 {
     int status;
-    epicsUInt32 val;
+    epicsInt64 val;
     unsigned short monitor_mask;
     
-    status = regDevReadBits((dbCommon*)record, &val);
+    status = regDevReadNumber((dbCommon*)record, &val, NULL);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status == S_dev_success)
     {
@@ -592,7 +592,7 @@ long regDevWriteLongout(longoutRecord* record)
     int status;
 
     regDevCheckAsyncWriteResult(record);
-    status = regDevWriteBits((dbCommon*)record, record->val, 0);
+    status = regDevWriteNumber((dbCommon*)record, record->val, 0);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     return status;
 }
@@ -914,7 +914,7 @@ long regDevInitRecordStringin(stringinRecord* record)
     if (!priv) return S_dev_noMemory;
     priv->dtype = epicsStringT;
     priv->L = sizeof(record->val);
-    status = regDevIoParse((dbCommon*)record, &record->inp);
+    status = regDevIoParse((dbCommon*)record, &record->inp, TYPE_STRING);
     if (status) return status;
     status = regDevAssertType((dbCommon*)record, TYPE_STRING);
     if (status) return status;
@@ -963,7 +963,7 @@ long regDevInitRecordStringout(stringoutRecord* record)
     if (!priv) return S_dev_noMemory;
     priv->dtype = epicsStringT;
     priv->L = sizeof(record->val);
-    status = regDevIoParse((dbCommon*)record, &record->out);
+    status = regDevIoParse((dbCommon*)record, &record->out, TYPE_STRING);
     if (status) return status;
     status = regDevAssertType((dbCommon*)record, TYPE_STRING);
     if (status) return status;
@@ -1043,7 +1043,8 @@ long regDevInitRecordWaveform(waveformRecord* record)
     if (!priv) return S_dev_noMemory;
     status = regDevCheckFTVL((dbCommon*)record, record->ftvl);
     if (status) return status;
-    status = regDevIoParse((dbCommon*)record, &record->inp);
+    status = regDevIoParse((dbCommon*)record, &record->inp,
+        record->ftvl==DBF_FLOAT || record->ftvl==DBF_DOUBLE ? TYPE_FLOAT : 0);
     if (status) return status;
     record->nord = record->nelm;
     priv->data.buffer = record->bptr;
@@ -1100,7 +1101,7 @@ epicsExportAddress(dset, regDevEvent);
 long regDevInitRecordEvent(eventRecord* record)
 {
     if (!regDevAllocPriv((dbCommon*)record)) return S_dev_noMemory;
-    return regDevIoParse((dbCommon*)record, &record->inp);
+    return regDevIoParse((dbCommon*)record, &record->inp, 0);
 }
 
 long regDevReadEvent(eventRecord* record)
