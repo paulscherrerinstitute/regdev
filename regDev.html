@@ -22,21 +22,25 @@ a {color:black; text-decoration:none; }
 <ol>
 <li><a href="#device">Device Support</a>
  <ol>
- <li><a href="#stat">Connection Status</a></li>
- <li><a href="#ai">Analog Input</a></li>
- <li><a href="#ao">Analog Output</a></li>
- <li><a href="#bi">Binary Input</a></li>
- <li><a href="#bo">Binary Output</a></li>
- <li><a href="#mbbi">Multibit Binary Input</a></li>
- <li><a href="#mbbo">Multibit Binary Output</a></li>
- <li><a href="#mbbiDirect">Multibit Binary Input Direct</a></li>
- <li><a href="#mbboDirect">Multibit Binary Output Direct</a></li>
- <li><a href="#longin">Long Input</a></li>
- <li><a href="#longout">Long Output</a></li>
- <li><a href="#stringin">String Input</a></li>
- <li><a href="#stringout">String Output</a></li>
- <li><a href="#waveform">Waveform Input</a></li>
- <li><a href="#calcout">Calculation Output</a></li>
+ <li><a href="#stat">Connection Status (bi)</a></li>
+ <li><a href="#ai">Analog Input (ai)</a></li>
+ <li><a href="#ao">Analog Output (ao)</a></li>
+ <li><a href="#calcout">Calculation Output (calcout)</a></li>
+ <li><a href="#bi">Binary Input (bi)</a></li>
+ <li><a href="#bo">Binary Outpu (bo)t</a></li>
+ <li><a href="#mbbi">Multi Bit Binary Input (mbbi)</a></li>
+ <li><a href="#mbbo">Multi Bit Binary Output (mbbo)</a></li>
+ <li><a href="#mbbiDirect">Multi Bit Binary Input Direct (mbbiDirect)</a></li>
+ <li><a href="#mbboDirect">Multi Bit Binary Output Direct (mbboDirect)</a></li>
+ <li><a href="#longin">Long Input (longin)</a></li>
+ <li><a href="#longout">Long Output (longout)</a></li>
+ <li><a href="#int64in">Integer 64 bit Input (int64in)</a></li>
+ <li><a href="#int64out">Integer 64 bit Output (int64out)</a></li>
+ <li><a href="#stringin">String Input (stringin)</a></li>
+ <li><a href="#stringout">String Output (stringout)</a></li>
+ <li><a href="#waveform">Waveform Input (waveform)</a></li>
+ <li><a href="#aai">Array Analog Input (aai)</a></li>
+ <li><a href="#aao">Array Analog Output (aao)</a></li>
  </ol></li>
 <li><a href="#driver">Driver Functions</a></li>
 <li><a href="#debugging">Debugging</a></li>
@@ -111,7 +115,8 @@ Zimoch &lt;dirk.zimoch&#64;psi&#46;ch&gt;</a>, 2009.
 <a name="device"></a>
 <h2>Device Support</h2>
 <p>
-<em>RegDev</em> supports the standard record types <a href="#ai">ai</a>,
+<em>RegDev</em> supports the standard record types
+<a href="#ai">ai</a>,
 <a href="#ao">ao</a>,
 <a href="#bi">bi</a>,
 <a href="#bo">bo</a>,
@@ -124,12 +129,12 @@ Zimoch &lt;dirk.zimoch&#64;psi&#46;ch&gt;</a>, 2009.
 <a href="#stringin">stringin</a>,
 <a href="#stringout">stringout</a>,
 and <a href="#waveform">waveform</a>.
-With EPICS R3.14, <a href="#calcout">calcout</a> is supported, too.
-When compiled with the macro <code>WITH_AAIO</code> defined,
-<a href="#aai">aai</a> and <a href="#aao">aao</a> records are supported,
-too.
-These records are part of EPICS base but unsupported and usually commented
-out.
+From EPICS R3.14.5 on <a href="#calcout">calcout</a> is supported.
+From EPICS R3.14.12 on <a href="#aai">aai</a> and <a href="#aao">aao</a>
+records are supported.
+(These records used to be commented out in earlier EPICS versions.)
+From EPICS R3.16 on <a href="#int64in">int64in</a> and
+<a href="#int64out">int64out</a> are supported.
 </p>
 <p>
 The <code>DTYP</code> is <code>"regDev"</code> for all record types,
@@ -162,7 +167,7 @@ The general form of the <code>INP</code> or <code>OUT</code> link is:<br>
 <code>
   "@<i>devicename</i>:<i>offset</i>:<i>initoffset</i> T=<i>type</i>
   L=<i>low</i> H=<i>high</i> B=<i>bit</i> I=<i>invertmask</i>
-  P=<i>packing</i>"
+  P=<i>packing</i> U=<i>update_ms</i>"
 </code>
 </p>
 <ul>
@@ -175,8 +180,16 @@ used to register the device.
 beginning of the register block for this device. 
 It depends on the low level driver if offset is measured in bytes 
 or anything else.
-The offset must be a positive integer expression.
-It may include the operators <code>+-*()</code>.
+The offset must be a positive integer expression within the limits of
+the device register block size.
+It may be calculated using the operators <code>+-*()</code>.<br>
+It is possible to calculate <code><i>offset</i></code> dynamically from
+another record. In this case the name of the other record must be the the
+first operand in the calculation. If the record name contains any of the
+characters <code>:+-*()</code>, it must be single quoted.<br>
+Example: <code>'otherrecord'*8+0x100</code>;<br>
+If dynamic offsets exceed the limits of the register block, the record
+will rais an <code>INVALID</code> alarm.
 </li>
 <li>
 <code><i>initoffset</i></code> is optionally used by output records to
@@ -199,12 +212,15 @@ The default is <code>T=int16</code> for most record types.
 <li>
 <code>L=<i>low</i></code> and <code>H=<i>high</i></code> are used for
 linear conversion in <a href="ai">ai</a> and <a href="ao">ao</a> records
-if <code>LINR="LINEAR"</code>.
+if <code>LINR=LINEAR</code> and in <a href="waveform">waveform</a>,
+<a href="aai">aai</a> and <a href="aao">aao</a> if <code>FTVL=FLOAT</code>
+or <code>DOUBLE</code> and <code>T</code> is an integer type.
 They define the raw values which correspond to <code>EGUL</code> and
-<code>EGUF</code>, respectively.
-Analog output records will never write raw values lower than
+<code>EGUF</code> (or <code>LOPR</code> and <code>HOPR</code> for arrays)
+respectively.
+Output records will never write intger values lower than
 <code>L</code> or higher than <code>H</code>.
-If necessary, the raw output value is truncated to the nearest limit.
+Instead the output value saturates at the nearest limit.
 The default values for
 <code>L</code> and <code>H</code> depend on the data type.
 </li>
@@ -233,6 +249,12 @@ For example <code>T=int16 P=1</code> defines a FIFO of 16 bit values
 while <code>T=int16 P=2</code> is a FIFO with 32 bits width that
 contains two 16 bit values in each access.
 </li>
+<li>
+<code>U=<i>update_ms</i></code> is used to update output records
+periodically. Every <code><i>update_ms</i></code> milliseconds the output
+record reads back the value from the register at <code><i>initoffset</i></code>
+or <code><i>offset</i></code> if <code><i>initoffset</i></code> is not specified.
+</li>
 </ul>
 <p>
 Not all parameters <code>T</code>, <code>L</code>, <code>H</code>,
@@ -246,10 +268,10 @@ All parameters are case insensitive.
 <center>
 <table border=1 cellpadding=5>
 <tr>
- <th>T=</th>
+ <th>T</th>
  <th>Register Data Type</th>
- <th>Default L=</th>
- <th>Default H=</th>
+ <th>Default L</th>
+ <th>Default H</th>
 </tr>
 <tr>
  <td><tt>int8</tt>
@@ -288,6 +310,18 @@ All parameters are case insensitive.
  <td><tt>0xffffffff<br>4294967295</tt></td>
 </tr>
 <tr>
+ <td><tt>int64<br>longlong</tt></td>
+ <td>64 bit (8 bytes) signed integer number</td>
+ <td><tt>-0x7fffffffffffffff<br>-9223372036854775807</tt></td>
+ <td><tt>0x7fffffffffffffff<br>9223372036854775807</tt></td>
+</tr>
+<tr>
+ <td><tt>uint64<br>unsign64<br>unsigned64<br>dword</tt></td>
+ <td>64 bit (8 bytes) unsigned integer number</td>
+ <td><tt>0x0000000000000000<br>0</tt></td>
+ <td><tt>0xffffffffffffffff<br>18446744073709551615</tt></td>
+</tr>
+<tr>
  <td><tt>bcd8<br>bcd</tt>
  </td><td>8 bit (1 byte, 2 digits) unsigned binary coded decimal</td>
  <td><tt>00</tt></td>
@@ -304,6 +338,12 @@ All parameters are case insensitive.
  </td><td>32 bit (4 bytes, 8 digits) unsigned binary coded decimal</td>
  <td><tt>00000000</tt></td>
  <td><tt>99999999</tt></td>
+</tr>
+<tr>
+ <td><tt>bcd64</tt>
+ </td><td>64 bit (8 bytes, 16 digits) unsigned binary coded decimal</td>
+ <td><tt>0000000000000000</tt></td>
+ <td><tt>9999999999999999</tt></td>
 </tr>
 <tr>
  <td><tt>real32<br>float32<br>float<br>single</tt></td>
@@ -333,6 +373,15 @@ In case of array records (<a href="#aai">aai</a>, <a href="#aao">aao</a>,
 <a href="#waveform">waveform</a>) with <code>CHAR</code>
 data this is the size of the array (usually <code>NELM</code>).
 </p>
+<p>
+Note that for signed integer types, <code>L</code> is one off the smallest
+possible value. This makes linear conversion symmatric on the positive
+and negative side (i.e. makes sure 0 is in the middle).
+As a side effect, the most negative value will never be written to the
+register but will be saturated to <code>L</code>.
+If that is a problem, set <code>L</code> explicitly (and maybe adjust
+<code>LOPR</code>).
+</p>
 
 <h2>Example Records</h2>
 <p>
@@ -340,10 +389,14 @@ In the following examples it is assumed that the low level driver supports
 <code>"I/O Intr"</code> for input registers.
 If that is not the case or not applicable for all registers use any other
 scanning method instead.
+All output records in the examples use <code>PINI=YES</code> to make sure
+an initial value is written to the register. Depending on the low level driver,
+this may not be necessary if the record gets initialized from an
+<code><i>initoffset</i></code>.
 </p>
 
 <a name="stat"></a>
-<h3>Connection Status</h3>
+<h3>Connection Status (bi)</h3>
 <pre>
  record (bi, "$(RECORDNAME)") {
   field (DTYP, "regDev stat")
@@ -358,7 +411,7 @@ Disconnect does not raise an alarm.
 </p>
 
 <a name="ai"></a>
-<h3>Analog Input</h3>
+<h3>Analog Input (ai)</h3>
 <h4>Integer registers with linear conversion</h4>
 <pre>
  record (ai, "$(RECORDNAME)") {
@@ -373,7 +426,7 @@ Disconnect does not raise an alarm.
 <p>
 If <code>T</code> is an integer type, the register is read into
 <code>RVAL</code>.
-If <code>LINR="LINEAR"</code>, then the record
+If <code>LINR=LINEAR</code>, then the record
 converts <code>RVAL</code> to <code>VAL</code> so that <code>L</code>
 maps to <code>MINVAL</code> and <code>H</code> maps to <code>MAXVAL</code>.
 </p>
@@ -409,7 +462,7 @@ VAL<sub>old</sub>*SMOO</code>
 </p>
 
 <a name="ao"></a>
-<h3>Analog Output</h3>
+<h3>Analog Output (ao)</h3>
 <h4>Integer registers with linear conversion</h4>
 <pre>
  record (ao, "$(RECORDNAME)") {
@@ -424,14 +477,14 @@ VAL<sub>old</sub>*SMOO</code>
 <p>
 If <code>T</code> is an integer type, <code>RVAL</code> is written to the
 register.
-If <code>LINR="LINEAR"</code>, then the record
+If <code>LINR=LINEAR</code>, then the record
 support first scales the record value (to be exact <code>OVAL</code>) so
 that <code>MINVAL</code> maps to <code>L</code> and <code>MAXVAL</code>
 maps to <code>H</code>.
 The record may then use adjustment scaling to modify <code>RVAL</code>.
 However, the device support will never write any value lower than
 <code>L</code> or higher than <code>H</code>.
-If necessary the value will be truncated to the nearest limit.
+If necessary the value will be saturated to the nearest limit.
 </p>
 <p>
 Default type is <code>T=int16</code>.
@@ -461,8 +514,42 @@ record itself only when converting to integer registers.
 <code>T=string</code> is not valid for ao records.
 </p>
 
+<a name="calcout"></a>
+<h3>Calculation Output (calcout)</h3>
+<pre>
+ record(calcout, "$(NAME)") {
+  field (DTYP, "regDev")
+  field (OUT,  "@$(DEVICE):$(OFFSET) T=$(T) L=$(L) H=$(H)")
+  field (PINI, "YES")
+ }
+</pre>
+<p>
+Default type is <code>T=int16</code>.
+Defaults for <code>L</code> and <code>H</code> depend
+on <code>T</code> (see table <a href="#type">above</a>).
+</p>
+<p>
+<code>OVAL</code> (the result of <code>CALC</code> or <code>OCAL</code>,
+depending on <code>DOPT</code>) is written to the register. If
+<code>T</code> is an integer type, the value is truncated to an
+integer and compared to <code>L</code> and <code>H</code>.
+If <code>OVAL</code> is lower than <code>L</code> or higher than
+<code>H</code>, it is saturated to the nearest limit. 
+</p>
+<p>
+If <code>T=float</code> or <code>T=double</code>,
+<code>OVAL</code> is written to the register directly without any
+conversion.
+</p>
+<p>
+<code>T=string</code> is not valid for calcout records.
+</p>
+<p>
+To use this device support with calcout records, you need at least EPICS R3.14.5.
+</p>
+
 <a name="bi"></a>
-<h3>Binary Input</h3>
+<h3>Binary Input (bi)</h3>
 <pre>
  record(bi, "$(NAME)") {
   field (DTYP, "regDev")
@@ -500,7 +587,7 @@ not valid for bo records. Signed and unsigned types are equivalent.
 </p>
 
 <a name="bo"></a>
-<h3>Binary Output</h3>
+<h3>Binary Output (bo)</h3>
 <pre>
  record(bo, "$(NAME)") {
   field (DTYP, "regDev")
@@ -523,8 +610,8 @@ all byte order problems when handling single bits.
 <p>
 If <code>VAL</code> is not 0, then <code>RVAL</code> is set to
 2<sup><code>B</code></sup>, else <code>RVAL</code> is set to 0.
-Only the referenced bit of the register is changed while all other bits
-remain untouched.
+Only the referenced bit of the register is modified while all other bits
+remain unchanged.
 Thus, other output records can write to different bits of the same
 register.
 <p>
@@ -538,7 +625,7 @@ not valid for bo records. Signed and unsigned types are equivalent.
 </p>
 
 <a name="mbbi"></a>
-<h3>Multibit Binary Input</h3>
+<h3>Multi Bit Binary Input (mbbi)</h3>
 <pre>
  record(mbbi, "$(NAME)") {
   field (DTYP, "regDev")
@@ -556,7 +643,7 @@ The register is read to <code>RVAL</code>, shifted right by
 <code>SHFT</code> bits and masked with <code>NOBT</code> bits.
 Valid values for <code>NOBT</code> and <code>SHFT</code> depend on
 <code>T</code>:
-<code>NOBT</code>+<code>SHFT</code> must not exceed the number of bits of
+<code>NOBT+SHFT</code> must not exceed the number of bits of
 the type.
 </p>
 <p>
@@ -614,7 +701,7 @@ not valid for mbbi records. Signed and unsigned types are equivalent.
 </p>
 
 <a name="mbbo"></a>
-<h3>Multibit Binary Output</h3>
+<h3>Multi Bit Binary Output (mbbo)</h3>
 <pre>
  record(mbbo, "$(NAME)") {
   field (DTYP, "regDev")
@@ -631,7 +718,7 @@ Default type is <code>T=int16</code>.
 RVAL is masked with <code>NOBT</code> bits, shifted left by
 <code>SHFT</code> bits and written to the register. Valid values for
 <code>NOBT</code> and <code>SHFT</code> depend on <code>T</code>:
-<code>NOBT</code>+<code>SHFT</code> must not exceed the number of bits of
+<code>NOBT+SHFT</code> must not exceed the number of bits of
 the type.
 </p>
 <p>
@@ -640,8 +727,8 @@ In little endian byte order, bit 0 is in the first byte, in big endian
 byte order it is in the last byte of the register.
 </p>
 <p>
-Only the referenced <code>NOBT</code> bits of the register are changed.
-All other bits remain untouched.
+Only the referenced <code>NOBT</code> bits of the register are modified.
+All other bits remain unchanged.
 Thus, other output records can write to different bits of the same
 register.
 </p>
@@ -695,7 +782,7 @@ not valid for mbbo records. Signed and unsigned types are equivalent.
 </p>
 
 <a name="mbbiDirect"></a>
-<h3>Multibit Binary Input Direct</h3>
+<h3>Multi Bit Binary Input Direct (mbbiDirect)</h3>
 <pre>
  record(mbbiDirect, "$(NAME)") {
   field (DTYP, "regDev")
@@ -714,7 +801,7 @@ The register is read to <code>VAL</code>, shifted right by
 <a href="#mbbi">mbbi</a>).
 Valid values for <code>NOBT</code> and <code>SHFT</code> depend on
 <code>T</code>:
-<code>NOBT</code>+<code>SHFT</code> must not exceed the number of bits of
+<code>NOBT+SHFT</code> must not exceed the number of bits of
 the type.
 </p>
 <p>
@@ -728,7 +815,7 @@ not valid for mbbiDirect records. Signed and unsigned types are equivalent.
 </p>
 
 <a name="mbboDirect"></a>
-<h3>Multibit Binary Output Direct</h3>
+<h3>Multi Bit Binary Output Direct (mbboDirect)</h3>
 <pre>
  record(mbboDirect, "$(NAME)") {
   field (DTYP, "regDev")
@@ -747,7 +834,7 @@ VAL is masked with <code>NOBT</code> bits, shifted left by
 <a href="#mbbo">mbbo</a>).
 Valid values for <code>NOBT</code> and <code>SHFT</code> depend on
 <code>T</code>:
-<code>NOBT</code>+<code>SHFT</code> must not exceed the number of bits of
+<code>NOBT+SHFT</code> must not exceed the number of bits of
 the type.
 </p>
 <p>
@@ -756,8 +843,8 @@ In little endian byte order, bit 0 is in the first byte, in big endian
 byte order it is in the last byte of the register.
 </p>
 <p>
-Only the referenced <code>NOBT</code> bits of the register are changed.
-All other bits remain untouched. Thus, other output records can write to
+Only the referenced <code>NOBT</code> bits of the register are modified.
+All other bits remain unchanged. Thus, other output records can write to
 different bits of the same register.
 </p>
 <p>
@@ -766,7 +853,7 @@ not valid for mbboDirect records. Signed and unsigned types are equivalent.
 </p>
 
 <a name="longin"></a>
-<h3>Long Input</h3>
+<h3>Long Input (longin)</h3>
 <pre>
  record(longin, "$(NAME)") {
   field (DTYP, "regDev")
@@ -788,7 +875,7 @@ not valid for longin records.
 </p>
 
 <a name="longout"></a>
-<h3>Long Output</h3>
+<h3>Long Output (longout)</h3>
 <pre>
  record(longout, "$(NAME)") {
   field (DTYP, "regDev")
@@ -800,7 +887,7 @@ not valid for longin records.
 Default type is <code>T=int16</code>.
 </p>
 <p>
-Depending on <code>T</code>, the least significant 8, 16, or 32 bytes
+Depending on <code>T</code>, the least significant 8, 16, or 32 bits
 of <code>VAL</code> are written to the register.
 </p>
 <p>
@@ -808,8 +895,57 @@ of <code>VAL</code> are written to the register.
 not valid for longout records.
 </p>
 
+<a name="int64in"></a>
+<h3>Integer 64 Input (int64in)</h3>
+<pre>
+ record(int64in, "$(NAME)") {
+  field (DTYP, "regDev")
+  field (INP,  "@$(DEVICE):$(OFFSET) T=$(T)")
+  field (SCAN, "I/O Intr")
+ }
+</pre>
+<p>
+Default type is <code>T=int64</code>.
+</p>
+<p>
+The register is read to <code>VAL</code>. If the type has less than 64
+bits, the value is zero extended or sign extended depending on the
+signedness of the type.
+</p>
+<p>
+<code>T=string</code>, <code>T=float</code> or <code>T=double</code> are
+not valid for int64in records.
+</p>
+<p>
+To use int64in records, you need at least EPICS R3.16.
+</p>
+
+<a name="int64out"></a>
+<h3>Integer 64 Output (int64out)</h3>
+<pre>
+ record(int64out, "$(NAME)") {
+  field (DTYP, "regDev")
+  field (OUT,  "@$(DEVICE):$(OFFSET) T=$(T)")
+  field (PINI, "YES")
+ }
+</pre>
+<p>
+Default type is <code>T=int64</code>.
+</p>
+<p>
+Depending on <code>T</code>, the least significant 8, 16, 32, or 64 bits
+of <code>VAL</code> are written to the register.
+</p>
+<p>
+<code>T=string</code>, <code>T=float</code> or <code>T=double</code> are
+not valid for int64out records.
+</p>
+<p>
+To use int64out records, you need at least EPICS R3.16.
+</p>
+
 <a name="stringin"></a>
-<h3>String Input</h3>
+<h3>String Input (stringin)</h3>
 <pre>
  record(stringin, "$(NAME)") {
   field (DTYP, "regDev")
@@ -828,7 +964,7 @@ null terminated. Thus, the effective string length is maximal
 </p>
 
 <a name="stringout"></a>
-<h3>String Output</h3>
+<h3>String Output (stringout)</h3>
 <pre>
  record(stringout, "$(NAME)") {
   field (DTYP, "regDev")
@@ -849,7 +985,7 @@ null terminated.
 </p>
 
 <a name="waveform"></a>
-<h3>Waveform Input</h3>
+<h3>Waveform Input (waveform)</h3>
 <pre>
  record(waveform, "$(NAME)") {
   field (DTYP, "regDev")
@@ -860,58 +996,119 @@ null terminated.
  }
 </pre>
 <p>
-<code>NELM</code> elements are read from the register to <code>VAL</code>.
+<code>NELM</code> elements are read from registers to <code>VAL</code>.
 </p>
 <p>
-The default type depends on <code>FTVL</code>. For example
-<code>FTVL=LONG</code> results in <code>T=INT32</code>.
-<code>T</code> and <code>FTVL</code> must match but can differ
-in signedness. In most cases, better just specify <code>FTVL</code> and
-leave <code>T</code> to the default.
+The default type <code>T</code> depends on <code>FTVL</code>.
+For example <code>FTVL=LONG</code> results in <code>T=INT32</code>.
 </p>
 <p>
-If <code>T=string</code>, <code>FTVL</code> must be <code>"CHAR"</code> or
-<code>"UCHAR"</code>. <code>L=<i>length</i></code> can be specified but
-defaults to and must not exceed <code>NELM</code>.
+If <code>T</code> is an integer type, e.g. <code>T=INT32</code> but
+<code>FTVL</code> is either <code>FLOAT</code> or <code>DOUBLE</code>,
+then values are scaled so that <code>L=<i>low</i></code> and
+<code>H=<i>high</i></code> map to the fields <code>LOPR</code> and
+<code>HOPR</code> respectively.
+</p>
+<p>
+If <code>T=string</code> then <code>FTVL</code> must be <code>CHAR</code> or
+<code>UCHAR</code> or <code>STRING</code>.
+For <code>CHAR</code> and <code>UCHAR</code>, 
+<code>L=<i>length</i></code> can be specified but
+defaults to <code>NELM</code> and should not exceed it.
 If <code>L</code> is less than <code>NELM</code>, the
-remaining elements are left untouched.
-</p>
-<p>
-<code>FTVL="string"</code> is not supported.
+remaining elements are left unchanged.
+For <code>STRING</code>, <code>NELM</code> strings, each of length <code>L</code>
+(default 40), are read.
 </p>
 
-<a name="calcout"></a>
-<h3>Calculation Output</h3>
+<a name="aai"></a>
+<h3>Array Analog Input (aai)</h3>
 <pre>
- record(calcout, "$(NAME)") {
+ record(aai, "$(NAME)") {
   field (DTYP, "regDev")
-  field (OUT,  "@$(DEVICE):$(OFFSET) T=$(T) L=$(L) H=$(H)")
+  field (INP,  "@$(DEVICE):$(OFFSET)")
+  field (SCAN, "I/O Intr")
+  field (NELM, "$(NUMBER_OF_ELEMENTS)")
+  field (FTVL, "$(DATATYPE)")
+ }
+</pre>
+<p>
+<code>NELM</code> elements are read from registers to <code>VAL</code>.
+</p>
+<p>
+The default type <code>T</code> depends on <code>FTVL</code>.
+For example <code>FTVL=LONG</code> results in <code>T=INT32</code>.
+</p>
+<p>
+If <code>T</code> is an integer type, e.g. <code>T=INT32</code> but
+<code>FTVL</code> is either <code>FLOAT</code> or <code>DOUBLE</code>,
+then values are scaled so that <code>L=<i>low</i></code> and
+<code>H=<i>high</i></code> map to the fields <code>LOPR</code> and
+<code>HOPR</code> respectively.
+</p>
+<p>
+If <code>T=string</code> then <code>FTVL</code> must be <code>CHAR</code> or
+<code>UCHAR</code> or <code>STRING</code>.
+For <code>CHAR</code> and <code>UCHAR</code>, 
+<code>L=<i>length</i></code> can be specified but
+defaults to <code>NELM</code> and should not exceed it.
+If <code>L</code> is less than <code>NELM</code>, the
+remaining elements are left unchanged.
+For <code>STRING</code>, <code>NELM</code> strings, each of length <code>L</code>
+(default 40), are read.
+</p>
+<p>
+The aai record is similar to the waveform record, but may be more
+efficient, because the low level driver may use DMA to fill the record.
+Aai records must be enabled in EPICS base, which is not the case by
+default before EPICS version 3.14.12.
+</p>
+
+<a name="aao"></a>
+<h3>Array Analog Output (aao)</h3>
+<pre>
+ record(aai, "$(NAME)") {
+  field (DTYP, "regDev")
+  field (OUT,  "@$(DEVICE):$(OFFSET)")
+  field (NELM, "$(NUMBER_OF_ELEMENTS)")
+  field (FTVL, "$(DATATYPE)")
   field (PINI, "YES")
  }
 </pre>
 <p>
-Default type is <code>T=int16</code>.
-Defaults for <code>L</code> and <code>H</code> depend
-on <code>T</code> (see table <a href="#type">above</a>).
+<code>NELM</code> elements of <code>VAL</code> are written to
+registers.
 </p>
 <p>
-<code>OVAL</code> (the result of <code>CALC</code> or <code>OCAL</code>,
-depending on <code>DOPT</code>) is written to the register. If
-<code>T</code> is an integer type, the value is truncated to an
-integer and compared to <code>L</code> and <code>H</code>.
-If <code>OVAL</code> is lower than <code>L</code> or higher than
-<code>H</code>, it is truncated to the nearest limit. 
+The default type <code>T</code> depends on <code>FTVL</code>.
+For example <code>FTVL=LONG</code> results in <code>T=INT32</code>.
 </p>
 <p>
-If <code>T=float</code> or <code>T=double</code>,
-<code>OVAL</code> is written to the register directly without any
-conversion.
+If <code>T</code> is an integer type, e.g. <code>T=INT32</code> but
+<code>FTVL</code> is either <code>FLOAT</code> or <code>DOUBLE</code>,
+then values are scaled so that fields <code>LOPR</code> and
+<code>HOPR</code> map to <code>L=<i>low</i></code> and
+<code>H=<i>high</i></code> respectively.
+However, the device support will never write any value lower than
+<code>L</code> or higher than <code>H</code>.
+If necessary the value will be saturated to the nearest limit.
 </p>
 <p>
-<code>T=string</code> is not valid for calcout records.
+If <code>T=string</code> then <code>FTVL</code> must be <code>CHAR</code> or
+<code>UCHAR</code> or <code>STRING</code>.
+For <code>CHAR</code> and <code>UCHAR</code>, 
+<code>L=<i>length</i></code> can be specified but
+defaults to <code>NELM</code> and should not exceed it.
+If <code>L</code> is less than <code>NELM</code>, the
+remaining elements are ignored.
+For <code>STRING</code>, <code>NELM</code> strings, each of length <code>L</code>
+(default 40), are written.
 </p>
 <p>
-To use this device support with calcout records, you need EPICS R3.14.
+The aai record is similar to the waveform record, but may be more
+efficient, because the low level driver may use DMA to fill the record.
+Aai records must be enabled in EPICS base, which is not the case by
+default before EPICS version 3.14.12.
 </p>
 
 <a name="driver"></a>
@@ -1040,8 +1237,8 @@ If <code><em>nelem==0</em></code>, <code><em>pdata</em></code> may be
 <li>
 <code><em>mask</em></code> is a pointer to a bit mask of
 <code><em>datalength</em></code> bytes or <code>NULL</code>.
-Only those bits shall be changed where the mask contains 1 bits.
-All other bits shall remain untouched. 
+Only those bits shall be modified where the mask contains 1 bits.
+All other bits shall remain unchanged. 
 </li>
 <li>
 <code><em>priority</em></code> is a number 0...2 and may be used
