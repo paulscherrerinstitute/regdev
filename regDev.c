@@ -510,12 +510,12 @@ int regDevIoParse2(
             break;
         case epicsInt32T:
             priv->dlen = 4;
-            if (!lset) L = (types & TYPE_FLOAT) ? -0x7FFFFFFF : -0x80000000;
+            if (!lset) L = (types & TYPE_FLOAT) ? -0x7FFFFFFFLL : -0x80000000LL;
             if (!hset) H = 0x7FFFFFFF;
             break;
         case epicsInt64T:
             priv->dlen = 8;
-            if (!lset) L = (types & TYPE_FLOAT) ? -0x7FFFFFFFFFFFFFFFLL : -0x8000000000000000LL;
+            if (!lset) L = (types & TYPE_FLOAT) ? -0x7FFFFFFFFFFFFFFFLL : -0x7FFFFFFFFFFFFFFFLL -1;
             if (!hset) H = 0x7FFFFFFFFFFFFFFFLL;
             break;
         case regDevBCD8T:
