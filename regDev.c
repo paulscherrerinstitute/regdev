@@ -563,7 +563,7 @@ int regDevIoParse2(
     regDevDebugLog(DBG_INIT, "%s: L=%lld=%#llx\n",  recordName, (long long)priv->L, (long long)priv->L);
     regDevDebugLog(DBG_INIT, "%s: H=%lld=%#llx\n",  recordName, (long long)priv->H, (long long)priv->H);
     regDevDebugLog(DBG_INIT, "%s: B=%d\n",   recordName, priv->bit);
-    regDevDebugLog(DBG_INIT, "%s: X=%#x\n",  recordName, priv->invert);
+    regDevDebugLog(DBG_INIT, "%s: X=%#llx\n",  recordName, (long long)priv->invert);
 
     return S_dev_success;
 }
