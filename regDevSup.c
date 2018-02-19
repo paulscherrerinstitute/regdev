@@ -645,7 +645,11 @@ long regDevReadAi(aiRecord* record)
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status == S_dev_success)
     {
-        record->rval = rval;
+        if (rval > 0x7fffffffLL || rval < -0x80000000LL)
+            /* value does not fit in RVAL */
+            status = DONT_CONVERT;
+        else
+            record->rval = rval;
     }
     if (status == DONT_CONVERT)
     {
@@ -653,12 +657,12 @@ long regDevReadAi(aiRecord* record)
         if (record->aslo != 0.0) val *= record->aslo;
         val += record->aoff;
 
-	if (record->smoo != 0.0 && !isnan(record->val) && !isinf(record->val) && !udf) {
+        if (record->smoo != 0.0 && !isnan(record->val) && !isinf(record->val) && !udf) {
             /* do not smooth with invalid values, infinity or NaN */
             record->val = val * (1.00 - record->smoo) + (record->val * record->smoo);
-	} else 
-	    record->val = val;
-	record->udf = isnan(record->val);
+        } else 
+            record->val = val;
+        record->udf = isnan(record->val);
     }
     return status;
 }
@@ -739,7 +743,11 @@ long regDevInitRecordAo(aoRecord* record)
     status = regDevReadNumber((dbCommon*)record, &rval, &val);
     if (status == S_dev_success)
     {
-        record->rval = rval;
+        if (rval > 0x7fffffffLL || rval < -0x80000000LL)
+            /* value does not fit in RVAL */
+            status = DONT_CONVERT;
+        else
+            record->rval = rval;
     }
     if (status == DONT_CONVERT)
     {
@@ -762,18 +770,24 @@ long regDevUpdateAo(aoRecord* record)
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status == S_dev_success)
     {
-        record->rbv = record->rval = rval;
-        val = (double)rval + (double)record->roff;
-	if (record->aslo != 0.0) val *= record->aslo;
-	val += record->aoff;
-        if (record->linr == menuConvertNO_CONVERSION) {
-	    ; /*do nothing*/
-        } else if ((record->linr == menuConvertLINEAR) ||
-		  (record->linr == menuConvertSLOPE)) {
-            val = val * record->eslo + record->eoff;
-        } else { 
-            status = cvtRawToEngBpt(&val, record->linr, 0,
-		    (void *)&record->pbrk, &record->lbrk);
+        if (rval > 0x7fffffffLL || rval < -0x80000000LL)
+            /* value does not fit in RVAL */
+            status = DONT_CONVERT;
+        else
+        {
+            record->rbv = record->rval = rval;
+            val = (double)rval + (double)record->roff;
+	    if (record->aslo != 0.0) val *= record->aslo;
+	    val += record->aoff;
+            if (record->linr == menuConvertNO_CONVERSION) {
+	        ; /*do nothing*/
+            } else if ((record->linr == menuConvertLINEAR) ||
+		      (record->linr == menuConvertSLOPE)) {
+                val = val * record->eslo + record->eoff;
+            } else { 
+                status = cvtRawToEngBpt(&val, record->linr, 0,
+		        (void *)&record->pbrk, &record->lbrk);
+            }
         }
     }
     if (status == DONT_CONVERT)

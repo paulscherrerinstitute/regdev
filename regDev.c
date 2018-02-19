@@ -1856,6 +1856,7 @@ int regDevReadNumber(dbCommon* record, epicsInt64* rval, double* fval)
     }
     assert(rval != NULL);
     *rval = rv;
+    if (fval) *fval = rv;
     return S_dev_success;
 }
 
