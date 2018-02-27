@@ -2192,14 +2192,13 @@ int regDevWriteArray(dbCommon* record, size_t nelm)
 
 int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double low, double high)
 {
-    long double o, s;
+    double o, s;
     size_t i;
 
     regDevGetPriv();
 
-    s = (long double)(priv->H - priv->L);
-    o = (priv->H * low - priv->L * high) / s;
-    s = (high - low) / s;
+    o = (priv->H * low - priv->L * high) / (epicsUInt64)(priv->H - priv->L);
+    s = (high - low) / (epicsUInt64)(priv->H - priv->L);
 
     switch (priv->dtype)
     {
@@ -2344,14 +2343,13 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
 
 int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double low, double high)
 {
-    long double o, s;
+    double o, s;
     size_t i;
 
     regDevGetPriv();
 
-    s = (unsigned long long)(priv->H - priv->L);
-    o = (priv->L * high - priv->H * low) / s;
-    s = s / (high - low);
+    o = (priv->L * high - priv->H * low) / (epicsUInt64)(priv->H - priv->L);
+    s = (epicsUInt64)(priv->H - priv->L) / (high - low);
 
     switch (priv->dtype)
     {
