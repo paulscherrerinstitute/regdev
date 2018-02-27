@@ -1816,6 +1816,7 @@ int regDevReadNumber(dbCommon* record, epicsInt64* rval, double* fval)
             rv = priv->data.uval32;
             break;
         case epicsInt64T:
+        case epicsUInt64T:
         case regDevBCD64T:
             rv = priv->data.uval64;
             break;
