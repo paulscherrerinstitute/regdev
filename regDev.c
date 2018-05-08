@@ -2057,7 +2057,10 @@ int regDevReadArray(dbCommon* record, size_t nelm)
     {
         /* strings are arrays of single bytes but priv->L contains string length */
         if (nelm > (size_t)priv->L)
+        {
             nelm = (size_t)priv->L;
+            ((char*)priv->data.buffer)[nelm] = 0;
+        }
     }
     dlen = priv->dlen;
 

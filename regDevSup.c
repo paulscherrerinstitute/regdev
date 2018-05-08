@@ -941,7 +941,6 @@ long regDevReadStringin(stringinRecord* record)
     int status;
     
     status = regDevReadArray((dbCommon*) record, sizeof(record->val));
-    record->val[sizeof(record->val)-1] = 0;
     if (status == ASYNC_COMPLETION) return S_dev_success;
     return status;
 
@@ -987,7 +986,6 @@ long regDevInitRecordStringout(stringoutRecord* record)
     if (priv->rboffset == DONT_INIT) return S_dev_success;
     status =  regDevReadArray((dbCommon*) record, sizeof(record->val));
     if (status) return status;
-    record->val[sizeof(record->val)-1] = 0;
     return S_dev_success;
 }
 
@@ -998,10 +996,6 @@ long regDevUpdateStringout(stringoutRecord* record)
 
     status = regDevReadArray((dbCommon*) record, sizeof(record->val));
     if (status == ASYNC_COMPLETION) return S_dev_success;
-    if (status == S_dev_success)
-    {
-        record->val[sizeof(record->val)-1] = 0;
-    }
     monitor_mask = recGblResetAlarms(record);
     if (strncmp(record->oval, record->val, sizeof(record->val)))
     {
