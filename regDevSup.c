@@ -44,6 +44,49 @@ long regDevReadStat(biRecord* record)
     return S_dev_success;
 }
 
+/* bi to run updates ************************************************/
+
+#include <boRecord.h>
+
+long regDevInitRecordUpdater(boRecord *);
+long regDevWriteUpdater(boRecord *);
+
+struct devsup regDevUpdater =
+{
+    5,
+    NULL,
+    NULL,
+    regDevInitRecordUpdater,
+    NULL,
+    regDevWriteUpdater
+};
+
+epicsExportAddress(dset, regDevUpdater);
+
+long regDevInitRecordUpdater(boRecord* record)
+{
+    if (!regDevAllocPriv((dbCommon*)record)) return S_dev_noMemory;
+    regDevIoParse((dbCommon*)record, &record->out, 0);
+    return DONT_CONVERT;
+}
+
+long regDevWriteUpdater(boRecord* record)
+{
+    regDevPrivate* priv = (regDevPrivate*)(record->dpvt);
+    if (priv == NULL)
+    {
+        recGblSetSevr(record, UDF_ALARM, INVALID_ALARM);
+        regDevDebugLog(DBG_OUT, "record %s not initialized\n", record->name);
+        return S_dev_badInit;
+    }
+    if (record->val)
+    {
+        priv = priv->device->triggeredUpdates;
+        if (priv) epicsTimerStartDelay(priv->updateTimer, 0.0);
+    }
+    return S_dev_success;
+}
+
 /* bi ***************************************************************/
 
 long regDevInitRecordBi(biRecord *);

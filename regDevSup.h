@@ -61,6 +61,7 @@ typedef struct regDeviceNode {                     /* per device data structure 
     int blockModes;
     int blockSwap;
     IOSCANPVT blockReceived;
+    struct regDevPrivate* triggeredUpdates;        /* For triggered update */
 } regDeviceNode;
 
 typedef union {
@@ -77,7 +78,7 @@ typedef union {
     void* buffer;
 } regDevAnytype;
 
-typedef struct regDevPrivate{          /* per record data structure */
+typedef struct regDevPrivate {         /* per record data structure */
     epicsUInt32 magic;
     regDeviceNode* device;
     size_t offset;                     /* Offset (in bytes) within device memory */
@@ -89,13 +90,14 @@ typedef struct regDevPrivate{          /* per record data structure */
     epicsUInt8 dlen;                   /* Data length (in bytes) */
     epicsUInt8 arraypacking;           /* Array: elelents in one register */
     epicsUInt8 fifopacking;            /* Fifo: elelents in one register */
-    epicsUInt32 update;                /* Periodic update of output records (msec) */
+    epicsInt32 update;                 /* Periodic update of output records (msec) */
     epicsInt64 L;                      /* Hardware Low limit */
     epicsInt64 H;                      /* Hardware High limit */
     epicsUInt64 invert;                /* Invert bits for bi,bo,mbbi,... */
     DEVSUPFUN updater;                 /* Update function */
     epicsTimerId updateTimer;          /* Update timer */
     int updating;                      /* Processing type */
+    struct regDevPrivate* nextUpdate;  /* For triggered update */
     int status;                        /* For asynchonous drivers */
     size_t asyncOffset;                /* For asynchonous drivers */
     regDevAnytype data;                /* For asynchonous drivers and arrays */

@@ -9,6 +9,13 @@ record (bi, "$(DEV):STATUS")
     field (PINI, "YES")
 }
 
+record (bo, "$(DEV):UPDATER")
+{
+    field (DTYP, "regDev updater")
+    field (OUT,  "@test")
+    field (VAL,  "1")
+}
+
 record (waveform, "$(DEV):WFBYTES")
 {
     field (FTVL, "CHAR")
@@ -193,7 +200,7 @@ record (aao, "$(DEV):AAOBYTES")
 {
     field (FTVL, "CHAR")
     field (DTYP, "regDev")
-    field (OUT,  "@test:0")
+    field (OUT,  "@test:0 U=T")
     field (NELM, "100")
 }
 

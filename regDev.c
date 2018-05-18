@@ -446,9 +446,16 @@ int regDevIoParse2(
                 p += 2;
                 priv->fifopacking = (epicsUInt8)regDevParseExpr(&p);
                 break;
-            case 'U': /* U=<update period [ms]> */
+            case 'U': /* U=<update period [ms]> (-1 = trigger by updater bo record) */
                 p += 2;
-                priv->update = (epicsInt32)regDevParseExpr(&p);
+                while (isspace((unsigned char)*p)) p++;
+                if (toupper((unsigned char)*p) == 'T')
+                {
+                    p++;
+                    priv->update = -1;
+                }
+                else
+                    priv->update = (epicsInt32)regDevParseExpr(&p);
                 break;
             case 'V': /* V=<irq vector> */
                 p += 2;
@@ -1396,12 +1403,15 @@ void regDevCallback(const char* user, int status)
         }
         priv->updater(record);
         priv->updating = 0;
+        dbScanUnlock(record);
+        if (priv->nextUpdate)
+            epicsTimerStartDelay(priv->nextUpdate->updateTimer, 0.0);
     }
     else
     {
         (*record->rset->process)(record);
+        dbScanUnlock(record);
     }
-    dbScanUnlock(record);
 }
 
 int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
@@ -2581,18 +2591,20 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
 void regDevRunUpdater(dbCommon* record)
 {
     int status;
+    int pact = 0;
     regDevPrivate* priv = record->dpvt;
 
-    if (interruptAccept && !record->pact) /* scanning allowed? */
+    if (interruptAccept && !record->pact && !priv->updating) /* scanning allowed and not busy? */
     {
         dbScanLock(record);
-        if (!record->pact)
+        if (!record->pact && !priv->updating)
         {
             regDevDebugLog(DBG_IN, "%s: updating record\n",
                 record->name);
             priv->updating = 1;
             status = priv->updater(record);
-            if (!record->pact)
+            pact = record->pact;
+            if (!pact)
             {
                 priv->updating = 0;
                 if (status != S_dev_success)
@@ -2604,8 +2616,14 @@ void regDevRunUpdater(dbCommon* record)
         }
         dbScanUnlock(record);
     }
-    /* restart timer */
-    epicsTimerStartDelay(priv->updateTimer, priv->update * 0.001);
+    if (!pact)
+    {
+        /* restart timer */
+        if (priv->update > 0)
+            epicsTimerStartDelay(priv->updateTimer, priv->update * 0.001);
+        if (priv->nextUpdate)
+            epicsTimerStartDelay(priv->nextUpdate->updateTimer, 0.0);
+    }
 }
 
 int regDevInstallUpdateFunction(dbCommon* record, DEVSUPFUN updater)
@@ -2628,12 +2646,22 @@ int regDevInstallUpdateFunction(dbCommon* record, DEVSUPFUN updater)
                 return S_dev_noMemory;
             }
         }
-        /* install periodic update function */
-        regDevDebugLog(DBG_INIT, "%s: install update every %f seconds\n", record->name, priv->update * 0.001);
+        /* install update function */
         priv->updater = updater;
         priv->updateTimer = epicsTimerQueueCreateTimer(device->updateTimerQueue,
             (epicsTimerCallback)regDevRunUpdater, record);
-        epicsTimerStartDelay(priv->updateTimer, priv->update * 0.001);
+        if (priv->update > 0)
+        {
+            regDevDebugLog(DBG_INIT, "%s: install update every %f seconds\n", record->name, priv->update * 0.001);
+            epicsTimerStartDelay(priv->updateTimer, priv->update * 0.001);
+        }
+        if (priv->update < 0)
+        {
+            regDevPrivate** pr;
+            regDevDebugLog(DBG_INIT, "%s: install update on trigger\n", record->name);
+            for (pr = &device->triggeredUpdates; *pr; pr=&(*pr)->nextUpdate);
+            *pr = priv;
+        }
     }
     return S_dev_success;
 }

@@ -1,4 +1,5 @@
 device(bi,         INST_IO, regDevStat,       "regDev stat")
+device(bo,         INST_IO, regDevUpdater,    "regDev updater")
 device(bi,         INST_IO, regDevBi,         "regDev")
 device(bo,         INST_IO, regDevBo,         "regDev")
 device(mbbi,       INST_IO, regDevMbbi,       "regDev")
@@ -18,6 +19,7 @@ variable(regDevDebug, int)
 registrar(regDevRegistrar)
 #only for backward compatibility
 device(bi,         INST_IO, regDevStat,       "regDevAsyn stat")
+device(bo,         INST_IO, regDevUpdater,    "regDevAsyn updater")
 device(bi,         INST_IO, regDevBi,         "regDevAsyn")
 device(bo,         INST_IO, regDevBo,         "regDevAsyn")
 device(mbbi,       INST_IO, regDevMbbi,       "regDevAsyn")
