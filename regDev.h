@@ -187,6 +187,7 @@ epicsShareExtern int regDevDebug;
 #define REGDEV_DBG_INIT 1
 #define REGDEV_DBG_IN   2
 #define REGDEV_DBG_OUT  4
+#define REGDEV_DBG_COPY 8
 
 /* for backward compatibility: */
 #define DBG_INIT REGDEV_DBG_INIT
