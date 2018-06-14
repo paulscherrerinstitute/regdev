@@ -1874,16 +1874,45 @@ int regDevReadNumber(dbCommon* record, epicsInt64* rval, double* fval)
 int regDevWriteNumber(dbCommon* record, epicsInt64 rval, double fval)
 {
     regDevGetPriv();
-    regDevDebugLog(DBG_OUT, "%s: rval=%lld (0x%llx), fval=%#g\n",
-        record->name, (long long)rval, (long long)rval, fval);
 
     /* enforce bounds */
     switch (priv->dtype)
     {
         case epicsFloat32T:
         case epicsFloat64T:
+            regDevDebugLog(DBG_OUT, "%s: fval=%#g\n",
+                record->name, fval);
             break;
-        case epicsUInt64T:
+        case epicsInt64T:
+        case epicsInt32T:
+        case epicsInt16T:
+        case epicsInt8T:
+            regDevDebugLog(DBG_OUT, "%s: signed rval=%lld (0x%llx)\n",
+                record->name, (long long)rval, (long long)rval);
+
+            if ((epicsInt64)rval > (epicsInt64)priv->H)
+            {
+                regDevDebugLog(DBG_OUT, "%s: limit output from %lld (0x%llx) to upper bound %lld (0x%llx)\n",
+                    record->name, (long long)rval, (long long)rval, (long long)priv->H, (long long)priv->H);
+                rval = priv->H;
+            }
+            if ((epicsInt64)rval < (epicsInt64)priv->L)
+            {
+                regDevDebugLog(DBG_OUT, "%s: limit output from %lld (0x%llx) to lower bound %lld (0x%llx)\n",
+                    record->name, (long long)rval, (long long)rval, (long long)priv->L, (long long)priv->L);
+                rval = priv->L;
+            }
+            break;
+        case epicsUInt8T:
+            if ((rval & 0xffffffffffffffc0LL) == 0xffffffffffffffc0LL) rval &= 0xff;
+        case epicsUInt16T:
+            if ((rval & 0xffffffffffffc000LL) == 0xffffffffffffc000LL) rval &= 0xffff;
+        case epicsUInt32T:
+            if ((rval & 0xffffffffc0000000LL) == 0xffffffffc0000000LL) rval &= 0xffffffff;
+        default:
+            regDevDebugLog(DBG_OUT, "%s: unsigned rval=%llu (0x%llx)\n",
+                record->name, (long long)rval, (long long)rval);
+
             if ((epicsUInt64)rval > (epicsUInt64)priv->H)
             {
                 regDevDebugLog(DBG_OUT, "%s: limit output from %llu (0x%llx) to upper bound %llu (0x%llx)\n",
@@ -1893,20 +1922,6 @@ int regDevWriteNumber(dbCommon* record, epicsInt64 rval, double fval)
             if ((epicsUInt64)rval < (epicsUInt64)priv->L)
             {
                 regDevDebugLog(DBG_OUT, "%s: limit output from %llu (0x%llx) to lower bound %llu (0x%llx)\n",
-                    record->name, (long long)rval, (long long)rval, (long long)priv->L, (long long)priv->L);
-                rval = priv->L;
-            }
-            break;
-        default:
-            if (rval > priv->H)
-            {
-                regDevDebugLog(DBG_OUT, "%s: limit output from %lld (0x%llx) to upper bound %lld (0x%llx)\n",
-                    record->name, (long long)rval, (long long)rval, (long long)priv->H, (long long)priv->H);
-                rval = priv->H;
-            }
-            if (rval < priv->L)
-            {
-                regDevDebugLog(DBG_OUT, "%s: limit output from %lld (0x%llx) to lower bound %lld (0x%llx)\n",
                     record->name, (long long)rval, (long long)rval, (long long)priv->L, (long long)priv->L);
                 rval = priv->L;
             }
