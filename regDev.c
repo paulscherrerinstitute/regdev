@@ -1904,11 +1904,11 @@ int regDevWriteNumber(dbCommon* record, epicsInt64 rval, double fval)
             }
             break;
         case epicsUInt8T:
-            if ((rval & 0xffffffffffffffc0LL) == 0xffffffffffffffc0LL) rval &= 0xff;
+            if ((rval & 0xffffffffffffff80LL) == 0xffffffffffffff80LL) rval &= 0xff;
         case epicsUInt16T:
-            if ((rval & 0xffffffffffffc000LL) == 0xffffffffffffc000LL) rval &= 0xffff;
+            if ((rval & 0xffffffffffff8000LL) == 0xffffffffffff8000LL) rval &= 0xffff;
         case epicsUInt32T:
-            if ((rval & 0xffffffffc0000000LL) == 0xffffffffc0000000LL) rval &= 0xffffffff;
+            if ((rval & 0xffffffff80000000LL) == 0xffffffff80000000LL) rval &= 0xffffffff;
         default:
             regDevDebugLog(DBG_OUT, "%s: unsigned rval=%llu (0x%llx)\n",
                 record->name, (long long)rval, (long long)rval);
