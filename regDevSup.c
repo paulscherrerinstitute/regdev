@@ -116,7 +116,7 @@ long regDevReadBi(biRecord* record)
 {
     int status;
     epicsUInt32 rval;
-    
+
     status = regDevReadBits((dbCommon*)record, &rval);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status) return status;
@@ -239,7 +239,7 @@ long regDevReadMbbi(mbbiRecord* record)
     int status;
     epicsUInt32 rval;
     int i;
-    
+
     status = regDevReadBits((dbCommon*)record, &rval);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status) return status;
@@ -303,7 +303,7 @@ long regDevInitRecordMbbo(mbboRecord* record)
     }
     rval >>= record->shft;
     record->val = rval;
-    return DONT_CONVERT; 
+    return DONT_CONVERT;
 }
 
 long regDevUpdateMbbo(mbboRecord* record)
@@ -333,7 +333,7 @@ long regDevUpdateMbbo(mbboRecord* record)
                     {
                         record->val = i; /* get VAL from RVAL */
                         break;
-                    }                    
+                    }
                 }
                 break;
             }
@@ -364,7 +364,7 @@ long regDevWriteMbbo(mbboRecord* record)
     int status;
     epicsUInt32 rval;
     int i;
-    
+
     regDevCheckAsyncWriteResult(record);
     rval = record->val;
     if (record->sdef) for (i = 0; i < 16; i++)
@@ -412,7 +412,7 @@ long regDevReadMbbiDirect(mbbiDirectRecord* record)
 {
     int status;
     epicsUInt32 rval;
-    
+
     status = regDevReadBits((dbCommon*)record, &rval);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status) return status;
@@ -514,6 +514,7 @@ long regDevUpdateMbboDirect(mbboDirectRecord* record)
         }
         else if (monitor_mask)
             db_post_events(record, bit, monitor_mask);
+        rval >>= 1;
     }
     return status;
 }
@@ -557,7 +558,7 @@ long regDevReadLongin(longinRecord* record)
 {
     int status;
     epicsInt64 val;
-    
+
     status = regDevReadNumber((dbCommon*)record, &val, NULL);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status) return status;
@@ -607,7 +608,7 @@ long regDevUpdateLongout(longoutRecord* record)
     int status;
     epicsInt64 val;
     unsigned short monitor_mask;
-    
+
     status = regDevReadNumber((dbCommon*)record, &val, NULL);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status == S_dev_success)
@@ -682,7 +683,7 @@ long regDevReadAi(aiRecord* record)
     double val;
     epicsInt64 rval;
     int udf;
-    
+
     udf = record->udf;
     status = regDevReadNumber((dbCommon*)record, &rval, &val);
     if (status == ASYNC_COMPLETION) return S_dev_success;
@@ -703,7 +704,7 @@ long regDevReadAi(aiRecord* record)
         if (record->smoo != 0.0 && !isnan(record->val) && !isinf(record->val) && !udf) {
             /* do not smooth with invalid values, infinity or NaN */
             record->val = val * (1.00 - record->smoo) + (record->val * record->smoo);
-        } else 
+        } else
             record->val = val;
         record->udf = isnan(record->val);
     }
@@ -726,15 +727,15 @@ long regDevSpecialLinconvAi(aiRecord* record, int after)
             case epicsInt8T:
             case epicsInt16T:
             case epicsInt32T:
-                record->eoff = 
+                record->eoff =
                     ((epicsInt64)priv->H * record->egul - (epicsInt64)priv->L * record->eguf)
                     / hwSpan;
                 break;
             default:
-                record->eoff = 
+                record->eoff =
                     ((epicsUInt64)priv->H * record->egul - (epicsUInt64)priv->L * record->eguf)
                     / hwSpan;
-        }                   
+        }
         regDevDebugLog(DBG_INIT, "regDevSpecialLinconvAi(%s, 1): H=0x%llx=%lld, L=0x%llx=%lld, hwSpan=%llu, ESLO=%g, EOFF=%g\n",
             record->name, (long long)priv->H, (long long)priv->H, (long long)priv->L, (long long)priv->L, (unsigned long long)hwSpan, record->eslo, record->eoff);
     }
@@ -808,7 +809,7 @@ long regDevUpdateAo(aoRecord* record)
     double val;
     epicsInt64 rval;
     unsigned short monitor_mask;
-    
+
     status = regDevReadNumber((dbCommon*)record, &rval, &val);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status == S_dev_success)
@@ -827,7 +828,7 @@ long regDevUpdateAo(aoRecord* record)
             } else if ((record->linr == menuConvertLINEAR) ||
 		      (record->linr == menuConvertSLOPE)) {
                 val = val * record->eslo + record->eoff;
-            } else { 
+            } else {
                 status = cvtRawToEngBpt(&val, record->linr, 0,
 		        (void *)&record->pbrk, &record->lbrk);
             }
@@ -852,7 +853,7 @@ long regDevUpdateAo(aoRecord* record)
         record->mlst = record->val;
     }
     if (!(fabs(record->alst - record->val) <= record->adel)) /* Handles ADEL == NAN */
-    { 
+    {
         monitor_mask |= DBE_LOG;
         record->alst = record->val;
     }
@@ -881,7 +882,7 @@ long regDevWriteAo(aoRecord* record)
 {
     double val;
     int status;
-    
+
     regDevCheckAsyncWriteResult(record);
     val = record->oval - record->aoff;
     if (record->aslo != 0) val /= record->aslo;
@@ -905,15 +906,15 @@ long regDevSpecialLinconvAo(aoRecord* record, int after)
             case epicsInt8T:
             case epicsInt16T:
             case epicsInt32T:
-                record->eoff = 
+                record->eoff =
                     ((epicsInt32)priv->H * record->egul - (epicsInt32)priv->L * record->eguf)
                     / hwSpan;
                 break;
             default:
-                record->eoff = 
+                record->eoff =
                     ((epicsUInt32)priv->H * record->egul - (epicsUInt32)priv->L * record->eguf)
                     / hwSpan;
-        }                   
+        }
 
 /* Proof:
            RVAL = (OVAL - EOFF) / ESLO
@@ -935,7 +936,7 @@ long regDevSpecialLinconvAo(aoRecord* record, int after)
                 = [H * (EGUF - EGUL) + L * (EGUF - EGUF)] / (EGUF - EGUL)
                 = H * (EGUF - EGUL) / (EGUF - EGUL)
                 = H
-*/        
+*/
 
         regDevDebugLog(DBG_INIT, "regDevSpecialLinconvAo(%s, 1): H=0x%llx=%lld, L=0x%llx=%lld, hwSpan=%llu, ESLO=%g, EOFF=%g\n",
             record->name, (long long)priv->H, (long long)priv->H, (long long)priv->L, (long long)priv->L, (unsigned long long)hwSpan, record->eslo, record->eoff);
@@ -982,7 +983,7 @@ long regDevInitRecordStringin(stringinRecord* record)
 long regDevReadStringin(stringinRecord* record)
 {
     int status;
-    
+
     status = regDevReadArray((dbCommon*) record, sizeof(record->val));
     if (status == ASYNC_COMPLETION) return S_dev_success;
     return status;
@@ -1014,7 +1015,7 @@ long regDevInitRecordStringout(stringoutRecord* record)
 {
     regDevPrivate* priv;
     int status;
-    
+
     priv = regDevAllocPriv((dbCommon*)record);
     if (!priv) return S_dev_noMemory;
     priv->dtype = epicsStringT;
@@ -1089,7 +1090,7 @@ long regDevInitRecordWaveform(waveformRecord* record)
 {
     regDevPrivate* priv;
     int status;
-    
+
     priv = regDevAllocPriv((dbCommon*)record);
     if (!priv) return S_dev_noMemory;
     status = regDevCheckFTVL((dbCommon*)record, record->ftvl);
@@ -1123,7 +1124,7 @@ long regDevReadWaveform(waveformRecord* record)
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status != S_dev_success) return status;
     if (priv->data.buffer != record->bptr)
-    {    
+    {
         return regDevScaleFromRaw((dbCommon*)record, record->ftvl,
             record->bptr, record->nelm, record->lopr, record->hopr);
     }

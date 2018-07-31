@@ -1015,7 +1015,7 @@ record (mbboDirect, "$(DEV):MBBO2")
 {
     field (DTYP, "regDev")
     field (NOBT, "32")
-    field (OUT,  "@test:16 T=uint32")
+    field (OUT,  "@test:16 T=uint32 U=1000")
 }
 
 record (mbbiDirect, "$(DEV):MBBI2")
