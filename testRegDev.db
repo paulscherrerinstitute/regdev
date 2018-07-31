@@ -1,3 +1,10 @@
+record (bo, "$(DEV):UPDATER")
+{
+    field (DTYP, "regDev updater")
+    field (OUT,  "@device")
+    field (VAL,  "1")
+    field (SCAN, "1 second")
+}
 record (bi, "$(DEV):STATUS")
 {
     field (DTYP, "regDev stat")
@@ -1015,7 +1022,7 @@ record (mbboDirect, "$(DEV):MBBO2")
 {
     field (DTYP, "regDev")
     field (NOBT, "32")
-    field (OUT,  "@test:16 T=uint32 U=1000")
+    field (OUT,  "@test:16 T=uint32 U=T")
 }
 
 record (mbbiDirect, "$(DEV):MBBI2")
