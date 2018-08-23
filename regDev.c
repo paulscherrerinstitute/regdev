@@ -265,7 +265,7 @@ int regDevIoParse2(
 
         if (!isdigit((unsigned char)*p))
         {
-            /* expect record name, maybe in ' quotes, maby in () */
+            /* expect record name, maybe in ' quotes, maybe in () */
             char recName[255];
             int i = 0;
             char q = 0;
@@ -277,8 +277,8 @@ int regDevIoParse2(
                 while (isspace((unsigned char)*p)) p++;
             }
             if (*p == '\'') q = *p++;
-            /* all non-whitespace chars are legal, incl + and *, except quote ' here */
-            while (!isspace((unsigned char)*p) && !(q && *p == q)) recName[i++] = *p++;
+            /* all non-whitespace chars are legal here except quote ', incl + and * */
+            while (*p && !isspace((unsigned char)*p) && !(q && *p == q)) recName[i++] = *p++;
             if (q && *p == q) p++;
             recName[i] = 0;
             priv->offsetRecord = (struct dbAddr*) mallocMustSucceed(sizeof (struct dbAddr), "regDevIoParse");
@@ -592,6 +592,8 @@ int regDevIoParse(dbCommon* record, struct link* link, int types)
             (regDevPrivate*) record->dpvt,
             types);
         if (status == S_dev_success) return status;
+        regDevPrintErr("invalid link field \"%s\"",
+            link->value.instio.string);
     }
     free(record->dpvt);
     record->dpvt = NULL;
