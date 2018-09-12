@@ -17,11 +17,12 @@ regDev_DBD += regDevBase.dbd
 
 # Check EPICS base version for available record types
 ifeq ($(BASE_3_14),YES)
-ifeq ($(shell $(PERL) -e 'print $(EPICS_MODIFICATION)>=12',1)
+ifeq ($(shell $(PERL) -e 'print $(EPICS_MODIFICATION)>=12'),1)
 WITH_AAIO=YES
 endif
-ifeq ($(shell $(PERL) -e 'print $(EPICS_MODIFICATION)>=5',1)
+ifeq ($(shell $(PERL) -e 'print $(EPICS_MODIFICATION)>=5'),1)
 WITH_CALCOUT=YES
+endif
 endif
 
 ifdef BASE_3_15

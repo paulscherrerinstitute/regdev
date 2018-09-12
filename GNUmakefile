@@ -1,5 +1,5 @@
 ifeq ($(wildcard /ioc/tools/driver.makefile),)
-$(warning It seems you do not have the PSI build environment. Remove GNUmakefile.)
+$(info If you are not using the PSI build environment, GNUmakefile can be removed.)
 include Makefile
 else
 include /ioc/tools/driver.makefile
