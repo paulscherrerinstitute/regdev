@@ -366,7 +366,7 @@ long regDevWriteMbbo(mbboRecord* record)
     int i;
 
     regDevCheckAsyncWriteResult(record);
-    rval = record->val;
+    rval = record->val << record->shft;
     if (record->sdef) for (i = 0; i < 16; i++)
     {
         if ((&record->zrvl)[i]) /* any state defined */
@@ -375,7 +375,6 @@ long regDevWriteMbbo(mbboRecord* record)
             break;
         }
     }
-    rval <<= record->shft;
     status =  regDevWriteBits((dbCommon*)record, rval, record->mask);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     return status;
