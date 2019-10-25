@@ -695,7 +695,7 @@ long regDevGetInIntInfo(int cmd, dbCommon *record, IOSCANPVT *ppvt)
     regDevGetPriv();
     device = priv->device;
     assert(device != NULL);
-    
+
     regDevDebugLog(DBG_INIT, "%s %s prio=%d irqvec=%d block=%p blockmodes=%d cmd=%d\n",
         device->name, record->name, record->prio, priv->irqvec, device->blockBuffer, device->blockModes, cmd);
 
@@ -782,35 +782,32 @@ long regDevReport(int level)
     printf("registered devices:\n");
     for (device = registeredDevices; device; device = device->next)
     {
-        if (device->support)
+        size_t size = device->size;
+        printf(" \"%s\" size ", device->name);
+        if (size)
         {
-            size_t size = device->size;
-            printf(" \"%s\" size ", device->name);
-            if (size)
-            {
-                printf("%" Z "d", size);
-                if (size > 9) printf("=0x%" Z "x", size);
-                if (size > 1024*1024)
-                    printf("=%" Z "dMiB", size >> 20);
-                else if (size > 1024)
-                    printf("=%" Z "dKiB", size >> 10);
-            }
-            else
-                printf("unknown");
-                
-            if (device->blockBuffer)
-                printf(" block@%p", device->blockBuffer);
-            
-            if (device->support->report)
-            {
-                printf(" ");
-                epicsMutexLock(device->accesslock);
-                device->support->report(device->driver, level);
-                epicsMutexUnlock(device->accesslock);
-            }
-            else
-                printf("\n");
+            printf("%" Z "d", size);
+            if (size > 9) printf("=0x%" Z "x", size);
+            if (size > 1024*1024)
+                printf("=%" Z "dMiB", size >> 20);
+            else if (size > 1024)
+                printf("=%" Z "dKiB", size >> 10);
         }
+        else
+            printf("unknown");
+
+        if (device->blockBuffer)
+            printf(" block@%p", device->blockBuffer);
+        if (device->support && device->support->report)
+        {
+            printf(" ");
+            fflush(stdout);
+            epicsMutexLock(device->accesslock);
+            device->support->report(device->driver, level);
+            epicsMutexUnlock(device->accesslock);
+        }
+        else
+            printf("\n");
     }
     return S_dev_success;
 }
