@@ -29,7 +29,7 @@ long regDevInitRecordCalcout(calcoutRecord* record)
 long regDevWriteCalcout(calcoutRecord* record)
 {
     int status;
-    
+
     regDevCheckAsyncWriteResult(record);
     status = regDevWriteNumber((dbCommon*)record, (epicsInt64)record->oval, record->oval);
     if (status == ASYNC_COMPLETION) return S_dev_success;

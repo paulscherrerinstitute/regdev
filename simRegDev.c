@@ -414,7 +414,7 @@ int simRegDevSetData(
             name, offset, device->size);
         return S_dev_badSignalNumber;
     }
-    
+
     device->buffer[offset] = value;
     if (simRegDevDebug >= 1)
         printf ("simRegDevSetData %s: trigger input records\n", device->name);
@@ -456,7 +456,7 @@ int simRegDevGetData(
             name, offset, device->size);
         return S_dev_badSignalNumber;
     }
-    
+
     *value = device->buffer[offset];
     return S_dev_success;
 }

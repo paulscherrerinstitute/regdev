@@ -30,7 +30,7 @@ long regDevInitRecordInt64in(int64inRecord* record)
 long regDevReadInt64in(int64inRecord* record)
 {
     int status;
-    
+
     status = regDevReadNumber((dbCommon*)record, &record->val, NULL);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status) return status;
@@ -73,7 +73,7 @@ long regDevUpdateInt64out(int64outRecord* record)
 {
     int status;
     unsigned short monitor_mask;
-    
+
     status = regDevReadNumber((dbCommon*)record, &record->val, NULL);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     monitor_mask = recGblResetAlarms(record);

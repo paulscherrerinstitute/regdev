@@ -1229,7 +1229,7 @@ int regDevInstallWorkQueue(regDevice* driver, unsigned int maxEntries)
 
     device->dispatcher = callocMustSucceed(1, sizeof(regDevDispatcher), "regDevInstallWorkQueue");
     device->dispatcher->maxEntries = maxEntries;
-    
+
     /* actual work queues and threads are created when needed */
 
     epicsAtExit((void(*)(void*))regDevWorkExit, device);
@@ -1456,7 +1456,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         status = regDevGetOffset(record, dlen, nelem, &offset);
         if (status != S_dev_success)
             return status;
-            
+
         if (!(device->blockModes & REGDEV_BLOCK_READ) || record->prio == 2)
         {
             record->pact = 1;
@@ -1540,7 +1540,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
             }
         }
     }
-    
+
     /* Some debug output */
     if (regDevDebug & DBG_IN)
     {
@@ -1699,7 +1699,7 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
                     device->name, offset);
         }
     }
-    
+
     if (device->blockModes & REGDEV_BLOCK_WRITE)
     {
         if (buffer)
@@ -2767,7 +2767,7 @@ int regDevDisplay(const char* devName, int start, unsigned int dlen, size_t byte
         errlogPrintf("device has no read method\n");
         return S_dev_badRequest;
     }
-    
+
     epicsMutexLock(device->accesslock);
     status = device->support->read(device->driver,
         offset, dlen, nelem, buffer, 2, NULL, "regDevDisplay");

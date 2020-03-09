@@ -820,16 +820,16 @@ long regDevUpdateAo(aoRecord* record)
         {
             record->rbv = record->rval = rval;
             val = (double)rval + (double)record->roff;
-	    if (record->aslo != 0.0) val *= record->aslo;
-	    val += record->aoff;
+            if (record->aslo != 0.0) val *= record->aslo;
+            val += record->aoff;
             if (record->linr == menuConvertNO_CONVERSION) {
-	        ; /*do nothing*/
+                ; /*do nothing*/
             } else if ((record->linr == menuConvertLINEAR) ||
-		      (record->linr == menuConvertSLOPE)) {
+                      (record->linr == menuConvertSLOPE)) {
                 val = val * record->eslo + record->eoff;
             } else {
                 status = cvtRawToEngBpt(&val, record->linr, 0,
-		        (void *)&record->pbrk, &record->lbrk);
+                        (void *)&record->pbrk, &record->lbrk);
             }
         }
     }
@@ -843,7 +843,7 @@ long regDevUpdateAo(aoRecord* record)
     if (status == S_dev_success)
     {
         record->omod = record->oval != val;
-	record->orbv = record->oval = record->val = val;
+        record->orbv = record->oval = record->val = val;
     }
     monitor_mask = recGblResetAlarms(record);
     if (!(fabs(record->mlst - record->val) <= record->mdel)) /* Handles MDEL == NAN */
@@ -861,13 +861,13 @@ long regDevUpdateAo(aoRecord* record)
     if (record->omod) monitor_mask |= (DBE_VALUE|DBE_LOG);
     if (monitor_mask)
     {
-	record->omod = FALSE;
-	db_post_events (record, &record->oval, monitor_mask);
-	if (record->oraw != record->rval)
+        record->omod = FALSE;
+        db_post_events (record, &record->oval, monitor_mask);
+        if (record->oraw != record->rval)
         {
             db_post_events(record, &record->rval, monitor_mask|DBE_VALUE|DBE_LOG);
             record->oraw = record->rval;
-	}
+        }
         if (record->orbv != record->rbv)
         {
             db_post_events(record, &record->rbv, monitor_mask|DBE_VALUE|DBE_LOG);

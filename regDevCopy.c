@@ -18,16 +18,16 @@
 #define bswap_16(x) \
      ((((x) >> 8) & 0xff) | (((x) & 0xff) << 8))
 #define bswap_32(x) \
-     ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >>  8) |		      \
+     ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >>  8) |  \
       (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
 #define bswap_64(x) \
-     ((((x) & 0xff00000000000000ull) >> 56) |   			      \
-      (((x) & 0x00ff000000000000ull) >> 40) |   			      \
-      (((x) & 0x0000ff0000000000ull) >> 24) |   			      \
-      (((x) & 0x000000ff00000000ull) >> 8)  |   			      \
-      (((x) & 0x00000000ff000000ull) << 8)  |   			      \
-      (((x) & 0x0000000000ff0000ull) << 24) |   			      \
-      (((x) & 0x000000000000ff00ull) << 40) |   			      \
+     ((((x) & 0xff00000000000000ull) >> 56) |  \
+      (((x) & 0x00ff000000000000ull) >> 40) |  \
+      (((x) & 0x0000ff0000000000ull) >> 24) |  \
+      (((x) & 0x000000ff00000000ull) >> 8)  |  \
+      (((x) & 0x00000000ff000000ull) << 8)  |  \
+      (((x) & 0x0000000000ff0000ull) << 24) |  \
+      (((x) & 0x000000000000ff00ull) << 40) |  \
       (((x) & 0x00000000000000ffull) << 56))
 #endif
 
@@ -162,7 +162,7 @@ void regDevCopy(unsigned int dlen, size_t nelem, const volatile void* src, volat
 {
     /* check alignment */
     size_t alignment = (1<<dlen)-1;
-    
+
     /* handle conditional swapping */
     if (swap == REGDEV_BE_SWAP) swap = (endianess.b[0] == 0x12);
     else if (swap == REGDEV_LE_SWAP) swap = (endianess.b[0] == 0x78);
@@ -242,7 +242,7 @@ void regDevCopy(unsigned int dlen, size_t nelem, const volatile void* src, volat
         case 0 + MASK + SWAP:
             COPY_MASKED_SWAP_D(64, dlen>>3, nelem, src, dest, pmask);
             return;
-            
+
         /* multiple of 4: copy dword wise */
         case 4:
             COPY_D(32, dlen>>2, nelem, src, dest);
@@ -310,7 +310,7 @@ void regDevCopy(unsigned int dlen, size_t nelem, const volatile void* src, volat
 static void printfbuf(char*b, int n)
 {
     int i;
-    
+
     n--;
     for(i=0; i<=n; i++)
         printf("0x%02x%c", b[i]&0xff, i==n?'\n':',');
@@ -341,7 +341,7 @@ int main()
     0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,0x21,0x22,0x23
     };
     char buffer[sizeof(testpattern)];
-    
+
     check( 0, 0, NULL, FALSE, {});
     check( 0, 0, NULL, TRUE,  {});
     check( 0, 0, mask, FALSE, {});

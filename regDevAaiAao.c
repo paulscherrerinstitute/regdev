@@ -37,7 +37,7 @@ long regDevInitRecordAai(aaiRecord* record)
 {
     regDevPrivate* priv;
     int status;
-    
+
     priv = regDevAllocPriv((dbCommon*)record);
     if (!priv) return S_dev_noMemory;
     status = regDevCheckFTVL((dbCommon*)record, record->ftvl);
@@ -113,7 +113,7 @@ long regDevInitRecordAao(aaoRecord* record)
 {
     regDevPrivate* priv;
     int status;
-    
+
     regDevDebugLog(DBG_INIT, "%s:\n", record->name);
     priv = regDevAllocPriv((dbCommon*)record);
     if (!priv) return S_dev_noMemory;
@@ -141,7 +141,7 @@ long regDevInitRecordAao(aaoRecord* record)
     {
         /* convert from float/double */
         record->bptr = calloc(record->nelm, sizeofTypes[record->ftvl]);
-        if (!record->bptr) return S_dev_noMemory;  
+        if (!record->bptr) return S_dev_noMemory;
     }
     else if (status) return status;
     status = regDevInstallUpdateFunction((dbCommon*)record, regDevUpdateAao);
@@ -160,7 +160,7 @@ long regDevUpdateAao(aaoRecord* record)
     regDevPrivate* priv = (regDevPrivate*)record->dpvt;
     int status;
     unsigned short monitor_mask;
-    
+
     if (!record->bptr)
     {
         regDevPrintErr("private buffer is not allocated");
