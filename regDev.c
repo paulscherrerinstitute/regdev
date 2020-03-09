@@ -28,6 +28,27 @@
 #define CMD_WRITE 2
 #define CMD_EXIT 4
 
+#if defined __USE_XOPEN2K8
+#undef epicsMutexMustCreate
+static epicsMutexId epicsMutexMustCreate() {
+    static pthread_mutexattr_t attr;
+    static int initialized = 0;
+    pthread_mutex_t *lock;
+    if (!initialized) {
+        pthread_mutexattr_init(&attr);
+        pthread_mutexattr_setprotocol(&attr, PTHREAD_PRIO_INHERIT);
+        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+        initialized = 1;
+        printf("regDev uses PTHREAD_PRIO_INHERIT mutex\n");
+    }
+    lock = callocMustSucceed(1, sizeof(pthread_mutex_t), "epicsMutexMustCreate");
+    pthread_mutex_init(lock, &attr);
+    return (epicsMutexId)lock;
+}
+#define epicsMutexLock(lock) pthread_mutex_lock((pthread_mutex_t*)lock);
+#define epicsMutexUnlock(lock) pthread_mutex_unlock((pthread_mutex_t*)lock);
+#endif
+
 static regDeviceNode* registeredDevices = NULL;
 
 epicsShareDef int regDevDebug = 0;
