@@ -51,7 +51,7 @@ long regDevInitRecordAai(aaiRecord* record)
         && priv->offset + record->nelm * priv->dlen <= priv->device->size)
     {
         /* map record with static offset directly in block buffer */
-        record->bptr = priv->device->blockBuffer + priv->offset;
+        record->bptr = (char*)priv->device->blockBuffer + priv->offset;
     }
     else
     {
@@ -128,7 +128,7 @@ long regDevInitRecordAao(aaoRecord* record)
         && priv->offset + record->nelm * priv->dlen <= priv->device->size)
     {
         /* map record with static offset directly in block buffer */
-        record->bptr = priv->device->blockBuffer + priv->offset;
+        record->bptr = (char*)priv->device->blockBuffer + priv->offset;
     }
     else
     {

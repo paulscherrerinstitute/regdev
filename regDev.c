@@ -1541,17 +1541,17 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         {
             if (buffer)
             {
-                if (buffer < device->blockBuffer || buffer >= device->blockBuffer+device->size || offset != priv->offset)
+                if ((char*)buffer < (char*)device->blockBuffer || (char*)buffer >= (char*)device->blockBuffer + device->size || offset != priv->offset)
                 {
                     /* copy block buffer to record (if not mapped) */
                     regDevDebugLog(DBG_IN, "%s: copy %" Z "u * %u bytes from %s block buffer %p+0x%" Z "x to record buffer %p\n",
                         record->name, nelem, dlen, device->name, device->blockBuffer, offset, buffer);
-                    regDevCopy(dlen, nelem, device->blockBuffer+offset, buffer, NULL, device->blockSwap);
+                    regDevCopy(dlen, nelem, (char*)device->blockBuffer + offset, buffer, NULL, device->blockSwap);
                 }
                 else
                 {
                     regDevDebugLog(DBG_IN, "%s: %" Z "u * %u bytes mapped in %s block buffer %p+0x%" Z "x\n",
-                        record->name, nelem, dlen, device->name, device->blockBuffer, offset);
+                        record->name, nelem, dlen, device->name, (char*)device->blockBuffer, offset);
                 }
             }
             if (record->prio == 2 && !atInit)
@@ -1725,12 +1725,12 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
     {
         if (buffer)
         {
-            if (buffer < device->blockBuffer || buffer >= device->blockBuffer+device->size)
+            if ((char*)buffer < (char*)device->blockBuffer || (char*)buffer >= (char*)device->blockBuffer + device->size)
             {
                 /* copy record to block buffer (if not mapped) */
                 regDevDebugLog(DBG_OUT, "%s: copy %" Z "u * %u bytes from record buffer %p to %s block buffer %p+0x%" Z "x\n",
                     record->name, nelem, dlen, buffer, device->name, device->blockBuffer, offset);
-                regDevCopy(dlen, nelem, buffer, device->blockBuffer+offset, mask, device->blockSwap);
+                regDevCopy(dlen, nelem, buffer, (char*)device->blockBuffer + offset, mask, device->blockSwap);
             }
             else
             {
@@ -2754,7 +2754,7 @@ int regDevDisplay(const char* devName, int start, unsigned int dlen, size_t byte
     if (device->blockBuffer)
     {
         printf("block buffer:\n");
-        memDisplay(offset, device->blockBuffer+offset, dlen, dlen * nelem);
+        memDisplay(offset, (char*)device->blockBuffer + offset, dlen, dlen * nelem);
         offset += dlen * nelem;
         return S_dev_success;
     }
