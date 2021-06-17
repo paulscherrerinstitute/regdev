@@ -83,8 +83,8 @@ typedef struct regDevPrivate {         /* per record data structure */
     regDeviceNode* device;
     size_t offset;                     /* Offset (in bytes) within device memory */
     size_t rboffset;                   /* Offset to read back output records (or DONT_INIT) */
-    struct dbAddr* offsetRecord;       /* record to read offset from */
-    ptrdiff_t offsetScale;             /* scaling of value from offsetRecord */
+    struct dbAddr* offsetRecord;       /* Record to read offset from */
+    ptrdiff_t offsetScale;             /* Scaling of value from offsetRecord */
     epicsUInt8 bit;                    /* Bit number (0-15) for bi/bo */
     epicsUInt8 dtype;                  /* Data type */
     epicsUInt8 dlen;                   /* Data length (in bytes) */
@@ -103,7 +103,7 @@ typedef struct regDevPrivate {         /* per record data structure */
     regDevAnytype data;                /* For asynchonous drivers and arrays */
     regDevAnytype mask;                /* For asynchonous drivers */
     epicsInt32 irqvec;                 /* Interrupt vector for I/O Intr */
-    size_t nelm;                       /* array size */
+    size_t nelm;                       /* Array size */
 } regDevPrivate;
 
 struct devsup {

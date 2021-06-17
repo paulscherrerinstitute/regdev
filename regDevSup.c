@@ -37,7 +37,7 @@ long regDevReadStat(biRecord* record)
 {
     int status;
 
-    /* psudo-read (0 bytes) just to get the connection status */
+    /* pseudo-read (0 bytes) just to get the connection status */
     status = regDevRead((dbCommon*)record, 0, 0, NULL);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     record->rval = (status == S_dev_success);
@@ -1159,7 +1159,7 @@ long regDevReadEvent(eventRecord* record)
 {
     int status;
 
-    /* psudo-read (0 bytes) just to get the connection status */
+    /* pseudo-read (0 bytes) just to get the connection status */
     status = regDevRead((dbCommon*)record, 0, 0, NULL);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     return status;
