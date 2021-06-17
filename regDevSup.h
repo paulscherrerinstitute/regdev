@@ -88,7 +88,6 @@ typedef struct regDevPrivate {         /* per record data structure */
     epicsUInt8 bit;                    /* Bit number (0-15) for bi/bo */
     epicsUInt8 dtype;                  /* Data type */
     epicsUInt8 dlen;                   /* Data length (in bytes) */
-    epicsUInt8 arraypacking;           /* Array: elelents in one register */
     epicsUInt8 fifopacking;            /* Fifo: elelents in one register */
     epicsInt32 update;                 /* Periodic update of output records (msec) */
     epicsInt64 L;                      /* Hardware Low limit */

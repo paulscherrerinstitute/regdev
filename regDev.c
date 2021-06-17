@@ -887,9 +887,7 @@ regDevPrivate* regDevAllocPriv(dbCommon *record)
     priv = callocMustSucceed(1, sizeof(regDevPrivate),"regDevAllocPriv");
     priv->magic = MAGIC_PRIV;
     priv->dtype = epicsInt16T;
-    priv->arraypacking = 1;
     priv->irqvec=-1;
-    priv->updating = 0;
     priv->nelm = 1;
     record->dpvt = priv;
     return priv;
@@ -1010,7 +1008,6 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
     assert(priv != NULL);
     device = priv->device;
     assert(device != NULL);
-    priv->nelm = nelm;
 
     switch (priv->dtype)
     {
@@ -1045,7 +1042,7 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
                 status = S_dev_success;
             else if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
             {
-                priv->arraypacking = 2;
+                nelm >>= 1;
                 status = S_dev_success;
             }
             else if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
@@ -1058,12 +1055,12 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
                 status = S_dev_success;
             else if ((ftvl == DBF_SHORT) || (ftvl == DBF_USHORT))
             {
-                priv->arraypacking = 2;
+                nelm >>= 1;
                 status = S_dev_success;
             }
             else if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
             {
-                priv->arraypacking = 4;
+                nelm >>= 2;
                 status = S_dev_success;
             }
             else if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
@@ -1074,31 +1071,24 @@ int regDevCheckType(dbCommon* record, int ftvl, int nelm)
         case epicsUInt64T:
             if ((ftvl == DBF_LONG) || (ftvl == DBF_ULONG))
             {
-                priv->arraypacking = 2;
+                nelm >>= 1;
                 status = S_dev_success;
             }
             else if ((ftvl == DBF_SHORT) || (ftvl == DBF_USHORT))
             {
-                priv->arraypacking = 4;
+                nelm >>= 2;
                 status = S_dev_success;
             }
             else if ((ftvl == DBF_CHAR) || (ftvl == DBF_UCHAR))
             {
-                priv->arraypacking = 8;
+                nelm >>= 3;
                 status = S_dev_success;
             }
             else if ((ftvl == DBF_FLOAT) || (ftvl == DBF_DOUBLE))
                 status = ARRAY_CONVERT;
             break;
     }
-    regDevDebugLog(DBG_INIT, "%s: %s[%i] dtyp=%s dlen=%d arraypacking=%d status=%d\n",
-        record->name,
-        pamapdbfType[ftvl].strvalue+4,
-        nelm,
-        regDevTypeName(priv->dtype),
-        priv->dlen,
-        priv->arraypacking,
-        status);
+    priv->nelm = nelm;
     if (status == S_dev_badArgument)
         fprintf(stderr,
             "regDevCheckType %s: data type %s does not match FTVL %s\n",
@@ -2115,7 +2105,8 @@ int regDevReadArray(dbCommon* record, size_t nelm)
         /* FIFO: read element wise */
         char* buffer = priv->data.buffer;
         dlen *= packing;
-        for (i = 0; i < nelm/packing; i++)
+        nelm /= packing;
+        for (i = 0; i < nelm; i++)
         {
             status = regDevRead(record,
                 dlen, 1, buffer+i*dlen);
@@ -2127,7 +2118,7 @@ int regDevReadArray(dbCommon* record, size_t nelm)
     {
         /* read packed array */
         status = regDevRead(record,
-            dlen, nelm/priv->arraypacking, priv->data.buffer);
+            dlen, nelm, priv->data.buffer);
     }
 
     if (status != S_dev_success) return status;
@@ -2234,7 +2225,7 @@ int regDevWriteArray(dbCommon* record, size_t nelm)
     else
     {
         status = regDevWrite(record,
-            dlen, nelm/priv->arraypacking, priv->data.buffer, NULL);
+            dlen, nelm, priv->data.buffer, NULL);
     }
     return status;
 }
