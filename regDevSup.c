@@ -561,7 +561,7 @@ long regDevReadLongin(longinRecord* record)
     status = regDevReadNumber((dbCommon*)record, &val, NULL);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status) return status;
-    record->val = val;
+    record->val = (epicsInt32)val;
     return S_dev_success;
 }
 
@@ -595,7 +595,7 @@ long regDevInitRecordLongout(longoutRecord* record)
     if (priv->rboffset == DONT_INIT) return S_dev_success;
     status = regDevReadNumber((dbCommon*)record, &val, NULL);
     if (status) return status;
-    record->val = val;
+    record->val = (epicsInt32)val;
     return S_dev_success;
 }
 
@@ -612,7 +612,7 @@ long regDevUpdateLongout(longoutRecord* record)
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status == S_dev_success)
     {
-        record->val = val;
+        record->val = (epicsInt32)val;
     }
     monitor_mask = recGblResetAlarms(record);
     if (DELTA(record->mlst, record->val) > record->mdel)
@@ -692,7 +692,7 @@ long regDevReadAi(aiRecord* record)
             /* value does not fit in RVAL */
             status = DONT_CONVERT;
         else
-            record->rval = rval;
+            record->rval = (epicsInt32)rval;
     }
     if (status == DONT_CONVERT)
     {
@@ -790,7 +790,7 @@ long regDevInitRecordAo(aoRecord* record)
             /* value does not fit in RVAL */
             status = DONT_CONVERT;
         else
-            record->rval = rval;
+            record->rval = (epicsInt32)rval;
     }
     if (status == DONT_CONVERT)
     {
@@ -818,7 +818,7 @@ long regDevUpdateAo(aoRecord* record)
             status = DONT_CONVERT;
         else
         {
-            record->rbv = record->rval = rval;
+            record->rbv = record->rval = (epicsInt32)rval;
             val = (double)rval + (double)record->roff;
             if (record->aslo != 0.0) val *= record->aslo;
             val += record->aoff;
@@ -843,7 +843,7 @@ long regDevUpdateAo(aoRecord* record)
     if (status == S_dev_success)
     {
         record->omod = record->oval != val;
-        record->orbv = record->oval = record->val = val;
+        record->orbv = (epicsInt32)(record->oval = record->val = val);
     }
     monitor_mask = recGblResetAlarms(record);
     if (!(fabs(record->mlst - record->val) <= record->mdel)) /* Handles MDEL == NAN */

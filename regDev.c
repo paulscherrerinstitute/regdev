@@ -1887,7 +1887,7 @@ int regDevReadNumber(dbCommon* record, epicsInt64* rval, double* fval)
     }
     assert(rval != NULL);
     *rval = rv;
-    if (fval) *fval = rv;
+    if (fval) *fval = (double)rv; /* 64 bit may overflow double but what can we do? */
     return S_dev_success;
 }
 
@@ -2063,18 +2063,18 @@ int regDevWriteBits(dbCommon* record, epicsUInt64 rval, epicsUInt64 mask)
     {
         case epicsInt8T:
         case epicsUInt8T:
-            priv->data.uval8 = rval;
-            priv->mask.uval8 = (mask & 0xff) == 0xff ? 0 : mask;
+            priv->data.uval8 = (epicsUInt8)rval;
+            priv->mask.uval8 = (mask & 0xff) == 0xff ? 0 : (epicsUInt8)mask;
             break;
         case epicsInt16T:
         case epicsUInt16T:
-            priv->data.uval16 = rval;
-            priv->mask.uval16 = (mask & 0xffff) == 0xffff ? 0 : mask;
+            priv->data.uval16 = (epicsUInt16)rval;
+            priv->mask.uval16 = (mask & 0xffff) == 0xffff ? 0 : (epicsUInt16)mask;
             break;
         case epicsInt32T:
         case epicsUInt32T:
-            priv->data.uval32 = rval;
-            priv->mask.uval32 = mask == 0xffffffff ? 0 : mask;
+            priv->data.uval32 = (epicsUInt32)rval;
+            priv->mask.uval32 = mask == 0xffffffff ? 0 : (epicsUInt16)mask;
             break;
         case epicsInt64T:
             priv->data.uval64 = rval;
@@ -2410,8 +2410,8 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                 double *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
-                    if (x < priv->L) x = priv->L;
-                    if (x > priv->H) x = priv->H;
+                    if (x < priv->L) x = (double)priv->L;
+                    if (x > priv->H) x = (double)priv->H;
                     r[i] = (epicsInt8)x;
                 }
             }
@@ -2419,9 +2419,9 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             {
                 float *v = val, x;
                 for (i = 0; i < nelm; i++) {
-                    x = (v[i]+o)*s;
-                    if (x < priv->L) x = priv->L;
-                    if (x > priv->H) x = priv->H;
+                    x = (float)((v[i]+o)*s);
+                    if (x < priv->L) x = (float)priv->L;
+                    if (x > priv->H) x = (float)priv->H;
                     r[i] = (epicsInt8)x;
                 }
             }
@@ -2437,8 +2437,8 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                 double *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
-                    if (x < priv->L) x = priv->L;
-                    if (x > priv->H) x = priv->H;
+                    if (x < priv->L) x = (double)priv->L;
+                    if (x > priv->H) x = (double)priv->H;
                     r[i] = (epicsUInt8)x;
                 }
             }
@@ -2446,9 +2446,9 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             {
                 float *v = val, x;
                 for (i = 0; i < nelm; i++) {
-                    x = (v[i]+o)*s;
-                    if (x < priv->L) x = priv->L;
-                    if (x > priv->H) x = priv->H;
+                    x = (float)((v[i]+o)*s);
+                    if (x < priv->L) x = (float)priv->L;
+                    if (x > priv->H) x = (float)priv->H;
                     r[i] = (epicsUInt8)x;
                 }
             }
@@ -2463,8 +2463,8 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                 double *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
-                    if (x < priv->L) x = priv->L;
-                    if (x > priv->H) x = priv->H;
+                    if (x < priv->L) x = (double)priv->L;
+                    if (x > priv->H) x = (double)priv->H;
                     r[i] = (epicsInt16)x;
                 }
             }
@@ -2472,9 +2472,9 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             {
                 float *v = val, x;
                 for (i = 0; i < nelm; i++) {
-                    x = (v[i]+o)*s;
-                    if (x < priv->L) x = priv->L;
-                    if (x > priv->H) x = priv->H;
+                    x = (float)((v[i]+o)*s);
+                    if (x < priv->L) x = (float)priv->L;
+                    if (x > priv->H) x = (float)priv->H;
                     r[i] = (epicsInt16)x;
                 }
             }
@@ -2490,8 +2490,8 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                 double *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
-                    if (x < priv->L) x = priv->L;
-                    if (x > priv->H) x = priv->H;
+                    if (x < priv->L) x = (double)priv->L;
+                    if (x > priv->H) x = (double)priv->H;
                     r[i] = (epicsUInt16)x;
                 }
             }
@@ -2499,9 +2499,9 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             {
                 float *v = val, x;
                 for (i = 0; i < nelm; i++) {
-                    x = (v[i]+o)*s;
-                    if (x < priv->L) x = priv->L;
-                    if (x > priv->H) x = priv->H;
+                    x = (float)((v[i]+o)*s);
+                    if (x < priv->L) x = (float)priv->L;
+                    if (x > priv->H) x = (float)priv->H;
                     r[i] = (epicsUInt16)x;
                 }
             }
@@ -2516,8 +2516,8 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                 double *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
-                    if (x < priv->L) x = priv->L;
-                    if (x > priv->H) x = priv->H;
+                    if (x < priv->L) x = (double)priv->L;
+                    if (x > priv->H) x = (double)priv->H;
                     r[i] = (epicsInt32)x;
                 }
             }
@@ -2525,9 +2525,9 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             {
                 float *v = val, x;
                 for (i = 0; i < nelm; i++) {
-                    x = (v[i]+o)*s;
-                    if (x < priv->L) x = priv->L;
-                    if (x > priv->H) x = priv->H;
+                    x = (float)((v[i]+o)*s);
+                    if (x < priv->L) x = (float)priv->L;
+                    if (x > priv->H) x = (float)priv->H;
                     r[i] = (epicsInt32)x;
                 }
             }
@@ -2543,8 +2543,8 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                 double *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
-                    if (x < priv->L) x = priv->L;
-                    if (x > priv->H) x = priv->H;
+                    if (x < priv->L) x = (double)priv->L;
+                    if (x > priv->H) x = (double)priv->H;
                     r[i] = (epicsUInt32)x;
                 }
             }
@@ -2552,9 +2552,9 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             {
                 float *v = val, x;
                 for (i = 0; i < nelm; i++) {
-                    x = (v[i]+o)*s;
-                    if (x < priv->L) x = priv->L;
-                    if (x > priv->H) x = priv->H;
+                    x = (float)((v[i]+o)*s);
+                    if (x < priv->L) x = (float)priv->L;
+                    if (x > priv->H) x = (float)priv->H;
                     r[i] = (epicsUInt32)x;
                 }
             }
@@ -2563,14 +2563,15 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
         }
         case epicsInt64T:
         {
+            /* these conversions may overflow, but what can we do? */
             epicsInt64* r = priv->data.buffer;
             if (ftvl == DBF_DOUBLE)
             {
                 double *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
-                    if (x < priv->L) x = priv->L;
-                    if (x > priv->H) x = priv->H;
+                    if (x < priv->L) x = (double)priv->L;
+                    if (x > priv->H) x = (double)priv->H;
                     r[i] = (epicsInt64)x;
                 }
             }
@@ -2578,9 +2579,9 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             {
                 float *v = val, x;
                 for (i = 0; i < nelm; i++) {
-                    x = (v[i]+o)*s;
-                    if (x < priv->L) x = priv->L;
-                    if (x > priv->H) x = priv->H;
+                    x = (float)((v[i]+o)*s);
+                    if (x < priv->L) x = (float)priv->L;
+                    if (x > priv->H) x = (float)priv->H;
                     r[i] = (epicsInt64)x;
                 }
             }
@@ -2596,8 +2597,8 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
                 double *v = val, x;
                 for (i = 0; i < nelm; i++) {
                     x = (v[i]+o)*s;
-                    if (x < priv->L) x = priv->L;
-                    if (x > priv->H) x = priv->H;
+                    if (x < priv->L) x = (double)priv->L;
+                    if (x > priv->H) x = (double)priv->H;
                     r[i] = (epicsUInt64)x;
                 }
             }
@@ -2605,9 +2606,9 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
             {
                 float *v = val, x;
                 for (i = 0; i < nelm; i++) {
-                    x = (v[i]+o)*s;
-                    if (x < priv->L) x = priv->L;
-                    if (x > priv->H) x = priv->H;
+                    x = (float)((v[i]+o)*s);
+                    if (x < priv->L) x = (float)priv->L;
+                    if (x > priv->H) x = (float)priv->H;
                     r[i] = (epicsUInt64)x;
                 }
             }
