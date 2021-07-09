@@ -1303,7 +1303,7 @@ int regDevMakeBlockdevice(regDevice* driver, unsigned int modes, int swap, void*
         }
         if (modes & REGDEV_BLOCK_READ) scanIoInit(&device->blockReceived);
     }
-    device->blockSwap = swap;
+    device->swap = swap;
     device->blockModes = modes;
     return S_dev_success;
 }
@@ -1464,17 +1464,22 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
     else
     {
         /* First call of (possibly asynchronous) device */
+
         status = regDevGetOffset(record, dlen, nelem, &offset);
         if (status != S_dev_success)
             return status;
 
         if (!(device->blockModes & REGDEV_BLOCK_READ) || record->prio == 2)
         {
+            /* read from the hardware (directly or to fill the block buffer) */
+
             record->pact = 1;
             priv->asyncOffset = offset;
             priv->status = S_dev_success;
             if (device->dispatcher && !atInit)
             {
+                /* schedule asynchronous read */
+
                 struct regDevWorkMsg msg;
 
                 msg.cmd = CMD_READ;
@@ -1507,6 +1512,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
             }
             else
             {
+                /* synchronous read */
                 regDevDebugLog(DBG_IN, "%s: reading %sfrom %s\n",
                     record->name, device->blockModes & REGDEV_BLOCK_READ ? "block " : "", device->name);
                 epicsMutexLock(device->accesslock);
@@ -1533,17 +1539,23 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
             {
                 if ((char*)buffer < (char*)device->blockBuffer || (char*)buffer >= (char*)device->blockBuffer + device->size || offset != priv->offset)
                 {
-                    /* copy block buffer to record (if not mapped) */
+                    /* copy block buffer to record */
+
+                    /* handle interlaced arrays and data swapping here */
+
                     regDevDebugLog(DBG_IN, "%s: copy %" Z "u * %u bytes from %s block buffer %p+0x%" Z "x to record buffer %p\n",
                         record->name, nelem, dlen, device->name, device->blockBuffer, offset, buffer);
-                    regDevCopy(dlen, nelem, (char*)device->blockBuffer + offset, buffer, NULL, device->blockSwap);
+                    regDevCopy(dlen, nelem, (char*)device->blockBuffer + offset, buffer, NULL, device->swap);
                 }
                 else
                 {
+                    /* record is mapped and needs no copy */
+
                     regDevDebugLog(DBG_IN, "%s: %" Z "u * %u bytes mapped in %s block buffer %p+0x%" Z "x\n",
                         record->name, nelem, dlen, device->name, (char*)device->blockBuffer, offset);
                 }
             }
+
             if (record->prio == 2 && !atInit)
             {
                 /* inform other records of new block input */
@@ -1720,7 +1732,7 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
                 /* copy record to block buffer (if not mapped) */
                 regDevDebugLog(DBG_OUT, "%s: copy %" Z "u * %u bytes from record buffer %p to %s block buffer %p+0x%" Z "x\n",
                     record->name, nelem, dlen, buffer, device->name, device->blockBuffer, offset);
-                regDevCopy(dlen, nelem, buffer, (char*)device->blockBuffer + offset, mask, device->blockSwap);
+                regDevCopy(dlen, nelem, buffer, (char*)device->blockBuffer + offset, mask, device->swap);
             }
             else
             {

@@ -47,7 +47,7 @@ long regDevInitRecordAai(aaiRecord* record)
     if (status) return status;
     record->nord = record->nelm;
     /* aai record does not allocate bptr in older EPICS versions. */
-    if (priv->device->blockBuffer && !priv->offsetRecord && !priv->device->blockSwap
+    if (priv->device->blockBuffer && !priv->offsetRecord && !priv->device->swap
         && priv->offset + record->nelm * priv->dlen <= priv->device->size)
     {
         /* map record with static offset directly in block buffer */
@@ -124,7 +124,7 @@ long regDevInitRecordAao(aaoRecord* record)
     if (status) return status;
     record->nord = record->nelm;
     /* aao record does not allocate bptr in older EPICS versions. */
-    if (priv->device->blockBuffer && !priv->offsetRecord && !priv->device->blockSwap
+    if (priv->device->blockBuffer && !priv->offsetRecord && !priv->device->swap
         && priv->offset + record->nelm * priv->dlen <= priv->device->size)
     {
         /* map record with static offset directly in block buffer */
