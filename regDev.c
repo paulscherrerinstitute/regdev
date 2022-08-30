@@ -1254,7 +1254,7 @@ int regDevAllocBuffer(regDeviceNode* device, const char* name, void** bptr, size
     void* ptr = NULL;
     if (device->dmaAlloc)
     {
-        ptr = device->dmaAlloc(device->driver, NULL, size);
+        ptr = device->dmaAlloc(device->driver, *bptr, size);
         if (ptr == NULL)
         {
             fprintf(stderr,
@@ -1274,6 +1274,7 @@ int regDevAllocBuffer(regDeviceNode* device, const char* name, void** bptr, size
             name);
         return S_dev_noMemory;
     }
+    free (*bptr);
     *bptr = ptr;
     return S_dev_success;
 }
@@ -2764,26 +2765,8 @@ int regDevDisplay(const char* devName, int start, unsigned int dlen, size_t byte
     }
     if (bytes > bufferSize)
     {
-        if (device->dmaAlloc)
-        {
-            buffer = device->dmaAlloc(device->driver, buffer, bytes);
-            if (!buffer)
-            {
-                errlogPrintf("no DMA buffer of that size\n");
-                return S_dev_noMemory;
-            }
-            memset(buffer, 0, bytes);
-        }
-        else
-        {
-            free (buffer);
-            buffer = calloc(1, bytes);
-            if (!buffer)
-            {
-                errlogPrintf("out of memory\n");
-                return S_dev_noMemory;
-            }
-        }
+        status = regDevAllocBuffer(device, "", (void**)&buffer, bytes);
+        if (status) return status;
         bufferSize = bytes;
     }
 
