@@ -1538,12 +1538,12 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         {
             if (buffer)
             {
+                /* if blockBuffer <= buffer < blockBuffer+size, then array is directly mapped into blockBuffer */
+                /* Offset may differ if we are initializing or updating an output array */
                 if ((char*)buffer < (char*)device->blockBuffer || (char*)buffer >= (char*)device->blockBuffer + device->size || offset != priv->offset)
                 {
                     /* copy block buffer to record */
-
-                    /* handle interlaced arrays and data swapping here */
-
+                    /* (handle interlaced arrays and data swapping here) */
                     regDevDebugLog(DBG_IN, "%s: copy %" Z "u * %u bytes from %s block buffer %p+0x%" Z "x to record buffer %p\n",
                         record->name, nelem, dlen, device->name, device->blockBuffer, offset, buffer);
                     regDevCopy(dlen, nelem, (char*)device->blockBuffer + offset, buffer, NULL, device->swap);
@@ -1551,7 +1551,6 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
                 else
                 {
                     /* record is mapped and needs no copy */
-
                     regDevDebugLog(DBG_IN, "%s: %" Z "u * %u bytes mapped in %s block buffer %p+0x%" Z "x\n",
                         record->name, nelem, dlen, device->name, (char*)device->blockBuffer, offset);
                 }
@@ -1728,15 +1727,18 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
     {
         if (buffer)
         {
+            /* if blockBuffer <= buffer < blockBuffer+size, then array is directly mapped into blockBuffer */
             if ((char*)buffer < (char*)device->blockBuffer || (char*)buffer >= (char*)device->blockBuffer + device->size)
             {
-                /* copy record to block buffer (if not mapped) */
+                /* copy record to block buffer */
+                /* (handle interlaced arrays and data swapping here) */
                 regDevDebugLog(DBG_OUT, "%s: copy %" Z "u * %u bytes from record buffer %p to %s block buffer %p+0x%" Z "x\n",
                     record->name, nelem, dlen, buffer, device->name, device->blockBuffer, offset);
                 regDevCopy(dlen, nelem, buffer, (char*)device->blockBuffer + offset, mask, device->swap);
             }
             else
             {
+                /* record is mapped and needs no copy */
                 regDevDebugLog(DBG_OUT, "%s: %" Z "u * %u bytes mapped in %s block buffer %p+0x%" Z "x\n",
                     record->name, nelem, dlen, device->name, device->blockBuffer, offset);
             }

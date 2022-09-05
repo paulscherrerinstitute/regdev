@@ -36,7 +36,6 @@ long regDevInitRecordAai(aaiRecord* record)
         record->ftvl==DBF_FLOAT || record->ftvl==DBF_DOUBLE ? TYPE_FLOAT : 0);
     if (status) return status;
     record->nord = record->nelm;
-    /* aai record does not allocate bptr in older EPICS versions. */
     if (priv->device->blockBuffer && !priv->offsetRecord && !priv->device->swap
         && priv->offset + record->nelm * priv->dlen <= priv->device->size)
     {
@@ -45,6 +44,7 @@ long regDevInitRecordAai(aaiRecord* record)
     }
     else
     {
+        /* aai record does not allocate bptr in older EPICS versions. */
         status = regDevMemAlloc((dbCommon*)record, (void*)&record->bptr, record->nelm * priv->dlen);
         if (status) return status;
     }
@@ -113,7 +113,6 @@ long regDevInitRecordAao(aaoRecord* record)
         record->ftvl==DBF_FLOAT || record->ftvl==DBF_DOUBLE ? TYPE_FLOAT : 0);
     if (status) return status;
     record->nord = record->nelm;
-    /* aao record does not allocate bptr in older EPICS versions. */
     if (priv->device->blockBuffer && !priv->offsetRecord && !priv->device->swap
         && priv->offset + record->nelm * priv->dlen <= priv->device->size)
     {
@@ -122,6 +121,7 @@ long regDevInitRecordAao(aaoRecord* record)
     }
     else
     {
+        /* aao record does not allocate bptr in older EPICS versions. */
         status = regDevMemAlloc((dbCommon*)record, (void *)&record->bptr, record->nelm * priv->dlen);
         if (status) return status;
     }
