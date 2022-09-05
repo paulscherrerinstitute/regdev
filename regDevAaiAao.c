@@ -27,12 +27,6 @@ struct devsup regDevAai =
 
 epicsExportAddress(dset, regDevAai);
 
-#ifdef DBR_INT64
-static const int sizeofTypes[] = {MAX_STRING_SIZE,1,1,2,2,4,4,8,8,4,8,2};
-#else
-static const int sizeofTypes[] = {MAX_STRING_SIZE,1,1,2,2,4,4,4,8,2};
-#endif
-
 long regDevInitRecordAai(aaiRecord* record)
 {
     regDevPrivate* priv;
@@ -63,7 +57,7 @@ long regDevInitRecordAai(aaiRecord* record)
     if (status == ARRAY_CONVERT)
     {
         /* convert to float/double */
-        record->bptr = calloc(record->nelm, sizeofTypes[record->ftvl]);
+        record->bptr = calloc(record->nelm, dbValueSize(record->ftvl));
         if (!record->bptr) return S_dev_noMemory;
     }
     return status;
@@ -140,7 +134,7 @@ long regDevInitRecordAao(aaoRecord* record)
     if (status == ARRAY_CONVERT)
     {
         /* convert from float/double */
-        record->bptr = calloc(record->nelm, sizeofTypes[record->ftvl]);
+        record->bptr = calloc(record->nelm, dbValueSize(record->ftvl));
         if (!record->bptr) return S_dev_noMemory;
     }
     else if (status) return status;
