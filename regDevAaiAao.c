@@ -1,12 +1,8 @@
 #include <stdlib.h>
 #include <dbAccess.h>
 #include <dbEvent.h>
-#include "regDevSup.h"
-
-#if !defined(EPICS_3_13) && (EPICS_REVISION > 14 || EPICS_MODIFICATION >= 12)
 #include <epicsString.h>
-#define USE_HASH
-#endif
+#include "regDevSup.h"
 
 /* aai **************************************************************/
 
@@ -171,7 +167,7 @@ long regDevUpdateAao(aaoRecord* record)
         }
     }
     monitor_mask = recGblResetAlarms(record);
-#ifndef USE_HASH
+#if EPICSVER < 31412
     monitor_mask |= DBE_LOG|DBE_VALUE;
 #else
     if (record->mpst == aaoPOST_Always)
