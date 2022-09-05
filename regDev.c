@@ -1539,8 +1539,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
             if (buffer)
             {
                 /* if blockBuffer <= buffer < blockBuffer+size, then array is directly mapped into blockBuffer */
-                /* Offset may differ if we are initializing or updating an output array */
-                if ((char*)buffer < (char*)device->blockBuffer || (char*)buffer >= (char*)device->blockBuffer + device->size || offset != priv->offset)
+                if ((char*)buffer < (char*)device->blockBuffer || (char*)buffer >= (char*)device->blockBuffer + device->size)
                 {
                     /* copy block buffer to record */
                     /* (handle interlaced arrays and data swapping here) */
@@ -2255,6 +2254,9 @@ int regDevScaleFromRaw(dbCommon* record, int ftvl, void* val, size_t nelm, doubl
     o = (priv->H * low - priv->L * high) / (epicsUInt64)(priv->H - priv->L);
     s = (high - low) / (epicsUInt64)(priv->H - priv->L);
 
+    regDevDebugLog(DBG_IN, "%s: scaling from %s at %p to %s at %p\n",
+        record->name, regDevTypeName(priv->dtype), priv->data.buffer, pamapdbfType[ftvl].strvalue+4, val);
+
     switch (priv->dtype)
     {
         case epicsInt8T:
@@ -2405,6 +2407,9 @@ int regDevScaleToRaw(dbCommon* record, int ftvl, void* val, size_t nelm, double 
 
     o = (priv->L * high - priv->H * low) / (epicsUInt64)(priv->H - priv->L);
     s = (epicsUInt64)(priv->H - priv->L) / (high - low);
+
+    regDevDebugLog(DBG_OUT, "%s: scaling from %s at %p to %s at %p\n",
+        record->name, pamapdbfType[ftvl].strvalue+4, val, regDevTypeName(priv->dtype), priv->data.buffer);
 
     switch (priv->dtype)
     {

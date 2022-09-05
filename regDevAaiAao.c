@@ -36,8 +36,18 @@ long regDevInitRecordAai(aaiRecord* record)
         record->ftvl==DBF_FLOAT || record->ftvl==DBF_DOUBLE ? TYPE_FLOAT : 0);
     if (status) return status;
     record->nord = record->nelm;
-    if (priv->device->blockBuffer && !priv->offsetRecord && !priv->device->swap
-        && priv->offset + record->nelm * priv->dlen <= priv->device->size)
+    /* We can map the record directly into the blockBuffer if
+       - we have a blockBuffer
+       - we do not need to modify the data (e.g by swapping)
+       - the offset is constant
+       - we do not overflow the blockBuffer
+    */
+    if (priv->device->blockBuffer &&
+        !priv->device->swap &&
+        priv->dtype < 100 &&  /* not a BCD type */
+        !priv->fifopacking &&
+        !priv->offsetRecord &&
+        priv->offset + record->nelm * priv->dlen <= priv->device->size)
     {
         /* map record with static offset directly in block buffer */
         record->bptr = (char*)priv->device->blockBuffer + priv->offset;
@@ -113,8 +123,20 @@ long regDevInitRecordAao(aaoRecord* record)
         record->ftvl==DBF_FLOAT || record->ftvl==DBF_DOUBLE ? TYPE_FLOAT : 0);
     if (status) return status;
     record->nord = record->nelm;
-    if (priv->device->blockBuffer && !priv->offsetRecord && !priv->device->swap
-        && priv->offset + record->nelm * priv->dlen <= priv->device->size)
+
+    /* We can map the record directly into the blockBuffer if
+       - we have a blockBuffer
+       - we do not need to modify the data (e.g by swapping)
+       - the offset is constant
+       - we do not overflow the blockBuffer
+    */
+    if (priv->device->blockBuffer &&
+        !priv->device->swap &&
+        priv->dtype < 100 &&  /* not a BCD type */
+        !priv->fifopacking &&
+        !priv->offsetRecord &&
+        (priv->rboffset == DONT_INIT || priv->rboffset == priv->offset) &&
+        priv->offset + record->nelm * priv->dlen <= priv->device->size)
     {
         /* map record with static offset directly in block buffer */
         record->bptr = (char*)priv->device->blockBuffer + priv->offset;
