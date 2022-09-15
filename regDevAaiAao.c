@@ -39,7 +39,7 @@ long regDevInitRecordAai(aaiRecord* record)
     /* We can map the record directly into the blockBuffer if
        - we have a blockBuffer
        - we do not need to modify the data (e.g by swapping)
-       - the offset is constant
+       - the offset is constant (before EPICS 3.15.1)
        - we do not overflow the blockBuffer
     */
     if (priv->device->blockBuffer &&
@@ -47,16 +47,18 @@ long regDevInitRecordAai(aaiRecord* record)
         priv->dtype < 100 &&  /* not a BCD type */
         !priv->fifopacking &&
         !priv->interlace &&
+#if EPICSVER < 31501
         !priv->offsetRecord &&
+#endif
         priv->offset + record->nelm * priv->dlen <= priv->device->size)
     {
-        /* map record with static offset directly in block buffer */
-        record->bptr = (char*)priv->device->blockBuffer + priv->offset;
+        /* map record directly in block buffer */
+        record->bptr = priv->device->blockBuffer + priv->offset;
     }
     else
     {
         /* aai record does not allocate bptr in older EPICS versions. */
-        status = regDevMemAlloc((dbCommon*)record, (void*)&record->bptr, record->nelm * priv->dlen);
+        status = regDevMemAlloc((dbCommon*)record, &record->bptr, record->nelm * priv->dlen);
         if (status) return status;
     }
     priv->data.buffer = record->bptr;
@@ -128,7 +130,8 @@ long regDevInitRecordAao(aaoRecord* record)
     /* We can map the record directly into the blockBuffer if
        - we have a blockBuffer
        - we do not need to modify the data (e.g by swapping)
-       - the offset is constant
+       - set and readback offset are the same
+       - the offset is constant (before EPICS 3.15.1)
        - we do not overflow the blockBuffer
     */
     if (priv->device->blockBuffer &&
@@ -136,17 +139,19 @@ long regDevInitRecordAao(aaoRecord* record)
         priv->dtype < 100 &&  /* not a BCD type */
         !priv->fifopacking &&
         !priv->interlace &&
+#if EPICSVER < 31501
         !priv->offsetRecord &&
+#endif
         (priv->rboffset == DONT_INIT || priv->rboffset == priv->offset) &&
         priv->offset + record->nelm * priv->dlen <= priv->device->size)
     {
-        /* map record with static offset directly in block buffer */
-        record->bptr = (char*)priv->device->blockBuffer + priv->offset;
+        /* map record directly in block buffer */
+        record->bptr = priv->device->blockBuffer + priv->offset;
     }
     else
     {
         /* aao record does not allocate bptr in older EPICS versions. */
-        status = regDevMemAlloc((dbCommon*)record, (void *)&record->bptr, record->nelm * priv->dlen);
+        status = regDevMemAlloc((dbCommon*)record, &record->bptr, record->nelm * priv->dlen);
         if (status) return status;
     }
     priv->data.buffer = record->bptr;
@@ -224,7 +229,6 @@ long regDevUpdateAao(aaoRecord* record)
         db_post_events(record, record->bptr, monitor_mask);
     return status;
 }
-
 
 long regDevWriteAao(aaoRecord* record)
 {
