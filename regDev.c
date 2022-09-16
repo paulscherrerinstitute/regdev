@@ -61,11 +61,11 @@ epicsExportAddress(int, regDevDebug);
         return S_dev_badInit; } \
     assert(priv->magic == MAGIC_PRIV)
 
-static int startswith(const char *s, const char *key)
+static int startswith(const unsigned char *s, const char *key)
 {
     int n = 0;
     while (*key) {
-        if (*key != tolower((unsigned char)*s)) return 0;
+        if (*key != tolower(*s)) return 0;
         key++;
         s++;
         n++;
@@ -176,34 +176,34 @@ const char* regDevTypeName(unsigned short dtype)
         regDevTypeNames[dtype-regDevFirstType];
 }
 
-epicsInt64 regDevParseExpr(char** pp);
+epicsInt64 regDevParseExpr(unsigned char** pp);
 
-epicsInt64 regDevParseValue(char** pp)
+epicsInt64 regDevParseValue(unsigned char** pp)
 {
     epicsInt64 val;
-    char *p = *pp;
+    unsigned char *p = *pp;
     int neg = 0;
 
     if (*p == '+' || *p == '-') neg = *p++ == '-';
-    while (isspace((unsigned char)*p)) p++;
+    while (isspace(*p)) p++;
     if (*p == '(')
     {
         p++;
         val = regDevParseExpr(&p);
         if (*p == ')') p++;
     }
-    else val = strtoul(p, &p, 0);
-    while (isspace((unsigned char)*p)) p++;
+    else val = strtoul((char*)p, (char**)&p, 0);
+    while (isspace(*p)) p++;
     *pp = p;
     return neg ? -val : val;
 }
 
-epicsInt64 regDevParseProd(char** pp)
+epicsInt64 regDevParseProd(unsigned char** pp)
 {
     epicsInt64 val = 1;
-    char *p = *pp;
+    unsigned char *p = *pp;
 
-    while (isspace((unsigned char)*p)) p++;
+    while (isspace(*p)) p++;
     while (*p == '*')
     {
         p++;
@@ -213,11 +213,11 @@ epicsInt64 regDevParseProd(char** pp)
     return val;
 }
 
-epicsInt64 regDevParseExpr(char** pp)
+epicsInt64 regDevParseExpr(unsigned char** pp)
 {
     epicsInt64 sum = 0;
     epicsInt64 val;
-    char *p = *pp;
+    unsigned char *p = *pp;
 
     do {
         val = regDevParseValue(&p);
@@ -236,7 +236,7 @@ int regDevIoParse2(
 {
     char devName[255];
     regDeviceNode* device;
-    char* p = parameterstring;
+    unsigned char* p = (unsigned char*)parameterstring;
     char separator;
     size_t nchar;
 
@@ -250,7 +250,7 @@ int regDevIoParse2(
     regDevDebugLog(DBG_INIT, "%s: \"%s\"\n", recordName, parameterstring);
 
     /* Get rid of leading whitespace and non-alphanumeric chars */
-    while (!isalnum((unsigned char)*p)) if (*p++ == '\0')
+    while (!isalnum(*p)) if (*p++ == '\0')
     {
         errlogPrintf("regDevIoParse %s: no device name in parameter string \"%s\"\n",
             recordName, parameterstring);
@@ -258,8 +258,8 @@ int regDevIoParse2(
     }
 
     /* Get device name */
-    nchar = strcspn(p, ":/ ");
-    strncpy(devName, p, nchar);
+    nchar = strcspn((char*)p, ":/ ");
+    strncpy(devName, (char*)p, nchar);
     devName[nchar] = '\0';
     p += nchar;
     separator = *p++;
@@ -282,9 +282,9 @@ int regDevIoParse2(
     if (separator == ':' || separator == '/')
     {
         ptrdiff_t offset = 0;
-        while (isspace((unsigned char)*p)) p++;
+        while (isspace(*p)) p++;
 
-        if (!isdigit((unsigned char)*p))
+        if (!isdigit(*p))
         {
             /* expect record name, maybe in ' quotes, maybe in () */
             char recName[255];
@@ -295,14 +295,14 @@ int regDevIoParse2(
             if (*p == '(')
             {
                 b = *p++;
-                while (isspace((unsigned char)*p)) p++;
+                while (isspace(*p)) p++;
             }
             if (*p == '\'') q = *p++;
             /* all non-whitespace chars are legal here except quote ', incl + and * */
-            while (*p && !isspace((unsigned char)*p) && !(q && *p == q)) recName[i++] = *p++;
+            while (*p && !isspace(*p) && !(q && *p == q)) recName[i++] = *p++;
             if (q && *p == q) p++;
             recName[i] = 0;
-            priv->offsetRecord = (struct dbAddr*) mallocMustSucceed(sizeof (struct dbAddr), "regDevIoParse");
+            priv->offsetRecord = mallocMustSucceed(sizeof (struct dbAddr), "regDevIoParse");
             if (dbNameToAddr(recName, priv->offsetRecord) != S_dev_success)
             {
                 free(priv->offsetRecord);
@@ -351,7 +351,7 @@ int regDevIoParse2(
     /* Check readback offset (for backward compatibility allow '!' and '/') */
     if (separator == ':' || separator == '/' || separator == '!')
     {
-        char* p1;
+        unsigned char* p1;
         ptrdiff_t rboffset;
 
         if (!device->support->read)
@@ -361,7 +361,7 @@ int regDevIoParse2(
             return S_dev_wrongDevice;
         }
 
-        while (isspace((unsigned char)*p)) p++;
+        while (isspace(*p)) p++;
         p1 = p;
         rboffset = regDevParseExpr(&p);
         if (p1 == p)
@@ -413,7 +413,7 @@ int regDevIoParse2(
     while (p && *p)
     {
         ptrdiff_t val;
-        switch (toupper((unsigned char)*p))
+        switch (toupper(*p))
         {
             case ' ':
             case '\t':
@@ -469,8 +469,8 @@ int regDevIoParse2(
                 break;
             case 'U': /* U=<update period [ms]> (-1 = trigger by updater bo record) */
                 p += 2;
-                while (isspace((unsigned char)*p)) p++;
-                if (toupper((unsigned char)*p) == 'T')
+                while (isspace(*p)) p++;
+                if (toupper(*p) == 'T')
                 {
                     p++;
                     priv->update = -1;
@@ -1299,7 +1299,7 @@ int regDevMakeBlockdevice(regDevice* driver, unsigned int modes, int swap, void*
             device->blockBuffer = buffer;
         else
         {
-            status = regDevAllocBuffer(device, device->name, &device->blockBuffer, device->size);
+            status = regDevAllocBuffer(device, device->name, (void**)&device->blockBuffer, device->size);
             if (status != S_dev_success) return status;
         }
         if (modes & REGDEV_BLOCK_READ) scanIoInit(&device->blockReceived);
@@ -1425,10 +1425,11 @@ void regDevCallback(const char* user, int status)
     }
 }
 
-int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
+int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf)
 {
-    /* buffer must not point to local variable: not suitable for async processing */
+    /* buf must not point to local variable: not suitable for async processing */
 
+    char *buffer = buf;
     int status = S_dev_success;
     regDeviceNode* device;
     size_t offset;
@@ -1465,7 +1466,6 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
     else
     {
         /* First call of (possibly asynchronous) device */
-
         status = regDevGetOffset(record, dlen, nelem, &offset);
         if (status != S_dev_success)
             return status;
@@ -1473,14 +1473,12 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
         if (!(device->blockModes & REGDEV_BLOCK_READ) || record->prio == 2)
         {
             /* read from the hardware (directly or to fill the block buffer) */
-
             record->pact = 1;
             priv->asyncOffset = offset;
             priv->status = S_dev_success;
             if (device->dispatcher && !atInit)
             {
                 /* schedule asynchronous read */
-
                 struct regDevWorkMsg msg;
 
                 msg.cmd = CMD_READ;
@@ -1502,7 +1500,7 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
                 }
                 regDevDebugLog(DBG_IN, "%s: sending read to %s prio %d dispatcher\n",
                     record->name, device->name, record->prio);
-                if (epicsMessageQueueTrySend(device->dispatcher->qid[record->prio], (char*)&msg, sizeof(msg)) != 0)
+                if (epicsMessageQueueTrySend(device->dispatcher->qid[record->prio], &msg, sizeof(msg)) != 0)
                 {
                     recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
                     regDevDebugLog(DBG_IN, "%s: work queue is full\n", record->name);
@@ -1539,19 +1537,19 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
             if (buffer)
             {
                 /* if blockBuffer <= buffer < blockBuffer+size, then array is directly mapped into blockBuffer */
-                if ((char*)buffer < (char*)device->blockBuffer || (char*)buffer >= (char*)device->blockBuffer + device->size)
+                if (buffer < device->blockBuffer || buffer >= device->blockBuffer + device->size)
                 {
                     /* copy block buffer to record */
                     /* (handle interlaced arrays and data swapping here) */
                     regDevDebugLog(DBG_IN, "%s: copy %" Z "u * %u bytes from %s block buffer %p+0x%" Z "x to record buffer %p\n",
                         record->name, nelem, dlen, device->name, device->blockBuffer, offset, buffer);
-                    regDevCopy(dlen, nelem, (char*)device->blockBuffer + offset, buffer, NULL, device->swap);
+                    regDevCopy(dlen, nelem, device->blockBuffer + offset, buffer, NULL, device->swap);
                 }
                 else
                 {
                     /* record is mapped and needs no copy */
                     regDevDebugLog(DBG_IN, "%s: %" Z "u * %u bytes mapped in %s block buffer %p+0x%" Z "x\n",
-                        record->name, nelem, dlen, device->name, (char*)device->blockBuffer, offset);
+                        record->name, nelem, dlen, device->name, device->blockBuffer, offset);
                 }
             }
 
@@ -1622,10 +1620,11 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer)
     return status;
 }
 
-int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, void* mask)
+int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf, void* mask)
 {
-    /* buffer must not point to local variable: not suitable for async processing */
+    /* buf must not point to local variable: not suitable for async processing */
 
+    char* buffer = buf;
     int status;
     size_t offset;
     regDeviceNode* device;
@@ -1727,13 +1726,13 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
         if (buffer)
         {
             /* if blockBuffer <= buffer < blockBuffer+size, then array is directly mapped into blockBuffer */
-            if ((char*)buffer < (char*)device->blockBuffer || (char*)buffer >= (char*)device->blockBuffer + device->size)
+            if (buffer < device->blockBuffer || buffer >= device->blockBuffer + device->size)
             {
                 /* copy record to block buffer */
                 /* (handle interlaced arrays and data swapping here) */
                 regDevDebugLog(DBG_OUT, "%s: copy %" Z "u * %u bytes from record buffer %p to %s block buffer %p+0x%" Z "x\n",
                     record->name, nelem, dlen, buffer, device->name, device->blockBuffer, offset);
-                regDevCopy(dlen, nelem, buffer, (char*)device->blockBuffer + offset, mask, device->swap);
+                regDevCopy(dlen, nelem, buffer, device->blockBuffer + offset, mask, device->swap);
             }
             else
             {
@@ -1773,7 +1772,7 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, v
         }
         regDevDebugLog(DBG_OUT, "%s: sending write to %s prio %d dispatcher\n",
             record->name, device->name, record->prio);
-        if (epicsMessageQueueTrySend(device->dispatcher->qid[record->prio], (char*)&msg, sizeof(msg)) != 0)
+        if (epicsMessageQueueTrySend(device->dispatcher->qid[record->prio], &msg, sizeof(msg)) != 0)
         {
             recGblSetSevr(record, SOFT_ALARM, INVALID_ALARM);
             regDevDebugLog(DBG_OUT, "%s: work queue is full\n", record->name);
@@ -2766,7 +2765,7 @@ int regDevDisplay(const char* devName, int start, unsigned int dlen, size_t byte
     if (device->blockBuffer)
     {
         printf("block buffer:\n");
-        memDisplay(offset, (char*)device->blockBuffer + offset, dlen, dlen * nelem);
+        memDisplay(offset, device->blockBuffer + offset, dlen, dlen * nelem);
         offset += dlen * nelem;
         return S_dev_success;
     }

@@ -57,7 +57,7 @@ typedef struct regDeviceNode {                     /* per device data structure 
     void* (*dmaAlloc) (regDevice*, void*, size_t); /* DMA memory allocator */
     regDevDispatcher* dispatcher;                  /* Serialize requests */
     epicsTimerQueueId updateTimerQueue;            /* For update timers */
-    void* blockBuffer;                             /* For block mode */
+    char* blockBuffer;                             /* For block mode */
     int blockModes;
     int swap;                                      /* Data swap mode */
     IOSCANPVT blockReceived;
