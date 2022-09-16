@@ -1040,10 +1040,10 @@ long regDevUpdateStringout(stringoutRecord* record)
     status = regDevReadArray((dbCommon*) record, sizeof(record->val));
     if (status == ASYNC_COMPLETION) return S_dev_success;
     monitor_mask = recGblResetAlarms(record);
-    if (strncmp(record->oval, record->val, sizeof(record->val)))
+    if (strncmp(record->oval, record->val, sizeof(record->oval)))
     {
         monitor_mask |= DBE_VALUE | DBE_LOG;
-        strncpy(record->oval, record->val, sizeof(record->val));
+        strncpy(record->oval, record->val, sizeof(record->oval));
     }
 #ifndef EPICS_3_13
     if (record->mpst == stringoutPOST_Always)
