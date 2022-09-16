@@ -1536,20 +1536,19 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf)
         {
             if (buffer)
             {
-                /* if blockBuffer <= buffer < blockBuffer+size, then array is directly mapped into blockBuffer */
-                if (buffer < device->blockBuffer || buffer >= device->blockBuffer + device->size)
+                if (device->blockBuffer <= buffer && buffer < device->blockBuffer + device->size)
+                {
+                    /* array is directly mapped into blockBuffer and needs no copy */
+                    regDevDebugLog(DBG_IN, "%s: %" Z "u * %u bytes mapped in %s block buffer %p+0x%" Z "x\n",
+                        record->name, nelem, dlen, device->name, device->blockBuffer, offset);
+                }
+                else
                 {
                     /* copy block buffer to record */
                     /* (handle interlaced arrays and data swapping here) */
                     regDevDebugLog(DBG_IN, "%s: copy %" Z "u * %u bytes from %s block buffer %p+0x%" Z "x to record buffer %p\n",
                         record->name, nelem, dlen, device->name, device->blockBuffer, offset, buffer);
                     regDevCopy(dlen, nelem, device->blockBuffer + offset, buffer, NULL, device->swap);
-                }
-                else
-                {
-                    /* record is mapped and needs no copy */
-                    regDevDebugLog(DBG_IN, "%s: %" Z "u * %u bytes mapped in %s block buffer %p+0x%" Z "x\n",
-                        record->name, nelem, dlen, device->name, device->blockBuffer, offset);
                 }
             }
 
@@ -1725,8 +1724,13 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf, void
     {
         if (buffer)
         {
-            /* if blockBuffer <= buffer < blockBuffer+size, then array is directly mapped into blockBuffer */
-            if (buffer < device->blockBuffer || buffer >= device->blockBuffer + device->size)
+            if (device->blockBuffer <= buffer && buffer < device->blockBuffer + device->size)
+            {
+                /* array is directly mapped into blockBuffer and needs no copy */
+                regDevDebugLog(DBG_OUT, "%s: %" Z "u * %u bytes mapped in %s block buffer %p+0x%" Z "x\n",
+                    record->name, nelem, dlen, device->name, device->blockBuffer, offset);
+            }
+            else
             {
                 /* copy record to block buffer */
                 /* (handle interlaced arrays and data swapping here) */
@@ -1734,19 +1738,12 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf, void
                     record->name, nelem, dlen, buffer, device->name, device->blockBuffer, offset);
                 regDevCopy(dlen, nelem, buffer, device->blockBuffer + offset, mask, device->swap);
             }
-            else
-            {
-                /* record is mapped and needs no copy */
-                regDevDebugLog(DBG_OUT, "%s: %" Z "u * %u bytes mapped in %s block buffer %p+0x%" Z "x\n",
-                    record->name, nelem, dlen, device->name, device->blockBuffer, offset);
-            }
         }
         if (record->prio != 2)
             return S_dev_success;
     }
 
     priv->status = S_dev_success;
-
     record->pact = 1;
     if (device->dispatcher)
     {
