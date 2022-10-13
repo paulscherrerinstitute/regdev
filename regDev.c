@@ -77,7 +77,7 @@ static int startswith(const unsigned char *s, const char *key)
  * Routine to parse IO arguments
  * IO address line format:
  *
- * <name>:<addr>[:[init]] [T=<type>] [B=<bit>] [I=<invert>] [L=<low|strLen>] [H=<high>] [P=<packing>] [U=<update>]
+ * <name>:<addr>[:[init]] [T=<type>] [B=<bit>] [I=<invert>] [L=<low|strLen>] [H=<high>] [P=<packing>] [F=<feed>] [U=<update>]
  *
  * where: <name>    - symbolic device name
  *        <addr>    - address (byte number) within memory block
@@ -90,6 +90,7 @@ static int startswith(const unsigned char *s, const char *key)
  *        <low>     - raw value that mapps to EGUL
  *        <high>    - raw value that mapps to EGUF
  *        <packing> - number of array values in one fifo register
+ *        <feed>    - bytes to the next array element of interlaces arrays
  *        <update>  - milliseconds for periodic update of output records
  **********************************************************************/
 
@@ -428,6 +429,9 @@ int regDevIoParse2(
             "Hhi",
             "Ppacking",
             "Pfifopacking",
+            "Ffeed",
+            "Farrayfeed",
+            "Finterlace",
             "Uupdate",
             "Vvector",
             "Vvec",
@@ -496,6 +500,9 @@ int regDevIoParse2(
                 break;
             case 'P': /* P=<packing> (for fifo) */
                 priv->fifopacking = (epicsUInt8)regDevParseExpr(&p);
+                break;
+            case 'F': /* F=<feed> offset to next element in arrays */
+                priv->interlace = regDevParseExpr(&p);
                 break;
             case 'U': /* U=<update period [ms]> (T = trigger by updater bo record) */
                 if (toupper(*p) == 'T')
@@ -614,6 +621,7 @@ int regDevIoParse2(
     }
     priv->L = L;
     priv->H = H;
+
     regDevDebugLog(DBG_INIT, "%s: T=%s dlen=%d\n",  recordName, datatypes[type].name, priv->dlen);
     regDevDebugLog(DBG_INIT, "%s: L=%lld(%#llx)\n", recordName, (long long)priv->L, (long long)priv->L);
     regDevDebugLog(DBG_INIT, "%s: H=%lld(%#llx)\n", recordName, (long long)priv->H, (long long)priv->H);
@@ -622,7 +630,8 @@ int regDevIoParse2(
     regDevDebugLog(DBG_INIT, "%s: P=%lli\n",        recordName, (long long)priv->fifopacking);
     regDevDebugLog(DBG_INIT, "%s: U=%lli\n",        recordName, (long long)priv->update);
     regDevDebugLog(DBG_INIT, "%s: V=%lli\n",        recordName, (long long)priv->irqvec);
-
+    regDevDebugLog(DBG_INIT, "%s: F=%llu(%#llx)\n", recordName, (unsigned long long)priv->interlace,
+                                                                (unsigned long long)priv->interlace);
     return S_dev_success;
 }
 
@@ -1483,7 +1492,6 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf)
     if (record->pact)
     {
         /* Second call of asynchronous device */
-
         regDevDebugLog(DBG_IN, "%s: asynchronous read returned 0x%x\n",
             record->name, priv->status);
         if (priv->status != S_dev_success)
@@ -1542,17 +1550,37 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf)
             else
             {
                 /* synchronous read */
-                regDevDebugLog(DBG_IN, "%s: reading %sfrom %s\n",
-                    record->name, device->blockModes & REGDEV_BLOCK_READ ? "block " : "", device->name);
+                regDevDebugLog(DBG_IN, "%s: reading %s from %s\n",
+                    record->name,
+                    device->blockModes & REGDEV_BLOCK_READ ? "block" :
+                    priv->interlace ? "interlaced" :
+                    nelem > 1 ? "array" : "scalar",
+                    device->name);
                 epicsMutexLock(device->accesslock);
                 if (device->blockModes & REGDEV_BLOCK_READ)
+                {
+                    /* read whole data block buffer */
                     status = device->support->read(device->driver,
                         0, 1, device->size, device->blockBuffer,
                         2, atInit ? NULL : regDevCallback, record->name);
+                }
+                else if (priv->interlace)
+                {
+                    /* read interlaced arrays element-wise */
+                    size_t i;
+                    for (i = 0; i < nelem; i++)
+                    {
+                        status = device->support->read(device->driver,
+                            offset + i*priv->interlace, dlen, 1, buffer + i*dlen,
+                            record->prio, atInit ? NULL : regDevCallback, record->name);
+                        if (status) break;
+                    }
+                }
                 else
                     status = device->support->read(device->driver,
                         offset, dlen, nelem, buffer,
                         record->prio, atInit ? NULL : regDevCallback, record->name);
+
                 epicsMutexUnlock(device->accesslock);
                 regDevDebugLog(DBG_IN, "%s: read returned status 0x%0x\n", record->name, status);
             }
@@ -1575,10 +1603,19 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf)
                 else
                 {
                     /* copy block buffer to record */
-                    /* (handle interlaced arrays and data swapping here) */
                     regDevDebugLog(DBG_IN, "%s: copy %" Z "u * %u bytes from %s block buffer %p+0x%" Z "x to record buffer %p\n",
                         record->name, nelem, dlen, device->name, device->blockBuffer, offset, buffer);
-                    regDevCopy(dlen, nelem, device->blockBuffer + offset, buffer, NULL, device->swap);
+                    if (priv->interlace)
+                    {
+                        /* copy interlaced arrays element-wise */
+                        size_t i;
+                        for (i = 0; i < nelem; i++)
+                            regDevCopy(dlen, 1,
+                                device->blockBuffer + offset + i*priv->interlace,
+                                buffer + i*dlen, NULL, device->swap);
+                    }
+                    else
+                        regDevCopy(dlen, nelem, device->blockBuffer + offset, buffer, NULL, device->swap);
                 }
             }
 
@@ -1603,8 +1640,9 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf)
         {
             case 1:
                 regDevDebugLog(DBG_IN,
-                    "%s: read %" Z "u * 8 bit 0x%02x from %s:0x%" Z "x (status=%x)\n",
+                    "%s: read %" Z "u * 8 bit 0x%02x \"%.*s\" from %s:0x%" Z "x (status=%x)\n",
                     record->name, nelem, *(epicsUInt8*)buffer,
+                    nelem < 10 ? (int)nelem : 10, isprint((unsigned char)buffer[0]) ? buffer : "",
                     device->name, offset, status);
                 break;
             case 2:
@@ -1677,8 +1715,8 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf, void
     if (record->pact)
     {
         /* Second call of asynchronous device */
-        regDevDebugLog(DBG_OUT, "%s: asynchronous write returned %d\n", record->name, priv->status);
-
+        regDevDebugLog(DBG_OUT, "%s: asynchronous write returned %d\n",
+            record->name, priv->status);
         if (priv->status != S_dev_success)
         {
             recGblSetSevr(record, WRITE_ALARM, INVALID_ALARM);
@@ -1688,7 +1726,8 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf, void
 
     /* First call of (possibly asynchronous) device */
     status = regDevGetOffset(record, dlen, nelem, &offset);
-    if (status != S_dev_success) return status;
+    if (status != S_dev_success)
+        return status;
 
     /* Some debug output */
     if (regDevDebug & DBG_OUT)
@@ -1697,8 +1736,9 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf, void
         {
             case 1:
                 regDevDebugLog(DBG_OUT,
-                    "%s: write %" Z "u * 8 bit 0x%02x to %s:0x%" Z "x\n",
+                    "%s: write %" Z "u * 8 bit 0x%02x \"%.*s\" to %s:0x%" Z "x\n",
                     record->name, nelem, *(epicsUInt8*)buffer,
+                    nelem < 10 ? (int)nelem : 10, isprint((unsigned char)buffer[0]) ? buffer : "",
                     device->name, offset);
                 break;
             case 2:
@@ -1739,7 +1779,9 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf, void
             case 18:
                 regDevDebugLog(DBG_OUT,
                     "%s: write %" Z "u * 64 bit 0x%016llx mask 0x%016llx to %s:0x%" Z "x\n",
-                    record->name, nelem, (unsigned long long)*(epicsUInt64*)buffer, (unsigned long long)*(epicsUInt64*)mask,
+                    record->name, nelem,
+                    (unsigned long long)*(epicsUInt64*)buffer,
+                    (unsigned long long)*(epicsUInt64*)mask,
                     device->name, offset);
                 break;
             default:
@@ -1756,17 +1798,26 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf, void
         {
             if (device->blockBuffer <= buffer && buffer < device->blockBuffer + device->size)
             {
-                /* array is directly mapped into blockBuffer and needs no copy */
+                 /* array is directly mapped into blockBuffer and needs no copy */
                 regDevDebugLog(DBG_OUT, "%s: %" Z "u * %u bytes mapped in %s block buffer %p+0x%" Z "x\n",
                     record->name, nelem, dlen, device->name, device->blockBuffer, offset);
             }
             else
             {
                 /* copy record to block buffer */
-                /* (handle interlaced arrays and data swapping here) */
                 regDevDebugLog(DBG_OUT, "%s: copy %" Z "u * %u bytes from record buffer %p to %s block buffer %p+0x%" Z "x\n",
                     record->name, nelem, dlen, buffer, device->name, device->blockBuffer, offset);
-                regDevCopy(dlen, nelem, buffer, device->blockBuffer + offset, mask, device->swap);
+                if (priv->interlace)
+                {
+                    /* copy interlaced arrays element-wise */
+                    size_t i;
+                    for (i = 0; i < nelem; i++)
+                        regDevCopy(dlen, 1, buffer + i*dlen,
+                            device->blockBuffer + offset + i*priv->interlace,
+                            mask, device->swap);
+                }
+                else
+                    regDevCopy(dlen, nelem, buffer, device->blockBuffer + offset, mask, device->swap);
             }
         }
         if (record->prio != 2)
@@ -1810,19 +1861,41 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf, void
     }
     else
     {
-        regDevDebugLog(DBG_OUT, "%s: writing %sto %s\n",
-            record->name, device->blockModes & REGDEV_BLOCK_WRITE ? "block " : "", device->name);
+        /* synchronous write */
+        regDevDebugLog(DBG_OUT, "%s: writing %s to %s\n",
+            record->name,
+            device->blockModes & REGDEV_BLOCK_WRITE ? "block" :
+            priv->interlace ? "interlaced" :
+            nelem > 1 ? "array" : "scalar",
+            device->name);
         epicsMutexLock(device->accesslock);
         if (device->blockModes & REGDEV_BLOCK_WRITE)
+        {
+            /* write whole data block buffer */
             status = device->support->write(device->driver,
                 0, 1, device->size, device->blockBuffer, NULL,
                 2, regDevCallback, record->name);
+        }
+        else if (priv->interlace)
+        {
+            /* write interlaced arrays element-wise */
+            size_t i;
+            for (i = 0; i < nelem; i++)
+            {
+                status = device->support->write(device->driver,
+                    offset + i*priv->interlace, dlen, 1, buffer + i*dlen,
+                    mask, record->prio, regDevCallback, record->name);
+                if (status) break;
+            }
+        }
         else
+        {
             status = device->support->write(device->driver,
                 offset, dlen, nelem, buffer, mask,
                 record->prio, regDevCallback, record->name);
-        regDevDebugLog(DBG_OUT, "%s: write returned status 0x%0x\n", record->name, status);
+        }
         epicsMutexUnlock(device->accesslock);
+        regDevDebugLog(DBG_OUT, "%s: write returned status 0x%0x\n", record->name, status);
     }
 
     if (status == ASYNC_COMPLETION)
@@ -2142,7 +2215,7 @@ int regDevReadArray(dbCommon* record, size_t nelm)
     packing = priv->fifopacking;
     if (packing)
     {
-        /* FIFO: read element wise */
+        /* FIFO: read element-wise */
         char* buffer = priv->data.buffer;
         dlen *= packing;
         nelm /= packing;
@@ -2252,7 +2325,7 @@ int regDevWriteArray(dbCommon* record, size_t nelm)
     packing = priv->fifopacking;
     if (packing)
     {
-        /* FIFO: write element wise */
+        /* FIFO: write element-wise */
         char* buffer = priv->data.buffer;
         dlen *= packing;
         for (i = 0; i < nelm/packing; i++)

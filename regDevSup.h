@@ -103,6 +103,7 @@ typedef struct regDevPrivate {         /* per record data structure */
     regDevAnytype mask;                /* For asynchonous drivers */
     epicsInt32 irqvec;                 /* Interrupt vector for I/O Intr */
     size_t nelm;                       /* Array size */
+    ptrdiff_t interlace;               /* Relative offset of next array element */
 } regDevPrivate;
 
 struct devsup {

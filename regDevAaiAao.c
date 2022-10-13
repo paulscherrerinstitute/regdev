@@ -46,6 +46,7 @@ long regDevInitRecordAai(aaiRecord* record)
         !priv->device->swap &&
         priv->dtype < 100 &&  /* not a BCD type */
         !priv->fifopacking &&
+        !priv->interlace &&
         !priv->offsetRecord &&
         priv->offset + record->nelm * priv->dlen <= priv->device->size)
     {
@@ -134,6 +135,7 @@ long regDevInitRecordAao(aaoRecord* record)
         !priv->device->swap &&
         priv->dtype < 100 &&  /* not a BCD type */
         !priv->fifopacking &&
+        !priv->interlace &&
         !priv->offsetRecord &&
         (priv->rboffset == DONT_INIT || priv->rboffset == priv->offset) &&
         priv->offset + record->nelm * priv->dlen <= priv->device->size)

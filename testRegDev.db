@@ -1064,6 +1064,7 @@ record (longin, "$(DEV):INDEXED-LI")
     field (INP,  "@test:'$(DEV):INDEX'*2 T=uint16")
     field (FLNK, "$(DEV):INDEXED-WF0")
 }
+
 record (waveform, "$(DEV):INDEXED-WF0")
 {
     field (FTVL, "SHORT")
@@ -1073,18 +1074,47 @@ record (waveform, "$(DEV):INDEXED-WF0")
     field (FLNK, "$(DEV):INDEXED-WF1")
 }
 record (waveform, "$(DEV):INDEXED-WF1")
+
 {
     field (FTVL, "SHORT")
     field (DTYP, "regDev")
     field (INP,  "@test:('$(DEV):INDEX'*2+3)*5+7")
     field (NELM, "10")
 }
+
+record (waveform, "$(DEV):INTERLACED-WF")
+{
+    field (FTVL, "CHAR")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 F=4")
+    field (NELM, "10")
+    field (SCAN, "I/O Intr")
+}
+
+record (aai, "$(DEV):INTERLACED-AAI")
+{
+    field (FTVL, "CHAR")
+    field (DTYP, "regDev")
+    field (INP,  "@test:0 F=4")
+    field (NELM, "10")
+    field (SCAN, "I/O Intr")
+}
+
+record (aao, "$(DEV):INTERLACED-AAO")
+{
+    field (FTVL, "CHAR")
+    field (DTYP, "regDev")
+    field (OUT,  "@test:0 F=4")
+    field (NELM, "10")
+}
+
 record(int64in, "$(DEV):INT64IN")
 {
     field (DTYP, "regDev")
     field (INP,  "@test:12 T=int64")
     field (SCAN, "I/O Intr")
 }
+
 record(int64out, "$(DEV):INT64OUT")
 {
     field (DTYP, "regDev")
