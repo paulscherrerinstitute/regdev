@@ -184,6 +184,7 @@ epicsInt64 regDevParseValue(unsigned char** pp)
     unsigned char *p = *pp;
     int neg = 0;
 
+    while (isspace(*p)) p++;
     if (*p == '+' || *p == '-') neg = *p++ == '-';
     while (isspace(*p)) p++;
     if (*p == '(')
@@ -287,20 +288,20 @@ int regDevIoParse2(
         if (!isdigit(*p))
         {
             /* expect record name, maybe in ' quotes, maybe in () */
-            char recName[255];
+            char recName[PVNAME_STRINGSZ];
             int i = 0;
-            char q = 0;
-            char b = 0;
+            char quote = 0;
+            char parenthesis = 0;
 
             if (*p == '(')
             {
-                b = *p++;
+                parenthesis = *p++;
                 while (isspace(*p)) p++;
             }
-            if (*p == '\'') q = *p++;
+            if (*p == '\'') quote = *p++;
             /* all non-whitespace chars are legal here except quote ', incl + and * */
-            while (*p && !isspace(*p) && !(q && *p == q)) recName[i++] = *p++;
-            if (q && *p == q) p++;
+            while (*p && !isspace(*p) && *p != quote && i < sizeof(recName)-1) recName[i++] = *p++;
+            if (quote && *p == quote) p++;
             recName[i] = 0;
             priv->offsetRecord = mallocMustSucceed(sizeof (struct dbAddr), "regDevIoParse");
             if (dbNameToAddr(recName, priv->offsetRecord) != S_dev_success)
@@ -312,7 +313,7 @@ int regDevIoParse2(
                 return S_dev_badArgument;
             }
             priv->offsetScale = regDevParseProd(&p);
-            if (b == '(')
+            if (parenthesis == '(')
             {
                 ptrdiff_t scale;
                 offset = regDevParseExpr(&p);
@@ -336,11 +337,13 @@ int regDevIoParse2(
         priv->offset = offset;
         if (priv->offsetRecord)
             regDevDebugLog(DBG_INIT,
-                "%s: offset='%s'*0x%" Z "x+0x%" Z "x\n",
-                recordName, priv->offsetRecord->precord->name, priv->offsetScale, priv->offset);
+                "%s: offset='%s'*%" Z "d+%" Z "d(0x%" Z "x)\n",
+                recordName, priv->offsetRecord->precord->name,
+                priv->offsetScale, priv->offset, priv->offset);
         else
             regDevDebugLog(DBG_INIT,
-                "%s: offset=0x%" Z "x\n", recordName, priv->offset);
+                "%s: offset=%" Z "d(0x%" Z "x)\n",
+                recordName, priv->offset, priv->offset);
         separator = *p++;
     }
     else
@@ -404,23 +407,55 @@ int regDevIoParse2(
     /* allow whitespaces before parameter for device support */
     while ((separator == '\t') || (separator == ' '))
         separator = *p++;
-
-    /* driver parameter for device support if present */
-
     if (separator != '\'') p--; /* optional quote for compatibility */
 
-    /* parse parameters */
+    /* optional parameters */
     while (p && *p)
     {
         ptrdiff_t val;
-        switch (toupper(*p))
+        char c = 0;
+        int i;
+        static const char* const parameter [] = {
+            "Ttype",
+            "Bbit",
+            "Iinvert",
+            "Iinv",
+            "Llow",
+            "Llo",
+            "Llength",
+            "Llen",
+            "Hhigh",
+            "Hhi",
+            "Ppacking",
+            "Pfifopacking",
+            "Uupdate",
+            "Vvector",
+            "Vvec",
+            "Vivec",
+            "Virqvec",
+            "Virq",
+            "Vintvec",
+            "Vinterrupt"};
+
+        while (isspace(*p)) p++;
+        for (i = 0; i < sizeof(parameter)/sizeof(const char*); i++)
         {
-            case ' ':
-            case '\t':
-                p++;
+            if (startswith(p, parameter[i]+1))
+            {
+                c = parameter[i][0];
+                regDevDebugLog(DBG_INIT, "%s: verbose parameter '%.*s'=%c\n",
+                    recordName, (int)strlen(parameter[i]+1), p, c);
+                p += strlen(parameter[i]+1);
                 break;
+            }
+        }
+        if (!c) c = toupper(*p++);
+        while (isspace(*p)) p++;
+        if (*p == '=') p++;
+        while (isspace(*p)) p++;
+        switch (c)
+        {
             case 'T': /* T=<datatype> */
-                p+=2;
                 for (type = 0; type < maxtype; type++)
                 {
                     nchar = startswith(p, datatypes[type].name);
@@ -439,7 +474,6 @@ int regDevIoParse2(
                 }
                 break;
             case 'B': /* B=<bitnumber> */
-                p += 2;
                 val = regDevParseExpr(&p);
                 if (val < 0 || val >= 64)
                 {
@@ -450,26 +484,20 @@ int regDevIoParse2(
                 priv->bit = (epicsUInt8)val;
                 break;
             case 'I': /* I=<invert> */
-                p += 2;
                 priv->invert = regDevParseExpr(&p);
                 break;
             case 'L': /* L=<low raw value> (converts to EGUL) */
-                p += 2;
                 L = regDevParseExpr(&p);
                 lset = 1;
                 break;
             case 'H': /* L=<high raw value> (converts to EGUF) */
-                p += 2;
                 H = regDevParseExpr(&p);
                 hset = 1;
                 break;
             case 'P': /* P=<packing> (for fifo) */
-                p += 2;
                 priv->fifopacking = (epicsUInt8)regDevParseExpr(&p);
                 break;
-            case 'U': /* U=<update period [ms]> (-1 = trigger by updater bo record) */
-                p += 2;
-                while (isspace(*p)) p++;
+            case 'U': /* U=<update period [ms]> (T = trigger by updater bo record) */
                 if (toupper(*p) == 'T')
                 {
                     p++;
@@ -479,7 +507,6 @@ int regDevIoParse2(
                     priv->update = (epicsInt32)regDevParseExpr(&p);
                 break;
             case 'V': /* V=<irq vector> */
-                p += 2;
                 priv->irqvec = (epicsInt32)regDevParseExpr(&p);
                 break;
             case '\'':
@@ -587,11 +614,14 @@ int regDevIoParse2(
     }
     priv->L = L;
     priv->H = H;
-    regDevDebugLog(DBG_INIT, "%s: dlen=%d\n",recordName, priv->dlen);
-    regDevDebugLog(DBG_INIT, "%s: L=%lld=%#llx\n",  recordName, (long long)priv->L, (long long)priv->L);
-    regDevDebugLog(DBG_INIT, "%s: H=%lld=%#llx\n",  recordName, (long long)priv->H, (long long)priv->H);
-    regDevDebugLog(DBG_INIT, "%s: B=%d\n",   recordName, priv->bit);
-    regDevDebugLog(DBG_INIT, "%s: I=%#llx\n",  recordName, (long long)priv->invert);
+    regDevDebugLog(DBG_INIT, "%s: T=%s dlen=%d\n",  recordName, datatypes[type].name, priv->dlen);
+    regDevDebugLog(DBG_INIT, "%s: L=%lld(%#llx)\n", recordName, (long long)priv->L, (long long)priv->L);
+    regDevDebugLog(DBG_INIT, "%s: H=%lld(%#llx)\n", recordName, (long long)priv->H, (long long)priv->H);
+    regDevDebugLog(DBG_INIT, "%s: B=%d\n",          recordName, priv->bit);
+    regDevDebugLog(DBG_INIT, "%s: I=%#llx\n",       recordName, (long long)priv->invert);
+    regDevDebugLog(DBG_INIT, "%s: P=%lli\n",        recordName, (long long)priv->fifopacking);
+    regDevDebugLog(DBG_INIT, "%s: U=%lli\n",        recordName, (long long)priv->update);
+    regDevDebugLog(DBG_INIT, "%s: V=%lli\n",        recordName, (long long)priv->irqvec);
 
     return S_dev_success;
 }

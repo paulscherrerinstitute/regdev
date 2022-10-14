@@ -1,1 +1,2 @@
-iocsh -r regDev,$(whoami) -c 'simRegDevConfigure test,128' testRegDev.db DEV=DZ "$@"
+# This file uses PSI tools.
+iocsh -r regDev -c 'simRegDevConfigure test,128' -c 'var regDevDebug 1' testRegDev.db DEV=DZ "$@"
