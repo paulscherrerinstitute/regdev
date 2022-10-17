@@ -16,6 +16,13 @@ record (bo, "$(DEV):UPDATER")
     field (VAL,  "1")
 }
 
+record (event, "$(DEV):TRIGREAD")
+{
+    field (DTYP, "regDev")
+    field (INP,  "@test")
+    field (PRIO, "HIGH")
+}
+
 record (waveform, "$(DEV):WFBYTES")
 {
     field (FTVL, "CHAR")

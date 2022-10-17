@@ -61,6 +61,7 @@ typedef struct regDeviceNode {                     /* per device data structure 
     int blockModes;
     int swap;                                      /* Data swap mode */
     IOSCANPVT blockReceived;
+    IOSCANPVT blockSent;
     struct regDevPrivate* triggeredUpdates;        /* For triggered update */
 } regDeviceNode;
 

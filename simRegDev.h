@@ -2,7 +2,8 @@ int simRegDevConfigure(
     const char* name,
     size_t size,
     int swapEndianFlag,
-    int async);
+    int async,
+    int blockDevice);
 
 int simRegDevSetStatus(
     const char* name,

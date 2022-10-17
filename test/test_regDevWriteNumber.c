@@ -23,7 +23,7 @@ int test_regDevWriteNumber()
     link.value.instio.string = malloc(80);
     strcpy(link.value.instio.string, "test/0 T=int8");
 
-    simRegDevConfigure ("test",100,0,0);
+    simRegDevConfigure ("test",100,0,0,0);
     priv = regDevAllocPriv(&record);
     assert(priv);
 

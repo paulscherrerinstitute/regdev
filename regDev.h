@@ -19,7 +19,9 @@
 #define strdup(s) ({ char* __r=(char*)malloc(strlen(s)+1); __r ? strcpy(__r, s) : NULL; })
 #endif
 
-/* utility: size_t modifier for printf. Example usage: printf("%"Z"x", size) */
+/* utility: size_t modifier for printf.
+ * Example usage: printf("%" Z "x", size)
+ */
 #if defined __GNUC__ && __GNUC__ >= 3
 #define Z "z"
 #elif defined _WIN32
@@ -29,8 +31,8 @@
 #endif
 
 
-/* Every device driver may define struct regDevice as needed
- * It's a handle to the device instance
+/* Every device driver may define struct regDevice as needed.
+ * It is a handle to the device instance.
  */
 typedef struct regDevice regDevice;
 
@@ -44,36 +46,42 @@ typedef struct regDevice regDevice;
  * Unimplemented functions may be NULL.
  *
  * Unless regDevRegisterDevice is called with a size of 0,
- * offset+nelem*dlen will never be larger than size in any call of any
- * function in this table. Thus the driver normally does not need to
- * check if the range is valid.
+ * offset+nelem*dlen will never exceed size in any call of any function
+ * call in this table. Thus, the driver normally does not need to check
+ * if the range is valid.
  *
- * Synchronous read/write calls shall return 0 on success or other values
- * (but not 1) on failure. They can safely ignore the callback argument.
+ * The calls are thread-safe because they are protected with a device
+ * specific mutex. Thus a driver normally does not need to care about
+ * concurency unless it implements its own asynchronous worker thread.
  *
- * The calls are thread-safe as they are protected with a device specific
- * mutex. Thus a synchronous driver normally does not need to care about
- * concurency.
+ * Synchronous read/write calls shall return SUCCESS (0) on success or
+ * other values (but not 1) on failure. They can safely ignore the
+ * callback argument.
  *
- * Asynchronous read/write shall return ASYNC_COMPLETION (1) and arrange
- * to call the provided callback when the operation has finished or failed
- * and give back the passed user argument as well as the status (0 on success).
+ * Asynchronous read/write shall return ASYNC_COMPLETION and arrange to
+ * call the provided callback once the operation has succeeded or failed
+ * and passing back the provided user argument as well as the status (0 on
+ * success).
  *
- * Typically an asynchronous driver will create a work thread. In this thread
- * it shall use regDevLock()/regDevUnlock() to protect access to the device
- * from concurrent access by other calls.
+ * The user argument can be used to print messages.
+ * (It point to the record name).
  *
- * Read and write functions may use priority (0=low, 1=medium, 2=high) to sort
- * requests.
+ * Typically, an asynchronous driver will create a worker thread. In this
+ * thread it shall use regDevLock()/regDevUnlock() to protect access to
+ * the device from concurrent access by other calls.
  *
- * A driver can choose at each call to work synchronously or asynchronously.
- * The user argument can be used to print messages. (It point to the record name).
+ * Read and write functions may use priority (0=low, 1=medium, 2=high)
+ * when serializing asynchronous operation.
  *
- * A driver may call regDevInstallWorkQueue at initialization to leave asynchonous
- * handling to regDev. Once a work queue is installed, all read/write calls are
- * executed in priority order and are allowed to bock.
- * In that case the callback argument will allways be NULL and the driver function
- * shall not return ASYNC_COMPLETION (1).
+ * A driver may choose for each call to work synchronously or
+ * asynchronously (returning ASYNC_COMPLETION). But normally asynchronous
+ * functions calls should not block (exception see below).
+ *
+ * A driver may call regDevInstallWorkQueue at initialization to leave
+ * asynchonous handling to regDev. All read/write calls will be executed
+ * in priority order, will never be called concurrently for one device,
+ * are expected to be synchronous (do not return ASYNC_COMPLETION) but
+ * are allowed to block. The callback argument will always be NULL.
  *
  */
 
@@ -151,28 +159,49 @@ epicsShareFunc int regDevLock(
 epicsShareFunc int regDevUnlock(
     regDevice* device);
 
-/* A driver can call regDevInstallWorkQueue to serialize all read/write requests.
- * Once it is installed, record processing is asynchronous but the driver read and
- * write functions are synrchonously called in a separate thread (with callback=NULL).
- * One thread per driver and prioriy level is created to handle the reads and writes.
- * The queue has space for maxEntries pending requests on each of the 3 priority levels.
+/* A driver may call regDevInstallWorkQueue to serialize all read/write
+ * requests. Record processing will be asynchronous but the driver read
+ * and write functions will be called synchronously (with callback=NULL)
+ * in a separate thread per driver instance and may block.
+ * Serialization will be handled using a queue with maxEntries slots per
+ * priority level. If the queue gets exhausted (because requests are
+ * generated by records faster than the driver can handle them) requests
+ * may be dropped and the affected record will become INVALID.
  */
 epicsShareFunc int regDevInstallWorkQueue(
     regDevice* device,
     unsigned int maxEntries);
 
 /*
-A driver can call regDevRegisterDmaAlloc to register an allocator for DMA enabled memory.
-The allocator shall work similar to realloc (ptr=NULL: alloc, size=0: free, otherwise: resize)
-but need not copy nor initialize any content.
-If ptr has not previously been allocated by the allocator, it shall be treated as NULL.
+A driver may call regDevRegisterDmaAlloc to register an allocator for DMA
+enabled memory to be used for aai/aao records or block devices (see below).
+If the driver does not register a dmaAlloc function, system heap memory
+will be allocated instead and the driver is assumed to be able to work with
+it, even if it uses DMA to read/write larger blocks of data.
+The allocator shall work similar to realloc (ptr=NULL: alloc; size=0: free;
+otherwise: resize) but need not copy or initialize any content.
 The function shall return NULL on failure.
-It is used for the array buffer by aai and aao records.
 */
 epicsShareFunc int regDevRegisterDmaAlloc(
     regDevice* device,
     void* (*dmaAlloc) (regDevice *device, void* ptr, size_t size));
 
+/*
+A driver may call regDevMakeBlockdevice to enable reading/writing (as
+defined by modes) the whole device device memory block at once. This is
+particularly useful if the device supports DMA to increase performance.
+For a block device, all records read from and/or write to a memory block
+(which is either provided as buffer or allcoated by the dmaAlloc function
+if one is registeded or allocated from system memory).
+Only processing an input/output record with PRIO=HIGH triggers reading/
+writing of the complete device memory block using the read/write driver
+function.
+After a block device has been read/written, all connected input/output
+records with SCAN="I/O Intr" will be processed. This allows input records
+to read from the block whenever new data is available and output records
+to write new output to the block after the previous block had been
+sent to the device.
+*/
 #define REGDEV_BLOCK_READ 1
 #define REGDEV_BLOCK_WRITE 2
 epicsShareFunc int regDevMakeBlockdevice(
@@ -181,7 +210,8 @@ epicsShareFunc int regDevMakeBlockdevice(
     int swap,           /* any of REGDEV*SWAP* below */
     void* buffer);      /* NULL or buffer space provided by the driver */
 
-/* Use this variable to control debugging messages */
+
+/* Use this global variable to control debugging messages */
 epicsShareExtern int regDevDebug;
 
 #define REGDEV_DBG_INIT 1

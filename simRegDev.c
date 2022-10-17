@@ -49,6 +49,7 @@ struct regDevice {
     size_t size;
     int swap;
     int connected;
+    int blockDevice;
     IOSCANPVT ioscanpvt;
     epicsMutexId lock;
     epicsTimerQueueId queue[NUM_CALLBACK_PRIORITIES];
@@ -163,8 +164,10 @@ void simRegDevReport(
 {
     if (device && device->magic == MAGIC)
     {
-        printf("simRegDev driver: %" Z "u bytes, status=%s\n",
+        printf("simRegDev driver: %" Z "u bytes, %ssync%s, status=%s\n",
             device->size,
+            device->lock ? "a" : "",
+            device->blockDevice ? " block" : "",
             device->connected ? "connected" : "disconnected");
         if (level > 0)
             memDisplay(0, device->buffer, 1, device->size);
@@ -208,10 +211,21 @@ int simRegDevRead(
     {
         return S_dev_noDevice;
     }
+    if (simRegDevDebug & DBG_OUT)
+    {
+        printf ("simRegDevRead %s: pdata=%p, buffer=[%p ... %p]\n",
+            user, pdata, device->buffer, device->buffer+device->size);
+    }
+    if (pdata == device->buffer+offset)
+    {
+        if (simRegDevDebug & DBG_IN)
+            printf ("simRegDevRead %s %s:0x%" Z "x: %u bytes * 0x%" Z "x elements, direct map, no copy\n",
+                user, device->name, offset, dlen, nelem);
+        return S_dev_success;
+    }
     if (simRegDevDebug & DBG_IN)
         printf ("simRegDevRead %s %s:0x%" Z "x: %u bytes * 0x%" Z "x elements, prio=%d\n",
-        user, device->name, offset, dlen, nelem, prio);
-
+            user, device->name, offset, dlen, nelem, prio);
     if (callback && nelem > 1 && device->lock)
         return simRegDevAsynTransfer(device, dlen, nelem,
             device->buffer+offset, pdata, NULL, prio, callback, user, FALSE);
@@ -243,6 +257,13 @@ int simRegDevWrite(
     if (device->connected == 0)
     {
         return S_dev_noDevice;
+    }
+    if (pdata == device->buffer+offset)
+    {
+        if (simRegDevDebug & DBG_OUT)
+            printf ("simRegDevWrite %s %s:0x%" Z "x: direct map, no copy\n",
+                user, device->name, offset);
+        return S_dev_success;
     }
     if (simRegDevDebug & DBG_OUT)
     {
@@ -299,7 +320,8 @@ int simRegDevConfigure(
     const char* name,
     size_t size,
     int swapEndianFlag,
-    int async)
+    int async,
+    int blockDevice)
 {
     regDevice* device;
 
@@ -335,6 +357,9 @@ int simRegDevConfigure(
         }
     }
     regDevRegisterDevice(name, &simRegDevSupport, device, size);
+    device->blockDevice = blockDevice;
+    if (blockDevice)
+        regDevMakeBlockdevice(device, REGDEV_BLOCK_READ | REGDEV_BLOCK_WRITE, REGDEV_NO_SWAP, device->buffer);
     scanIoInit(&device->ioscanpvt);
     return S_dev_success;
 }
@@ -342,9 +367,10 @@ int simRegDevConfigure(
 int simRegDevAsyncConfigure(
     const char* name,
     size_t size,
-    int swapEndianFlag)
+    int swapEndianFlag,
+    int blockFlag)
 {
-    return simRegDevConfigure(name, size, swapEndianFlag, 1);
+    return simRegDevConfigure(name, size, swapEndianFlag, 1, blockFlag);
 }
 
 int simRegDevSetStatus(
@@ -467,38 +493,31 @@ int simRegDevGetData(
 static const iocshArg simRegDevConfigureArg0 = { "name", iocshArgString };
 static const iocshArg simRegDevConfigureArg1 = { "size", iocshArgInt };
 static const iocshArg simRegDevConfigureArg2 = { "swapEndianFlag", iocshArgInt };
+static const iocshArg simRegDevConfigureArg3 = { "blockDevice", iocshArgInt };
 static const iocshArg * const simRegDevConfigureArgs[] = {
     &simRegDevConfigureArg0,
     &simRegDevConfigureArg1,
-    &simRegDevConfigureArg2
+    &simRegDevConfigureArg2,
+    &simRegDevConfigureArg3
 };
 
 static const iocshFuncDef simRegDevConfigureDef =
-    { "simRegDevConfigure", 3, simRegDevConfigureArgs };
+    { "simRegDevConfigure", 4, simRegDevConfigureArgs };
 
 static void simRegDevConfigureFunc (const iocshArgBuf *args)
 {
     int status = simRegDevConfigure(
-        args[0].sval, args[1].ival, args[2].ival, 0);
+        args[0].sval, args[1].ival, args[2].ival, 0, args[3].ival);
     if (status != 0) epicsExit(1);
 }
 
-static const iocshArg simRegDevAsyncConfigureArg0 = { "name", iocshArgString };
-static const iocshArg simRegDevAsyncConfigureArg1 = { "size", iocshArgInt };
-static const iocshArg simRegDevAsyncConfigureArg2 = { "swapEndianFlag", iocshArgInt };
-static const iocshArg * const simRegDevAsyncConfigureArgs[] = {
-    &simRegDevAsyncConfigureArg0,
-    &simRegDevAsyncConfigureArg1,
-    &simRegDevAsyncConfigureArg2
-};
-
 static const iocshFuncDef simRegDevAsyncConfigureDef =
-    { "simRegDevAsyncConfigure", 3, simRegDevAsyncConfigureArgs };
+    { "simRegDevAsyncConfigure", 4, simRegDevConfigureArgs };
 
 static void simRegDevAsyncConfigureFunc (const iocshArgBuf *args)
 {
     int status = simRegDevAsyncConfigure(
-        args[0].sval, args[1].ival, args[2].ival);
+        args[0].sval, args[1].ival, args[2].ival, args[3].ival);
     if (status != 0) epicsExit(1);
 }
 

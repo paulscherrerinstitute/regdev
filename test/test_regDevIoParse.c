@@ -115,7 +115,7 @@ int test_regDevIoParse()
     link.type = INST_IO;
     link.value.instio.string = malloc(80);
     
-    simRegDevConfigure ("dev1",100,0,0);
+    simRegDevConfigure ("dev1",100,0,0,0);
     
     for (i = 0; i < sizeof(parameters)/sizeof(parameters[0]); i++)
     {
