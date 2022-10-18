@@ -93,7 +93,7 @@ typedef struct regDevPrivate {         /* per record data structure */
     epicsInt32 update;                 /* Periodic update of output records (msec) */
     epicsInt64 L;                      /* Hardware Low limit */
     epicsInt64 H;                      /* Hardware High limit */
-    epicsUInt64 invert;                /* Invert bits for bi,bo,mbbi,... */
+    epicsUInt64 invert;                /* Invert bits */
     DEVSUPFUN updater;                 /* Update function */
     epicsTimerId updateTimer;          /* Update timer */
     int updating;                      /* Processing type */
