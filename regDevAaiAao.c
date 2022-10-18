@@ -46,6 +46,7 @@ long regDevInitRecordAai(aaiRecord* record)
         !priv->device->swap &&
         priv->dtype < 100 &&  /* not a BCD type */
         !priv->invert &&
+        !priv->mask &&
         !priv->fifopacking &&
         !priv->interlace &&
 #if EPICSVER < 31501
@@ -139,6 +140,7 @@ long regDevInitRecordAao(aaoRecord* record)
         !priv->device->swap &&
         priv->dtype < 100 &&  /* not a BCD type */
         !priv->invert &&
+        !priv->mask &&
         !priv->fifopacking &&
         !priv->interlace &&
 #if EPICSVER < 31501

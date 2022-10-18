@@ -232,7 +232,7 @@ record (aai, "$(DEV):AAILONG")
 {
     field (FTVL, "LONG")
     field (DTYP, "regDev")
-    field (INP,  "@test:0")
+    field (INP,  "@test:0 M=0x0ffffff0")
     field (NELM, "15")
     field (SCAN, "I/O Intr")
 }
@@ -249,7 +249,7 @@ record (aao, "$(DEV):AAOULONG")
 {
     field (FTVL, "ULONG")
     field (DTYP, "regDev")
-    field (OUT,  "@test:0")
+    field (OUT,  "@test:0 M=0x0ffffff0")
     field (NELM, "15")
 }
 

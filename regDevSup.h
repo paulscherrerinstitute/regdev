@@ -72,7 +72,7 @@ typedef union {
     epicsUInt16 uval16;
     epicsInt32 sval32;
     epicsUInt32 uval32;
-    epicsInt64 val64;
+    epicsInt64 sval64;
     epicsUInt64 uval64;
     epicsFloat32 fval32;
     epicsFloat64 fval64;
@@ -94,6 +94,7 @@ typedef struct regDevPrivate {         /* per record data structure */
     epicsInt64 L;                      /* Hardware Low limit */
     epicsInt64 H;                      /* Hardware High limit */
     epicsUInt64 invert;                /* Invert bits */
+    epicsUInt64 mask;                  /* Mask bits */
     DEVSUPFUN updater;                 /* Update function */
     epicsTimerId updateTimer;          /* Update timer */
     int updating;                      /* Processing type */
@@ -101,7 +102,6 @@ typedef struct regDevPrivate {         /* per record data structure */
     int status;                        /* For asynchonous drivers */
     size_t asyncOffset;                /* For asynchonous drivers */
     regDevAnytype data;                /* For asynchonous drivers and arrays */
-    regDevAnytype mask;                /* For asynchonous drivers */
     epicsInt32 irqvec;                 /* Interrupt vector for I/O Intr */
     size_t nelm;                       /* Array size */
     ptrdiff_t interlace;               /* Relative offset of next array element */
@@ -131,7 +131,6 @@ int regDevInstallUpdateFunction(dbCommon* record, DEVSUPFUN updater);
 /* returns OK, ERROR, or ASYNC_COMPLETION */
 /* here buffer must not point to local variable! */
 int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer);
-int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buffer, void* mask);
 
 int regDevReadNumber(dbCommon* record, epicsInt64* rval, double* fval);
 int regDevWriteNumber(dbCommon* record, epicsInt64 rval, double fval);

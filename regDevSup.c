@@ -375,7 +375,7 @@ long regDevWriteMbbo(mbboRecord* record)
             break;
         }
     }
-    status =  regDevWriteBits((dbCommon*)record, rval, record->mask);
+    status = regDevWriteBits((dbCommon*)record, rval, record->mask);
     if (status == ASYNC_COMPLETION) return S_dev_success;
     return status;
 }
