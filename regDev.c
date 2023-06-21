@@ -2883,6 +2883,7 @@ void regDevRunUpdater(dbCommon* record)
                 record->name);
             priv->updating = 1;
             status = priv->updater(record);
+            recGblGetTimeStamp(record);
             pact = record->pact;
             if (!pact)
             {
