@@ -230,7 +230,7 @@ long regDevUpdateAao(aaoRecord* record)
     }
     if (monitor_mask)
 #endif
-        db_post_events(record, record->bptr, monitor_mask);
+        db_post_events(record, record->val, monitor_mask);
     return status;
 }
 
