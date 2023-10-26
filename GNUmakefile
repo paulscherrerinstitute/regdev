@@ -14,13 +14,21 @@ SOURCES += simRegDev.c
 
 SOURCES_3.14 = regDevCalcout.c
 DBDS_3.14 += regDevCalcout.dbd simRegDev.dbd
-DBDS += regDevBase.dbd regDevAaiAao.dbd 
+DBDS += regDevBase.dbd regDevAaiAao.dbd
 HEADERS = regDev.h
+
+ifneq ($(wildcard ${EPICS_BASE}/include/lsiRecord.h),)
+SOURCES += regDevLsiLso.c
+DBDS += regDevLsiLso.dbd
+endif
 
 ifneq ($(wildcard ${EPICS_BASE}/include/int64inRecord.h),)
 SOURCES += regDevInt64.c
-DBDS += regDevInt64.dbd 
+DBDS += regDevInt64.dbd
 endif
+
+regDev_CFLAGS_Linux = -fno-strict-aliasing
+regDev_CFLAGS_vxWorks = -fno-strict-aliasing
 
 test:
 	make -C test test

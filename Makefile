@@ -30,11 +30,7 @@ WITH_CALCOUT=YES
 WITH_AAIO=YES
 endif
 
-ifdef BASE_3_16
-WITH_INT64IO=YES
-endif
-
-ifdef WITH_AAIO 
+ifdef WITH_AAIO
 LIB_SRCS += regDevAaiAao.c
 regDev_DBD += regDevAaiAao.dbd
 endif
@@ -44,9 +40,14 @@ LIB_SRCS += regDevCalcout.c
 regDev_DBD += regDevCalcout.dbd
 endif
 
-ifdef WITH_INT64IO
+ifneq ($(wildcard ${EPICS_BASE}/include/lsiRecord.h),)
+LIB_SRCS += regDevLsiLso.c
+regDev_DBD += regDevLsiLso.dbd
+endif
+
+ifneq ($(wildcard ${EPICS_BASE}/include/int64inRecord.h),)
 LIB_SRCS += regDevInt64.c
-regDev_DBD += regDevInt64.dbd 
+regDev_DBD += regDevInt64.dbd
 endif
 
 LIB_SRCS += simRegDev.c
