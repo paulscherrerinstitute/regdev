@@ -1486,6 +1486,23 @@ void regDevCallback(const char* user, int status)
     }
 }
 
+int regDevReadWithDebug(dbCommon* record, size_t offset, unsigned int dlen, size_t nelem, void* buffer, int prio)
+{
+    regDeviceNode* device;
+    int status;
+    regDevGetPriv();
+    device = priv->device;
+
+    status = device->support->read(device->driver, offset, dlen, nelem, buffer,
+        prio, atInit ? NULL : regDevCallback, record->name);
+    if (record->tpro >= 2)
+    {
+        printf("  %s: read %llu * %u bytes from %s\n", record->name, (unsigned long long)nelem, dlen, device->name);
+        memDisplay(0, buffer, dlen, dlen * nelem);
+    }
+    return status;
+}
+
 int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf)
 {
     /* buf must not point to local variable: not suitable for async processing */
@@ -1587,9 +1604,8 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf)
                        (directly mapped blocks need no read function)
                     */
                     if (device->support->read)
-                        status = device->support->read(device->driver,
-                            0, 1, device->size, device->blockBuffer,
-                            2, atInit ? NULL : regDevCallback, record->name);
+                        status = regDevReadWithDebug(record,
+                            0, 1, device->size, device->blockBuffer, 2);
                 }
                 else if (priv->interlace)
                 {
@@ -1597,16 +1613,14 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf)
                     size_t i;
                     for (i = 0; i < nelem; i++)
                     {
-                        status = device->support->read(device->driver,
-                            offset + i*priv->interlace, dlen, 1, buffer + i*dlen,
-                            record->prio, atInit ? NULL : regDevCallback, record->name);
+                        status = regDevReadWithDebug(record,
+                            offset + i*priv->interlace, dlen, 1, buffer + i*dlen, record->prio);
                         if (status) break;
                     }
                 }
                 else
-                    status = device->support->read(device->driver,
-                        offset, dlen, nelem, buffer,
-                        record->prio, atInit ? NULL : regDevCallback, record->name);
+                    status = regDevReadWithDebug(record,
+                        offset, dlen, nelem, buffer, record->prio);
 
                 epicsMutexUnlock(device->accesslock);
                 regDevDebugLog(DBG_IN, "%s: read returned status 0x%0x\n", record->name, status);
@@ -1743,6 +1757,21 @@ int regDevRead(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf)
         regDevDebugLog(DBG_IN, "%s: read error\n", record->name);
     }
     return status;
+}
+
+int regDevWriteWithDebug(dbCommon* record, size_t offset, unsigned int dlen, size_t nelem, void* buffer, void* pmask, int prio)
+{
+    regDeviceNode* device;
+    regDevGetPriv();
+    device = priv->device;
+
+    if (record->tpro >= 2)
+    {
+        printf("  %s: write %llu * %u bytes %sto %s\n", record->name, (unsigned long long)nelem, dlen, pmask ? " masked" : "", device->name);
+        memDisplay(0, buffer, dlen, dlen * nelem);
+    }
+    return device->support->write(device->driver, offset, dlen, nelem, buffer, pmask,
+        prio, atInit ? NULL : regDevCallback, record->name);
 }
 
 int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf, epicsUInt64 mask)
@@ -2002,9 +2031,8 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf, epic
                (directly mapped blocks need no write function)
             */
             if (device->support->write)
-                status = device->support->write(device->driver,
-                    0, 1, device->size, device->blockBuffer, NULL,
-                    2, regDevCallback, record->name);
+                status = regDevWriteWithDebug(record,
+                    0, 1, device->size, device->blockBuffer, NULL, 2);
         }
         else if (priv->interlace)
         {
@@ -2012,17 +2040,17 @@ int regDevWrite(dbCommon* record, epicsUInt8 dlen, size_t nelem, void* buf, epic
             size_t i;
             for (i = 0; i < nelem; i++)
             {
-                status = device->support->write(device->driver,
+                status = regDevWriteWithDebug(record,
                     offset + i*priv->interlace, dlen, 1, buffer + i*dlen,
-                    mask ? &mask : NULL, record->prio, regDevCallback, record->name);
+                    mask ? &mask : NULL, record->prio);
                 if (status) break;
             }
         }
         else
         {
-            status = device->support->write(device->driver,
+            status = regDevWriteWithDebug(record,
                 offset, dlen, nelem, buffer, mask ? &mask : NULL,
-                record->prio, regDevCallback, record->name);
+                record->prio);
         }
         epicsMutexUnlock(device->accesslock);
         regDevDebugLog(DBG_OUT, "%s: write returned status 0x%0x\n",
@@ -2130,6 +2158,13 @@ int regDevReadNumber(dbCommon* record, epicsInt64* rval, double* fval)
     assert(rval != NULL);
     *rval = rv;
     if (fval) *fval = (double)rv; /* 64 bit may overflow double but what can we do? */
+    if (record->tpro)
+    {
+        if (fval)
+            printf("  %s: RVAL = 0x%llx   VAL = %g\n", record->name, (unsigned long long)*rval, *fval);
+        else
+            printf("  %s: RVAL = 0x%llx\n", record->name, (unsigned long long)*rval);
+    }
     return S_dev_success;
 }
 
@@ -2283,6 +2318,8 @@ int regDevReadBits64(dbCommon* record, epicsUInt64* rval)
                 regDevTypeName(priv->dtype));
             return S_dev_badArgument;
     }
+    if (record->tpro)
+        printf("  %s: RVAL = 0x%llx\n", record->name, (unsigned long long)*rval);
 
     if (atInit)
     {
@@ -2400,6 +2437,11 @@ int regDevReadArray(dbCommon* record, size_t nelm)
                 buffer[i] = bcd2i(buffer[i]);
             break;
         }
+    }
+    if (record->tpro)
+    {
+        if (priv->dtype == epicsStringT)
+            printf("  %s: VAL = \"%s\"\n", record->name, (char*)priv->data.buffer);
     }
     return S_dev_success;
 }
@@ -2882,6 +2924,8 @@ void regDevRunUpdater(dbCommon* record)
             regDevDebugLog(DBG_IN, "%s: updating record\n",
                 record->name);
             priv->updating = 1;
+            if (record->tpro)
+                printf ("Update %s\n", record->name);
             status = priv->updater(record);
             recGblGetTimeStamp(record);
             pact = record->pact;
@@ -3062,8 +3106,11 @@ int regDevPut(const char* devName, int offset, unsigned int dlen, int value)
         case 4:
             buffer.sval32 = value;
             break;
+        case 8:
+            buffer.sval64 = value;
+            break;
         default:
-            errlogPrintf("illegal dlen %d, must be 1, 2, or 4\n", dlen);
+            errlogPrintf("illegal dlen %d, must be 1, 2, 4 or 8\n", dlen);
             return S_dev_badArgument;
     }
     if (device->support->write)
