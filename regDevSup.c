@@ -688,11 +688,10 @@ long regDevReadAi(aiRecord* record)
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status == S_dev_success)
     {
+        record->rval = (epicsInt32)rval;
         if (rval > 0x7fffffffLL || rval < -0x80000000LL)
             /* value does not fit in RVAL */
             status = DONT_CONVERT;
-        else
-            record->rval = (epicsInt32)rval;
     }
     if (status == DONT_CONVERT)
     {
@@ -786,11 +785,10 @@ long regDevInitRecordAo(aoRecord* record)
     status = regDevReadNumber((dbCommon*)record, &rval, &val);
     if (status == S_dev_success)
     {
+        record->rval = (epicsInt32)rval;
         if (rval > 0x7fffffffLL || rval < -0x80000000LL)
             /* value does not fit in RVAL */
             status = DONT_CONVERT;
-        else
-            record->rval = (epicsInt32)rval;
     }
     if (status == DONT_CONVERT)
     {
@@ -813,12 +811,12 @@ long regDevUpdateAo(aoRecord* record)
     if (status == ASYNC_COMPLETION) return S_dev_success;
     if (status == S_dev_success)
     {
+        record->rbv = record->rval = (epicsInt32)rval;
         if (rval > 0x7fffffffLL || rval < -0x80000000LL)
             /* value does not fit in RVAL */
             status = DONT_CONVERT;
         else
         {
-            record->rbv = record->rval = (epicsInt32)rval;
             val = (double)rval + (double)record->roff;
             if (record->aslo != 0.0) val *= record->aslo;
             val += record->aoff;
